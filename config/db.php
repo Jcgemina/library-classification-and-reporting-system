@@ -1,17 +1,9 @@
 <?php
-/**
- * Database connection using PDO (as required — no mysqli).
- * Edit the credentials below to match your local MySQL setup.
- */
-
 $DB_HOST = 'localhost';
 $DB_NAME = 'appsys_library';
 $DB_USER = 'root';
 $DB_PASS = '';
 
-// $pdo stays null and $dbConnectionError gets set if the connection fails.
-// Pages that include this file should check `if (!$pdo)` and show
-// $dbConnectionError to the user instead of letting the script die().
 $pdo = null;
 $dbConnectionError = null;
 

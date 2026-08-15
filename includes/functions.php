@@ -1,74 +1,58 @@
 <?php
-/**
- * Shared helper functions:
- *  - Login rate limiting (brute-force protection)
- *  - Authentication / access protection guard
- */
 
-const MAX_ATTEMPTS         = 5;  // failed attempts allowed before each lockout stage
-const BASE_LOCKOUT_MINUTES = 5;  // first lockout = 5 minutes, then doubles each stage
-const MAX_LOCKOUT_MINUTES  = 30; // ceiling - the doubling can never lock someone out longer than this
+const MAX_ATTEMPTS         = 5;
+const BASE_LOCKOUT_MINUTES = 5; 
 
 function getClientIp(): string {
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 
-/**
- * Check if a username/IP combo is currently rate-limited.
- * Lockout is progressive: the FIRST lockout (after 5 failed attempts) is always
- * exactly 5 minutes. After that, since a new attempt can only ever happen once
- * the previous countdown has fully finished (the form is disabled/blocked while
- * locked), any single failed attempt after a countdown ends doubles the NEXT
- * lockout: 5 -> 10 -> 20 -> ... capped at MAX_LOCKOUT_MINUTES. A successful
- * login resets everything back to zero (clearAttempts()).
- * Returns the number of seconds remaining if locked, or 0 if not locked.
- */
 function isRateLimited(PDO $pdo, string $username, string $ip): int {
     $stmt = $pdo->prepare(
-        "SELECT COUNT(*) AS failed_count, MAX(attempted_at) AS last_attempt
+        "SELECT COUNT(*) AS failed_count,
+                UNIX_TIMESTAMP(MAX(attempted_at)) AS last_attempt
          FROM login_attempts
          WHERE (username = :username OR ip_address = :ip)
            AND success = 0"
     );
+
     $stmt->bindValue(':username', $username);
     $stmt->bindValue(':ip', $ip);
     $stmt->execute();
+
     $row = $stmt->fetch();
 
     $failedCount = (int)($row['failed_count'] ?? 0);
-    if ($failedCount < MAX_ATTEMPTS || empty($row['last_attempt'])) {
+    $lastAttempt = (int)($row['last_attempt'] ?? 0);
+
+    if ($failedCount < MAX_ATTEMPTS || $lastAttempt <= 0) {
         return 0;
     }
 
-    // Exactly 5 fails (the 5th one) = first lockout = 5 minutes, no doubling yet.
-    // Every fail beyond that (the 6th, 7th, ...) can only happen after the
-    // previous lockout already finished, so each one doubles the next lockout.
-    $timesOverThreshold = $failedCount - MAX_ATTEMPTS; // 0 on the 5th fail, 1 on the 6th, ...
-    $lockoutMinutes = BASE_LOCKOUT_MINUTES * (2 ** $timesOverThreshold);
-    $lockoutMinutes = min($lockoutMinutes, MAX_LOCKOUT_MINUTES);
-
-    $lastAttempt = strtotime($row['last_attempt']);
-    $unlockAt = $lastAttempt + ($lockoutMinutes * 60);
+    $unlockAt = $lastAttempt + (BASE_LOCKOUT_MINUTES * 60);
     $remaining = $unlockAt - time();
 
-    return $remaining > 0 ? $remaining : 0;
-}
+    // Lockout has expired — reset the failed attempts
+    if ($remaining <= 0) {
+        $delete = $pdo->prepare(
+            "DELETE FROM login_attempts
+             WHERE (username = :username OR ip_address = :ip)
+               AND success = 0"
+        );
 
-/**
- * Format a duration (in seconds) for display.
- * Under 60 minutes -> "12 minute(s)"
- * 60 minutes or more -> "1:05 (hours:minutes)"
- */
-function formatLockoutDuration(int $seconds): string {
-    $totalMinutes = (int)ceil($seconds / 60);
+        $delete->bindValue(':username', $username);
+        $delete->bindValue(':ip', $ip);
+        $delete->execute();
 
-    if ($totalMinutes < 60) {
-        return $totalMinutes . ' minute(s)';
+        return 0;
     }
 
-    $hours   = intdiv($totalMinutes, 60);
-    $minutes = $totalMinutes % 60;
-    return sprintf('%d:%02d (hours:minutes)', $hours, $minutes);
+    return $remaining;
+}
+
+function formatLockoutDuration(int $seconds): string {
+    $totalMinutes = (int)ceil($seconds / 60);
+    return $totalMinutes . ($totalMinutes === 1 ? ' minute' : ' minutes');
 }
 
 /** Record a login attempt (successful or failed) for auditing + rate limiting. */

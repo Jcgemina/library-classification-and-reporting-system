@@ -3,13 +3,9 @@ session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
-// Prevent the browser from serving a cached/stale copy of this page
-// (this matters most for the back button — see the pageshow listener
-// below for the other half of that fix).
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
-// Functional task: if already logged in, go straight to the main system
 if (!empty($_SESSION['user_id'])) {
     header('Location: dashboard.php');
     exit;
@@ -18,15 +14,6 @@ if (!empty($_SESSION['user_id'])) {
 $flash = getFlash();
 $errorMessage = $flash['message'];
 
-// --- Non-functional: lockout state must always reflect real elapsed time ---
-// Recompute the lockout status fresh from the database on every single load
-// of this page (first visit, reload, back/forward navigation, or a copied
-// link opened in a new tab). This is intentional: it's what makes the
-// "too many attempts" timer survive reloads/back-button instead of
-// resetting, since it never depends on the one-time flash message, only on
-// the real timestamps stored in login_attempts.
-// Only the IP is known before a username is typed, so this locks the
-// device/browser as a whole, independent of which username gets entered.
 $ip = getClientIp();
 $lockSeconds = $pdo ? isRateLimited($pdo, '', $ip) : 0;
 $isLocked = $lockSeconds > 0;
@@ -38,14 +25,15 @@ $isLocked = $lockSeconds > 0;
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AppSys Library - Login</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 p-6">
+<body class="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-100 via-slate-50 to-slate-200 p-6">
 
   <div class="w-full max-w-md">
 
     <!-- Logo + Title -->
     <div class="flex flex-col items-center mb-6">
-      <div class="w-16 h-16 bg-white rounded-xl shadow flex items-center justify-center mb-3">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-[0_18px_45px_rgba(15,23,40,0.22)] p-8">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
@@ -55,7 +43,7 @@ $isLocked = $lockSeconds > 0;
     </div>
 
     <!-- Login Card -->
-    <div class="bg-white rounded-2xl shadow-md p-8">
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-[0_22px_60px_rgba(15,23,42,0.50)] p-8">
       <h2 class="text-xl font-bold text-slate-900 text-center">Welcome Back</h2>
       <p class="text-sm text-slate-500 text-center mt-1 mb-6">Please enter your credentials to continue.</p>
 
@@ -72,39 +60,85 @@ $isLocked = $lockSeconds > 0;
 
       <form action="auth.php" method="POST" class="space-y-4">
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1 tracking-wide">USERNAME</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-3 flex items-center text-slate-400">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-              </svg>
-            </span>
-            <input type="text" name="username" required autofocus <?php echo $isLocked ? 'disabled' : ''; ?>
-              class="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-transparent <?php echo $isLocked ? 'bg-slate-100 cursor-not-allowed text-slate-400' : ''; ?>"
-              placeholder="Enter username">
-          </div>
-        </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">
+          USERNAME
+        </label>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1 tracking-wide">PASSWORD</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-3 flex items-center text-slate-400">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-              </svg>
-            </span>
-            <input type="password" name="password" id="password" required <?php echo $isLocked ? 'disabled' : ''; ?>
-              class="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-transparent <?php echo $isLocked ? 'bg-slate-100 cursor-not-allowed text-slate-400' : ''; ?>"
-              placeholder="Enter password">
-            <button type="button" onclick="togglePassword()" class="absolute inset-y-0 right-3 flex items-center text-slate-400">
-              <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-          </div>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 pointer-events-none">
+            <i data-lucide="user" class="w-5 h-5"></i>
+          </span>
+
+          <input
+            type="text"
+            name="username"
+            required
+            autofocus
+            <?php echo $isLocked ? 'disabled' : ''; ?>
+            class="w-full pl-11 pr-4 py-3
+                  border-2 border-slate-300
+                  bg-white
+                  rounded-xl
+                  text-sm text-slate-700
+                  shadow-sm
+                  placeholder:text-slate-400
+                  transition-all duration-200
+                  hover:border-slate-400
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-slate-200
+                  focus:border-slate-800
+                  <?php echo $isLocked
+                    ? 'bg-slate-100 cursor-not-allowed text-slate-400 border-slate-200 shadow-none'
+                    : ''; ?>"
+            placeholder="Enter username">
         </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">
+          PASSWORD
+        </label>
+
+        <div class="relative">
+          <span class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 pointer-events-none">
+            <i data-lucide="lock" class="w-5 h-5"></i>
+          </span>
+
+          <input
+            type="password"
+            name="password"
+            id="password"
+            required
+            <?php echo $isLocked ? 'disabled' : ''; ?>
+            class="w-full pl-11 pr-11 py-3
+                  border-2 border-slate-300
+                  bg-white
+                  rounded-xl
+                  text-sm text-slate-700
+                  shadow-sm
+                  placeholder:text-slate-400
+                  transition-all duration-200
+                  hover:border-slate-400
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-slate-200
+                  focus:border-slate-800
+                  <?php echo $isLocked
+                    ? 'bg-slate-100 cursor-not-allowed text-slate-400 border-slate-200 shadow-none'
+                    : ''; ?>"
+            placeholder="Enter password">
+
+          <button
+            type="button"
+            onclick="togglePassword()"
+            class="absolute inset-y-0 right-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors">
+
+            <i data-lucide="eye" id="eyeIcon" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
 
         <div class="flex items-center justify-between text-sm pt-1">
           <label class="flex items-center gap-2 text-slate-600">
@@ -156,14 +190,16 @@ const LOCK_SECONDS = <?php echo (int)$lockSeconds; ?>;
   const timerEl = document.getElementById('lockTimer');
   let remaining = LOCK_SECONDS;
 
-  function formatClock(totalSeconds) {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    const mm = String(m).padStart(2, '0');
-    const ss = String(s).padStart(2, '0');
-    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+ function formatClock(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+
+  if (m > 0) {
+    return `${m} minute${m !== 1 ? 's' : ''} ${s} second${s !== 1 ? 's' : ''}`;
   }
+
+  return `${s} second${s !== 1 ? 's' : ''}`;
+}
 
   if (remaining > 0 && timerEl) {
     timerEl.textContent = formatClock(remaining);
@@ -173,10 +209,6 @@ const LOCK_SECONDS = <?php echo (int)$lockSeconds; ?>;
 
       if (remaining <= 0) {
         clearInterval(tick);
-        // Don't just re-enable the form client-side: reload so the server
-        // re-checks the real elapsed time. This is also what correctly
-        // picks up the next lockout stage (5 -> 10 -> 20 min, etc.) if
-        // more failed attempts happened elsewhere (another tab/device).
         location.reload();
         return;
       }
@@ -185,10 +217,6 @@ const LOCK_SECONDS = <?php echo (int)$lockSeconds; ?>;
     }, 1000);
   }
 
-  // Back/forward navigation can restore this page from the browser's
-  // bfcache instead of issuing a fresh request, which would leave a
-  // frozen/stale timer on screen. Force a real reload in that case so the
-  // lockout state is always re-synced with the server.
   window.addEventListener('pageshow', function (event) {
     if (event.persisted) {
       location.reload();
@@ -201,6 +229,8 @@ function togglePassword() {
   const type = input.type === 'password' ? 'text' : 'password';
   input.type = type;
 }
+
+lucide.createIcons();
 </script>
 </body>
 </html>

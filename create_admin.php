@@ -1,12 +1,4 @@
 <?php
-/**
- * Run this once from the command line to create a sample librarian account:
- *   php create_admin.php
- *
- * This makes sure the password is always properly hashed with password_hash()
- * instead of a hand-typed / copy-pasted hash.
- */
-
 require_once __DIR__ . '/config/db.php';
 
 if (!$pdo) {
