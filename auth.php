@@ -74,5 +74,5 @@ if (!empty($_POST['remember'])) {
 }
 
 // --- Functional: Provide access to the main system after successful authentication ---
-header('Location: dashboard.php');
+header('Location: app.php?page=dashboard');
 exit;
