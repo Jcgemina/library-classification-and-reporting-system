@@ -7,7 +7,7 @@ if (!$pdo) {
 }
 
 $username = 'librarian1';
-$plainPassword = 'Librarian123!'; // change this before running in production
+$plainPassword = '123'; // change this before running in production
 $fullName = 'Juan Dela Cruz';
 
 $hashed = password_hash($plainPassword, PASSWORD_DEFAULT);

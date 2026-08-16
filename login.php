@@ -38,7 +38,7 @@ $isLocked = $lockSeconds > 0;
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
       </div>
-      <h1 class="text-2xl font-bold text-slate-900">AppSys Library</h1>
+      <h1 class=" mt-4 text-2xl font-bold text-slate-900">AppSys Library</h1>
       <p class="text-sm text-slate-500">Librarian Management Portal</p>
     </div>
 
@@ -54,6 +54,9 @@ $isLocked = $lockSeconds > 0;
             <span id="lockTimer" class="font-semibold"><?php echo htmlspecialchars(formatLockoutDuration($lockSeconds), ENT_QUOTES, 'UTF-8'); ?></span>.
           <?php else: ?>
             <?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?>
+            <?php if ($flash['attempts'] && $flash['attempts'] > 0): ?>
+              <br><span class="text-xs mt-2 block">Failed attempts: <?php echo htmlspecialchars($flash['attempts'], ENT_QUOTES, 'UTF-8'); ?>/<?php echo htmlspecialchars(MAX_ATTEMPTS, ENT_QUOTES, 'UTF-8'); ?></span>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
       <?php endif; ?>
@@ -181,40 +184,56 @@ $isLocked = $lockSeconds > 0;
   </div>
 
 <script>
-// Exact seconds remaining, computed server-side just now from real
-// login_attempts timestamps (see login.php). This is a duration, not a
-// clock time, so client/server clock differences don't matter here.
+// Server-side time captured when page was rendered (in milliseconds)
+const SERVER_TIME_MS = <?php echo time() * 1000; ?>;
+// Exact seconds remaining from server calculation
 const LOCK_SECONDS = <?php echo (int)$lockSeconds; ?>;
+// Calculate unlock time on client
+const UNLOCK_TIME_MS = SERVER_TIME_MS + (LOCK_SECONDS * 1000);
 
 (function () {
   const timerEl = document.getElementById('lockTimer');
-  let remaining = LOCK_SECONDS;
+  let tick = null;
 
- function formatClock(totalSeconds) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
+  function formatClock(totalSeconds) {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
 
-  if (m > 0) {
-    return `${m} minute${m !== 1 ? 's' : ''} ${s} second${s !== 1 ? 's' : ''}`;
+    if (m > 0) {
+      return `${m} minute${m !== 1 ? 's' : ''} ${s} second${s !== 1 ? 's' : ''}`;
+    }
+
+    return `${s} second${s !== 1 ? 's' : ''}`;
   }
 
-  return `${s} second${s !== 1 ? 's' : ''}`;
-}
+  function updateTimer() {
+    const now = Date.now();
+    const remaining = Math.ceil((UNLOCK_TIME_MS - now) / 1000);
 
-  if (remaining > 0 && timerEl) {
-    timerEl.textContent = formatClock(remaining);
-
-    const tick = setInterval(function () {
-      remaining -= 1;
-
-      if (remaining <= 0) {
+    if (remaining < 1) {
+      if (tick) {
         clearInterval(tick);
-        location.reload();
-        return;
+        tick = null;
       }
+      location.reload();
+      return;
+    }
 
+    if (timerEl) {
       timerEl.textContent = formatClock(remaining);
-    }, 1000);
+    }
+  }
+
+  if (LOCK_SECONDS > 0 && timerEl) {
+    updateTimer();
+    tick = setInterval(updateTimer, 250);
+
+    // Handle tab visibility changes - browser may throttle timers when tab is inactive
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) {
+        updateTimer();
+      }
+    });
   }
 
   window.addEventListener('pageshow', function (event) {

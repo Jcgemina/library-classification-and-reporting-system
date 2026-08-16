@@ -55,6 +55,23 @@ function formatLockoutDuration(int $seconds): string {
     return $totalMinutes . ($totalMinutes === 1 ? ' minute' : ' minutes');
 }
 
+/** Get the current count of failed login attempts for a username/IP. */
+function getFailedAttemptCount(PDO $pdo, string $username, string $ip): int {
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) AS failed_count
+         FROM login_attempts
+         WHERE (username = :username OR ip_address = :ip)
+           AND success = 0"
+    );
+    
+    $stmt->bindValue(':username', $username);
+    $stmt->bindValue(':ip', $ip);
+    $stmt->execute();
+    
+    $row = $stmt->fetch();
+    return (int)($row['failed_count'] ?? 0);
+}
+
 /** Record a login attempt (successful or failed) for auditing + rate limiting. */
 function recordAttempt(PDO $pdo, string $username, string $ip, bool $success): void {
     $stmt = $pdo->prepare(
@@ -84,20 +101,22 @@ function requireLogin(): void {
 }
 
 /** Flash message helpers (session-based, so no data is exposed in the URL). */
-function setFlash(string $message, bool $isLockout = false): void {
+function setFlash(string $message, bool $isLockout = false, ?int $attemptCount = null): void {
     $_SESSION['flash_error']  = $message;
     $_SESSION['flash_locked'] = $isLockout;
+    $_SESSION['flash_attempts'] = $attemptCount;
 }
 
-/** Returns ['message' => string|null, 'locked' => bool] */
+/** Returns ['message' => string|null, 'locked' => bool, 'attempts' => int|null] */
 function getFlash(): array {
     if (!empty($_SESSION['flash_error'])) {
         $result = [
             'message' => $_SESSION['flash_error'],
             'locked'  => !empty($_SESSION['flash_locked']),
+            'attempts' => $_SESSION['flash_attempts'] ?? null,
         ];
-        unset($_SESSION['flash_error'], $_SESSION['flash_locked']);
+        unset($_SESSION['flash_error'], $_SESSION['flash_locked'], $_SESSION['flash_attempts']);
         return $result;
     }
-    return ['message' => null, 'locked' => false];
+    return ['message' => null, 'locked' => false, 'attempts' => null];
 }

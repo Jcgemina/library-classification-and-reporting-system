@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/functions.php';
 
 // If the DB connection failed in config/db.php, show the error to the user instead of crashing
 if (!$pdo) {
-    setFlash($dbConnectionError);
+    setFlash($dbConnectionError ?? 'Database connection error.');
     header('Location: login.php');
     exit;
 }
@@ -27,7 +27,7 @@ if ($username === '' || $password === '') {
     exit;
 }
 
-// --- Non-functional: Login rate limiting (progressive lockout) ---
+// Rate limiting check
 $lockSeconds = isRateLimited($pdo, $username, $ip);
 if ($lockSeconds > 0) {
     $formattedTime = formatLockoutDuration($lockSeconds);
@@ -36,7 +36,7 @@ if ($lockSeconds > 0) {
     exit;
 }
 
-// --- Functional: Credential validation ---
+// Validate credentials
 $stmt = $pdo->prepare(
     "SELECT id, username, password, full_name, role, is_active
      FROM users WHERE username = :username LIMIT 1"
@@ -44,12 +44,16 @@ $stmt = $pdo->prepare(
 $stmt->execute([':username' => $username]);
 $user = $stmt->fetch();
 
-// --- Non-functional: Secure password handling (password_verify against bcrypt hash) ---
+// Validate password and user status
 if (!$user || !password_verify($password, $user['password']) || (int)$user['is_active'] !== 1) {
     recordAttempt($pdo, $username, $ip, false);
-
-    // Functional: generic feedback for invalid credentials (don't reveal which field was wrong)
-    setFlash('Invalid username or password.');
+    $failedCount = getFailedAttemptCount($pdo, $username, $ip);
+    $message = 'Invalid username or password.';
+    if ($failedCount >= 1 && $failedCount < MAX_ATTEMPTS) {
+        $message .= " Attempt {$failedCount} of " . MAX_ATTEMPTS . '.';
+    }
+    
+    setFlash($message, false, $failedCount);
     header('Location: login.php');
     exit;
 }
@@ -61,15 +65,14 @@ clearAttempts($pdo, $username, $ip);
 // Prevent session fixation
 session_regenerate_id(true);
 
-// --- Functional: Connect successful login to the system interface ---
+// Login successful - set session variables
 $_SESSION['user_id']   = $user['id'];
 $_SESSION['username']  = $user['username'];
 $_SESSION['full_name'] = $user['full_name'];
 $_SESSION['role']      = $user['role'];
 
 if (!empty($_POST['remember'])) {
-    // Optional "remember this device" - simple long-lived cookie holding a random token
-    // (for production, pair this with a separate remember_tokens table)
+    // Remember this device
     setcookie('remember_device', bin2hex(random_bytes(16)), time() + (30 * 24 * 60 * 60), '/', '', false, true);
 }
 

@@ -48,6 +48,7 @@ $currentPage = $page;
     function updateActiveTab(activePage) {
         const navLinks = document.querySelectorAll('[data-page]');
         const highlight = document.querySelector('.nav-highlight');
+        const navTrack = document.querySelector('.nav-track');
 
         const activeLink = [...navLinks].find(
             link => link.dataset.page === activePage
@@ -70,10 +71,13 @@ $currentPage = $page;
             }
         });
 
-        if (highlight && activeLink) {
+        if (highlight && activeLink && navTrack) {
+            const trackRect = navTrack.getBoundingClientRect();
+            const linkRect = activeLink.getBoundingClientRect();
+            const offsetLeft = linkRect.left - trackRect.left;
+            
             highlight.style.width = activeLink.offsetWidth + 'px';
-            highlight.style.transform =
-                `translateX(${activeLink.offsetLeft}px)`;
+            highlight.style.transform = `translateX(${offsetLeft}px)`;
         }
     }
 
@@ -121,6 +125,15 @@ $currentPage = $page;
 
     window.addEventListener('popstate', function () {
       loadPage(getCurrentPageFromUrl(), false);
+    });
+
+    // Add resize listener to recalculate highlight position on responsive layout changes
+    let resizeTimeout;
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(function () {
+        updateActiveTab(getCurrentPageFromUrl());
+      }, 250);
     });
 
     loadPage(getCurrentPageFromUrl(), false);
