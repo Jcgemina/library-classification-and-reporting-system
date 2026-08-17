@@ -5,7 +5,8 @@ require_once __DIR__ . '/includes/functions.php';
 
 requireLogin();
 
-$allowedPages = [
+$userRole = strtolower($_SESSION['role'] ?? 'librarian');
+$allPages = [
     'dashboard',
     'inventory',
     'organization',
@@ -13,7 +14,17 @@ $allowedPages = [
     'user',
 ];
 
+$allowedPages = $userRole === 'admin'
+    ? $allPages
+    : ['dashboard', 'inventory', 'organization', 'report'];
+
 $pageParam = $_GET['page'] ?? 'dashboard';
+
+if ($userRole !== 'admin' && $pageParam === 'user') {
+    header('Location: app.php?page=dashboard');
+    exit;
+}
+
 $page = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashboard';
 $currentPage = $page;
 ?>
@@ -37,11 +48,19 @@ $currentPage = $page;
   <main id="pageContent" class="max-w-4xl mx-auto mt-10 p-6"></main>
 
   <script>
-    const allowedPages = ['dashboard', 'inventory', 'organization', 'report', 'user'];
+    const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
+    const allowedPages = currentUserRole === 'admin'
+      ? ['dashboard', 'inventory', 'organization', 'report', 'user']
+      : ['dashboard', 'inventory', 'organization', 'report'];
 
     function getCurrentPageFromUrl() {
       const params = new URLSearchParams(window.location.search);
       const requestedPage = params.get('page');
+
+      if (currentUserRole !== 'admin' && requestedPage === 'user') {
+        return 'dashboard';
+      }
+
       return allowedPages.includes(requestedPage) ? requestedPage : 'dashboard';
     }
 
@@ -82,7 +101,9 @@ $currentPage = $page;
     }
 
     function loadPage(pageName, updateHistory = true) {
-      const safePage = allowedPages.includes(pageName) ? pageName : 'dashboard';
+      const safePage = currentUserRole !== 'admin' && pageName === 'user'
+        ? 'dashboard'
+        : allowedPages.includes(pageName) ? pageName : 'dashboard';
 
       if (updateHistory) {
         const url = new URL(window.location.href);

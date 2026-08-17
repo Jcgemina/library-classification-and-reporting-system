@@ -3,6 +3,7 @@ if (!isset($currentPage)) {
     $currentPage = $_GET['page'] ?? 'dashboard';
 }
 
+$userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $navItems = [
     ['label' => 'Dashboard', 'page' => 'dashboard', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
     ['label' => 'Inventory', 'page' => 'inventory', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
@@ -10,6 +11,12 @@ $navItems = [
     ['label' => 'Report', 'page' => 'report', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
     ['label' => 'User', 'page' => 'user', 'href' => 'app.php?page=user', 'icon' => 'users'],
 ];
+
+if ($userRole !== 'admin') {
+    $navItems = array_values(array_filter($navItems, static function ($item) {
+        return $item['page'] !== 'user';
+    }));
+}
 
 $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
 ?>
