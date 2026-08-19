@@ -66,7 +66,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
   }
 </style>
 
-<nav class="bg-white border-b border-slate-200 shadow-[0_6px_20px_rgba(15,23,42,0.20)]">
+<nav class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-[0_6px_20px_rgba(15,23,42,0.20)]">
   <div class="relative w-full px-2 md:px-6 py-2 md:py-4 flex items-center justify-between gap-3">
 
     <!-- Logo section (left) -->

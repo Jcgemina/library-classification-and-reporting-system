@@ -242,20 +242,20 @@ if ($action !== null) {
     </div>
 
     <div class="flex items-center gap-3">
+       <button
+        type="button"
+        id="bulkDeleteBtn"
+        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600">
+        <i data-lucide="trash-2" class="w-4 h-4"></i>
+        Delete
+      </button>
+      
       <button
         type="button"
         id="addLibrarianBtn"
         class="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600">
         <i data-lucide="user-plus" class="w-4 h-4"></i>
         Add Librarian
-      </button>
-
-      <button
-        type="button"
-        id="bulkDeleteBtn"
-        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600">
-        <i data-lucide="trash-2" class="w-4 h-4"></i>
-        Delete
       </button>
     </div>
   </div>
@@ -380,6 +380,7 @@ if ($action !== null) {
 </div>
 
 <script>
+(() => {
   const state = {
     allLibrarians: [],
     selectedIds: new Set(),
@@ -784,4 +785,5 @@ if ($action !== null) {
   document.getElementById('bulkDeleteBtn').classList.add('opacity-60', 'cursor-not-allowed');
   setBulkDeleteState();
   fetchLibrarians();
+})();
 </script>
