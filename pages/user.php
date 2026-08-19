@@ -103,6 +103,7 @@ if ($action !== null) {
     if ($action === 'save') {
         $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int) $_POST['id'] : null;
         $fullName = trim((string)($_POST['fullName'] ?? ''));
+        $fullName = ucwords(strtolower($fullName));
         $email = trim((string)($_POST['email'] ?? ''));
         $username = trim((string)($_POST['username'] ?? ''));
         $password = (string)($_POST['password'] ?? '');
@@ -129,16 +130,30 @@ if ($action !== null) {
             exit;
         }
 
+        $duplicateSql = 'SELECT id, username, full_name FROM users WHERE (LOWER(username) = LOWER(:username) OR LOWER(full_name) = LOWER(:full_name))';
+        $duplicateParams = [':username' => $username, ':full_name' => $fullName];
         if ($id !== null) {
-            $checkStmt = $pdo->prepare('SELECT id FROM users WHERE username = :username AND id != :id LIMIT 1');
-            $checkStmt->execute([':username' => $username, ':id' => $id]);
-            if ($checkStmt->fetch()) {
-                http_response_code(409);
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'message' => 'That username is already in use.']);
-                exit;
+            $duplicateSql .= ' AND id != :id';
+            $duplicateParams[':id'] = $id;
+        }
+        $duplicateStmt = $pdo->prepare($duplicateSql . ' LIMIT 1');
+        $duplicateStmt->execute($duplicateParams);
+        $duplicateUser = $duplicateStmt->fetch();
+
+        if ($duplicateUser) {
+            if (strcasecmp((string) $duplicateUser['username'], $username) === 0) {
+                $message = 'That username is already in use.';
+            } else {
+                $message = 'That full name is already in use.';
             }
 
+            http_response_code(409);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $message]);
+            exit;
+        }
+
+        if ($id !== null) {
             $existing = $pdo->prepare('SELECT password FROM users WHERE id = :id LIMIT 1');
             $existing->execute([':id' => $id]);
             $existingUser = $existing->fetch();
@@ -162,15 +177,6 @@ if ($action !== null) {
 
             $message = 'Librarian updated successfully.';
         } else {
-            $checkStmt = $pdo->prepare('SELECT id FROM users WHERE username = :username LIMIT 1');
-            $checkStmt->execute([':username' => $username]);
-            if ($checkStmt->fetch()) {
-                http_response_code(409);
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'message' => 'That username is already in use.']);
-                exit;
-            }
-
             $stmt = $pdo->prepare(
                 'INSERT INTO users (username, password, full_name, email, role, is_active) VALUES (:username, :password, :full_name, :email, :role, 1)'
             );
@@ -360,8 +366,7 @@ if ($action !== null) {
         <div>
           <label for="role" class="mb-1.5 block text-sm font-medium text-slate-700">Role</label>
           <select id="role" name="role" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100">
-            <option value="">- - - - - -</option>
-            <option value="librarian">Librarian</option>
+            <option value="librarian" selected>Librarian</option>
             <option value="admin">Admin</option>
           </select>
         </div>
@@ -379,6 +384,30 @@ if ($action !== null) {
   </div>
 </div>
 
+<div id="deleteConfirmModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+    <div class="flex items-start gap-4">
+      <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+        <i data-lucide="trash-2" class="h-5 w-5"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Delete librarian?</h3>
+        <p id="deleteConfirmMessage" class="mt-1 text-sm text-slate-600"></p>
+        <p class="mt-2 text-sm font-semibold text-red-600">This action cannot be undone.</p>
+      </div>
+    </div>
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" id="cancelDeleteBtn" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Cancel</button>
+      <button type="button" id="confirmDeleteBtn" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700">
+        <i data-lucide="trash-2" class="h-4 w-4"></i>
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3"></div>
+
 <script>
 (() => {
   const state = {
@@ -386,7 +415,36 @@ if ($action !== null) {
     selectedIds: new Set(),
     editingId: null,
     searchTimer: null,
+    pendingDeleteIds: [],
   };
+
+  function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    const isError = type === 'error';
+    const duration = 3000;
+    toast.className = `pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl border px-4 py-3 pb-4 text-sm shadow-lg ${isError ? 'border-red-300 bg-red-50 text-red-800' : 'border-green-300 bg-green-50 text-green-800'}`;
+    toast.innerHTML = `
+      <i data-lucide="${isError ? 'circle-alert' : 'circle-check'}" class="mt-0.5 h-4 w-4 flex-shrink-0"></i>
+      <span class="flex-1">${esc(message)}</span>
+      <button type="button" class="text-current opacity-60 transition hover:opacity-100" aria-label="Dismiss notification">
+        <i data-lucide="x" class="h-4 w-4"></i>
+      </button>
+      <span class="absolute bottom-0 left-0 h-1 w-full origin-left ${isError ? 'bg-red-500' : 'bg-green-500'}" data-toast-progress></span>
+    `;
+    container.appendChild(toast);
+    lucide.createIcons();
+
+    const progress = toast.querySelector('[data-toast-progress]');
+    requestAnimationFrame(() => {
+      progress.style.transition = `width ${duration}ms linear`;
+      progress.style.width = '0%';
+    });
+
+    const dismiss = () => toast.remove();
+    toast.querySelector('button').addEventListener('click', dismiss);
+    setTimeout(dismiss, duration);
+  }
 
   function updateStats() {
     const total = state.allLibrarians.length;
@@ -551,6 +609,12 @@ if ($action !== null) {
     return initials + lastName;
   }
 
+  function capitalizeFullName(fullName) {
+    return String(fullName || '')
+      .toLowerCase()
+      .replace(/\b\w/g, character => character.toUpperCase());
+  }
+
   function generatePassword() {
     return '123';
   }
@@ -565,12 +629,12 @@ if ($action !== null) {
 
     form.reset();
     document.getElementById('librarianId').value = librarian ? librarian.id : '';
-    document.getElementById('fullName').value = librarian ? librarian.fullName : '';
+    document.getElementById('fullName').value = librarian ? capitalizeFullName(librarian.fullName) : '';
     document.getElementById('email').value = librarian ? librarian.email : '';
-    document.getElementById('role').value = librarian ? librarian.role : '';
+    document.getElementById('role').value = librarian ? librarian.role : 'librarian';
     
     // Auto-generate username based on full name
-    const fullNameValue = librarian ? librarian.fullName : '';
+    const fullNameValue = librarian ? capitalizeFullName(librarian.fullName) : '';
     document.getElementById('username').value = generateUsername(fullNameValue);
     
     // Auto-generate password or keep blank for edit mode
@@ -627,41 +691,35 @@ if ($action !== null) {
 
   function removeLibrarian(id) {
     const librarian = state.allLibrarians.find(item => item.id === id);
-    const confirmed = window.confirm(`Delete ${librarian ? librarian.fullName : 'this librarian'}?`);
-
-    if (!confirmed) return;
-
-    const formData = new URLSearchParams({ action: 'delete', id: String(id) });
-
-    fetch('pages/user.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: formData.toString()
-    })
-      .then(response => response.json())
-      .then(result => {
-        if (!result.success) {
-          throw new Error(result.message || 'Unable to delete librarian.');
-        }
-
-        state.selectedIds.delete(id);
-        return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
-      })
-      .catch(error => {
-        window.alert(error.message || 'Unable to delete librarian.');
-      });
+    openDeleteConfirmation([id], `Delete ${librarian ? librarian.fullName : 'this librarian'}?`);
   }
 
   function handleBulkDelete() {
     if (!state.selectedIds.size) return;
 
     const selected = [...state.selectedIds];
-    const confirmed = window.confirm(`Delete ${selected.length} selected librarian(s)?`);
+    openDeleteConfirmation(selected, `Delete ${selected.length} selected librarian(s)?`);
+  }
 
-    if (!confirmed) return;
+  function closeDeleteConfirmation() {
+    const modal = document.getElementById('deleteConfirmModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    state.pendingDeleteIds = [];
+  }
+
+  function openDeleteConfirmation(ids, message) {
+    state.pendingDeleteIds = ids;
+    document.getElementById('deleteConfirmMessage').textContent = message;
+    const modal = document.getElementById('deleteConfirmModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function confirmPendingDelete() {
+    const selected = [...state.pendingDeleteIds];
+    if (!selected.length) return;
+    closeDeleteConfirmation();
 
     const deleteRequests = selected.map(id => {
       const formData = new URLSearchParams({ action: 'delete', id: String(id) });
@@ -677,22 +735,30 @@ if ($action !== null) {
 
     Promise.all(deleteRequests)
       .then(results => {
-        const failed = results.some(result => !result.success);
-        if (failed) {
-          throw new Error('One or more librarians could not be deleted.');
+        const failedResult = results.find(result => !result.success);
+        if (failedResult) {
+          throw new Error(failedResult.message || 'One or more librarians could not be deleted.');
         }
 
         state.selectedIds.clear();
         return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
       })
-      .then(() => setBulkDeleteState())
+      .then(() => {
+        setBulkDeleteState();
+        showToast(selected.length === 1 ? 'Librarian deleted successfully.' : `${selected.length} librarians deleted successfully.`);
+      })
       .catch(error => {
-        window.alert(error.message || 'Unable to delete selected librarians.');
+        showToast(error.message || 'Unable to delete selected librarians.', 'error');
       });
   }
 
   document.getElementById('addLibrarianBtn').addEventListener('click', () => openModal('add'));
   document.getElementById('bulkDeleteBtn').addEventListener('click', handleBulkDelete);
+  document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteConfirmation);
+  document.getElementById('confirmDeleteBtn').addEventListener('click', confirmPendingDelete);
+  document.getElementById('deleteConfirmModal').addEventListener('click', event => {
+    if (event.target.id === 'deleteConfirmModal') closeDeleteConfirmation();
+  });
 
   document.getElementById('librarianSearch').addEventListener('input', function () {
     clearTimeout(state.searchTimer);
@@ -712,7 +778,9 @@ if ($action !== null) {
   });
 
   document.getElementById('fullName').addEventListener('input', function () {
-    const generatedUsername = generateUsername(this.value);
+    const capitalizedName = capitalizeFullName(this.value);
+    this.value = capitalizedName;
+    const generatedUsername = generateUsername(capitalizedName);
     document.getElementById('username').value = generatedUsername;
   });
 
@@ -739,19 +807,35 @@ if ($action !== null) {
     const formData = new FormData(event.target);
     const payload = new URLSearchParams({ action: 'save' });
 
-    payload.set('fullName', String(formData.get('fullName') || '').trim());
+    payload.set('fullName', capitalizeFullName(String(formData.get('fullName') || '')));
     payload.set('email', String(formData.get('email') || '').trim());
     payload.set('username', String(formData.get('username') || '').trim());
     payload.set('password', String(formData.get('password') || '').trim());
     payload.set('role', String(formData.get('role') || ''));
-    
-    // Validate role is selected
+
     if (!payload.get('role')) {
-      window.alert('Please select a role.');
+      showToast('Please select a role.', 'error');
       return;
     }
 
     const editingId = document.getElementById('librarianId').value;
+    const normalizedFullName = payload.get('fullName').toLowerCase();
+    const normalizedUsername = payload.get('username').toLowerCase();
+    const duplicate = state.allLibrarians.find(librarian => {
+      if (editingId && librarian.id === Number(editingId)) return false;
+
+      return librarian.fullName.toLowerCase() === normalizedFullName ||
+        librarian.username.toLowerCase() === normalizedUsername;
+    });
+
+    if (duplicate) {
+      const message = duplicate.fullName.toLowerCase() === normalizedFullName
+        ? 'That full name is already in use.'
+        : 'That username is already in use.';
+      showToast(message, 'error');
+      return;
+    }
+
     if (editingId) {
       payload.set('id', editingId);
     }
@@ -775,9 +859,10 @@ if ($action !== null) {
       })
       .then(() => {
         document.getElementById('bulkDeleteBtn').disabled = true;
+        showToast(editingId ? 'Librarian updated successfully.' : 'Librarian added successfully.');
       })
       .catch(error => {
-        window.alert(error.message || 'Unable to save librarian.');
+        showToast(error.message || 'Unable to save librarian.', 'error');
       });
   });
 
