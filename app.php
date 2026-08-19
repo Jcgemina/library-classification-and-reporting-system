@@ -124,10 +124,21 @@ $currentPage = $page;
         return response.text();
       })
       .then((html) => {
-        document.getElementById('pageContent').innerHTML = html;
+        const pageContainer = document.getElementById('pageContent');
+        pageContainer.innerHTML = html;
+
+        const scripts = [...pageContainer.querySelectorAll('script')];
+        scripts.forEach((oldScript) => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach((attr) => {
+            newScript.setAttribute(attr.name, attr.value);
+          });
+          newScript.textContent = oldScript.textContent;
+          oldScript.replaceWith(newScript);
+        });
+
         updateActiveTab(safePage);
         document.title = 'AppSys Library - ' + safePage.charAt(0).toUpperCase() + safePage.slice(1);
-
       })
       .catch(() => {
         document.getElementById('pageContent').innerHTML = '<div class="bg-white rounded-2xl shadow-md p-8"><h2 class="text-2xl font-bold text-slate-900 mb-2">Page unavailable</h2><p class="text-slate-500">The requested module could not be loaded.</p></div>';
