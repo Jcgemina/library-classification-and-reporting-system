@@ -10,244 +10,54 @@ if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQU
 requireLogin();
 ?>
 
-<div class="space-y-6">
-
-  <!-- Header -->
-  <div>
-    <h2 class="text-2xl font-bold text-slate-900">Dashboard</h2>
-    <p class="text-sm text-slate-500 mt-1">
-      Overview of library books and quarterly progress.
-    </p>
-  </div>
-
-
-  <!-- Total Books -->
-  <div class="bg-white rounded-2xl border border-slate-200 shadow-md p-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-medium text-slate-500">Total Books</p>
-        <h3 class="text-4xl font-bold text-slate-900 mt-2">1,248</h3>
-        <p class="text-xs text-slate-400 mt-1">Registered in the library</p>
-      </div>
-
-      <div class="w-12 h-12 rounded-xl bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center">
-        <i data-lucide="book-open" class="w-6 h-6"></i>
-      </div>
+<div class="min-h-[calc(100vh-5rem)] p-1 text-slate-900 sm:p-2">
+  <div class="grid grid-cols-1 gap-4 xl:grid-cols-4">
+    <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+      <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div>
+      <div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">Total Titles</p><p class="mt-1 text-3xl font-bold leading-none text-slate-950">4</p></div>
+    </div>
+    <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+      <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-100 text-emerald-600"><i data-lucide="calendar-check" class="h-5 w-5"></i></div>
+      <div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">Within 5 Yrs</p><p class="mt-1 text-3xl font-bold leading-none text-emerald-600">1</p></div>
+    </div>
+    <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+      <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-100 text-amber-600"><i data-lucide="calendar-clock" class="h-5 w-5"></i></div>
+      <div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">Within 10 Yrs</p><p class="mt-1 text-3xl font-bold leading-none text-amber-600">4</p></div>
+    </div>
+    <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+      <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="calendar-range" class="h-5 w-5"></i></div>
+      <div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">Within 20 Yrs</p><p class="mt-1 text-3xl font-bold leading-none text-rose-700">4</p></div>
     </div>
   </div>
 
+  <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_1.15fr_0.72fr]">
+    <section class="min-h-[370px] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+      <div class="flex items-center justify-between"><h2 class="text-base font-bold">Quarterly Progress</h2><i data-lucide="more-horizontal" class="h-5 w-5 text-slate-300"></i></div>
+      <p class="mt-10 text-center text-sm italic text-slate-500">Loading progress...</p>
+    </section>
 
-  <!-- Copyright Overview -->
-  <div class="bg-white rounded-2xl border border-slate-200 shadow-md p-6">
+    <section class="min-h-[370px] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+      <h2 class="text-base font-bold">Upcoming Deadlines</h2>
+    </section>
 
-    <div class="flex items-center justify-between mb-5">
-      <div>
-        <h3 class="text-lg font-bold text-slate-900">Copyright Overview</h3>
-        <p class="text-sm text-slate-500">
-          Distribution of books based on copyright age.
-        </p>
-      </div>
+    <div class="space-y-4">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+        <h2 class="text-base font-bold">Programs Overview</h2>
+        <dl class="mt-4 space-y-2 text-sm">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2"><dt class="text-slate-600">Total Programs</dt><dd class="font-semibold text-slate-900">&mdash;</dd></div>
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2"><dt class="text-slate-600">Verified (any Q)</dt><dd class="font-semibold text-emerald-600">&mdash;</dd></div>
+          <div class="flex items-center justify-between"><dt class="text-slate-600">Pending</dt><dd class="font-semibold text-rose-600">&mdash;</dd></div>
+        </dl>
+        <a href="app.php?page=organization" class="mt-5 flex items-center justify-center gap-1 border-t border-slate-100 pt-3 text-xs font-semibold text-rose-600"><i data-lucide="arrow-right" class="h-3.5 w-3.5"></i>View Organization</a>
+      </section>
 
-      <i data-lucide="calendar-clock" class="w-5 h-5 text-slate-400"></i>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-      <!-- 5 Years -->
-      <div class="rounded-xl bg-slate-50 border border-slate-200 p-5">
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-medium text-slate-500">
-            Within 5 Years
-          </span>
-          <span class="text-lg font-bold text-slate-900">486</span>
-        </div>
-
-        <div class="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
-          <div class="h-full bg-rose-500 rounded-full" style="width: 39%;"></div>
-        </div>
-
-        <p class="text-xs text-slate-400 mt-2">39% of total books</p>
-      </div>
-
-
-      <!-- 10 Years -->
-      <div class="rounded-xl bg-slate-50 border border-slate-200 p-5">
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-medium text-slate-500">
-            Within 10 Years
-          </span>
-          <span class="text-lg font-bold text-slate-900">392</span>
-        </div>
-
-        <div class="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
-          <div class="h-full bg-rose-400 rounded-full" style="width: 31%;"></div>
-        </div>
-
-        <p class="text-xs text-slate-400 mt-2">31% of total books</p>
-      </div>
-
-
-      <!-- 20 Years -->
-      <div class="rounded-xl bg-slate-50 border border-slate-200 p-5">
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-medium text-slate-500">
-            20+ Years
-          </span>
-          <span class="text-lg font-bold text-slate-900">370</span>
-        </div>
-
-        <div class="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
-          <div class="h-full bg-slate-500 rounded-full" style="width: 30%;"></div>
-        </div>
-
-        <p class="text-xs text-slate-400 mt-2">30% of total books</p>
-      </div>
-
+      <section class="min-h-[150px] rounded-2xl bg-[#191b1c] p-5 text-white shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+        <p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-200">Current Quarter</p>
+        <p class="mt-5 text-lg font-semibold">&mdash;</p>
+        <p class="mt-2 text-sm text-slate-400">&mdash;</p>
+        <div class="mt-4 h-1.5 rounded-full bg-slate-600"></div>
+        <p class="mt-1 text-right text-xs text-sky-200">0% through quarter</p>
+      </section>
     </div>
   </div>
-
-
-  <!-- Quarterly Progress -->
-  <div class="bg-white rounded-2xl border border-slate-200 shadow-md p-6">
-
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h3 class="text-lg font-bold text-slate-900">Quarterly Progress</h3>
-        <p class="text-sm text-slate-500">
-          Progress of quarterly library activities.
-        </p>
-      </div>
-
-      <i data-lucide="chart-no-axes-column-increasing" class="w-5 h-5 text-slate-400"></i>
-    </div>
-
-
-    <div class="space-y-5">
-
-      <!-- Q1 -->
-      <div>
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold text-slate-700">Q1</span>
-          <span class="text-xs font-medium text-slate-500">100%</span>
-        </div>
-
-        <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
-          <div class="h-full bg-rose-500 rounded-full" style="width: 100%;"></div>
-        </div>
-      </div>
-
-
-      <!-- Q2 -->
-      <div>
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold text-slate-700">Q2</span>
-          <span class="text-xs font-medium text-slate-500">75%</span>
-        </div>
-
-        <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
-          <div class="h-full bg-rose-500 rounded-full" style="width: 75%;"></div>
-        </div>
-      </div>
-
-
-      <!-- Q3 -->
-      <div>
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold text-slate-700">Q3</span>
-          <span class="text-xs font-medium text-slate-500">45%</span>
-        </div>
-
-        <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
-          <div class="h-full bg-rose-500 rounded-full" style="width: 45%;"></div>
-        </div>
-      </div>
-
-
-      <!-- Q4 -->
-      <div>
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold text-slate-700">Q4</span>
-          <span class="text-xs font-medium text-slate-500">20%</span>
-        </div>
-
-        <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
-          <div class="h-full bg-rose-500 rounded-full" style="width: 20%;"></div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-
-  <!-- Quarterly Deadlines -->
-  <div class="bg-white rounded-2xl border border-slate-200 shadow-md p-6">
-
-    <div class="flex items-center justify-between mb-5">
-      <div>
-        <h3 class="text-lg font-bold text-slate-900">Quarterly Deadlines</h3>
-        <p class="text-sm text-slate-500">
-          Scheduled deadlines for each quarter.
-        </p>
-      </div>
-
-      <i data-lucide="calendar-days" class="w-5 h-5 text-slate-400"></i>
-    </div>
-
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-
-      <!-- Q1 -->
-      <div class="border border-slate-200 rounded-xl p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-bold text-slate-900">Q1</span>
-          <span class="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
-            Completed
-          </span>
-        </div>
-
-        <p class="text-sm text-slate-500 mt-3">March 31, 2026</p>
-      </div>
-
-
-      <!-- Q2 -->
-      <div class="border border-slate-200 rounded-xl p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-bold text-slate-900">Q2</span>
-          <span class="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
-            Completed
-          </span>
-        </div>
-
-        <p class="text-sm text-slate-500 mt-3">June 30, 2026</p>
-      </div>
-
-
-      <!-- Q3 -->
-      <div class="border border-slate-200 rounded-xl p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-bold text-slate-900">Q3</span>
-          <span class="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">
-            In Progress
-          </span>
-        </div>
-
-        <p class="text-sm text-slate-500 mt-3">September 30, 2026</p>
-      </div>
-
-
-      <!-- Q4 -->
-      <div class="border border-slate-200 rounded-xl p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-bold text-slate-900">Q4</span>
-          <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">
-            Upcoming
-          </span>
-        </div>
-
-        <p class="text-sm text-slate-500 mt-3">December 31, 2026</p>
-      </div>
-
-    </div>
-  </div>
-
 </div>

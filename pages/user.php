@@ -259,9 +259,9 @@ if ($action !== null) {
       <button
         type="button"
         id="addLibrarianBtn"
-        class="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600">
+        class="inline-flex items-center gap-2 rounded-xl bg-[#f43f5e] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-900">
         <i data-lucide="user-plus" class="w-4 h-4"></i>
-        Add Librarian
+        Add User
       </button>
     </div>
   </div>
@@ -311,12 +311,13 @@ if ($action !== null) {
           id="librarianSearch"
           type="text"
           placeholder="Search librarian"
-          class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100"
+          class="w-full rounded-xl border-2 border-slate-300 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-[#4B5694] focus:bg-white focus:ring-2 focus:ring-[#4B5694]/20"
         />
       </div>
     </div>
 
     <div id="librarianList" class="mt-6 space-y-3"></div>
+    <div id="librarianPagination" class="mt-6 flex flex-wrap items-center justify-center gap-2"></div>
   </div>
 </div>
 
@@ -324,7 +325,7 @@ if ($action !== null) {
   <div class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
     <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
       <div>
-        <h3 id="modalTitle" class="text-xl font-bold text-slate-900">Add Librarian</h3>
+        <h3 id="modalTitle" class="text-xl font-bold text-slate-900">Add User</h3>
         <p class="text-sm text-slate-500">Create or update access details.</p>
       </div>
       <button type="button" data-close-modal class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close form">
@@ -416,6 +417,8 @@ if ($action !== null) {
     editingId: null,
     searchTimer: null,
     pendingDeleteIds: [],
+    currentPage: 1,
+    pageSize: 5,
   };
 
   function showToast(message, type = 'success') {
@@ -490,6 +493,7 @@ if ($action !== null) {
 
   function renderLibrarians() {
     const list = document.getElementById('librarianList');
+    const pagination = document.getElementById('librarianPagination');
     const searchValue = document.getElementById('librarianSearch')?.value.trim().toLowerCase() || '';
 
     const visibleLibrarians = state.allLibrarians.filter(librarian => {
@@ -509,11 +513,17 @@ if ($action !== null) {
           <p class="mt-1 text-sm text-slate-500">Try a different search, or add a new librarian.</p>
         </div>
       `;
+      pagination.innerHTML = '';
       updateStats();
       return;
     }
 
-    list.innerHTML = visibleLibrarians.map(librarian => {
+    const totalPages = Math.ceil(visibleLibrarians.length / state.pageSize);
+    state.currentPage = Math.min(state.currentPage, totalPages);
+    const pageStart = (state.currentPage - 1) * state.pageSize;
+    const paginatedLibrarians = visibleLibrarians.slice(pageStart, pageStart + state.pageSize);
+
+    list.innerHTML = paginatedLibrarians.map(librarian => {
       const isSelected = state.selectedIds.has(librarian.id);
       const isAdmin = librarian.role === 'admin';
       const isActive = librarian.status === 'active';
@@ -564,7 +574,48 @@ if ($action !== null) {
 
     lucide.createIcons();
     bindRowActions();
+    renderPagination(totalPages);
     updateStats();
+  }
+
+  function renderPagination(totalPages) {
+    const pagination = document.getElementById('librarianPagination');
+    if (!pagination || totalPages <= 1) {
+      if (pagination) pagination.innerHTML = '';
+      return;
+    }
+
+    const pageButtons = Array.from({ length: totalPages }, (_, index) => {
+      const page = index + 1;
+      const isCurrent = page === state.currentPage;
+      return `
+        <button type="button" data-page-number="${page}" aria-label="Go to page ${page}" aria-current="${isCurrent ? 'page' : 'false'}"
+          class="flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm font-semibold transition ${isCurrent ? 'bg-[#4B5694] text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}">
+          ${page}
+        </button>
+      `;
+    }).join('');
+
+    pagination.innerHTML = `
+      <button type="button" data-page-number="${state.currentPage - 1}" aria-label="Previous page" ${state.currentPage === 1 ? 'disabled' : ''}
+        class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
+        <i data-lucide="chevron-left" class="h-4 w-4"></i>
+      </button>
+      ${pageButtons}
+      <button type="button" data-page-number="${state.currentPage + 1}" aria-label="Next page" ${state.currentPage === totalPages ? 'disabled' : ''}
+        class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40">
+        <i data-lucide="chevron-right" class="h-4 w-4"></i>
+      </button>
+    `;
+
+    lucide.createIcons();
+    pagination.querySelectorAll('[data-page-number]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (button.disabled) return;
+        state.currentPage = Number(button.dataset.pageNumber);
+        renderLibrarians();
+      });
+    });
   }
 
   function bindRowActions() {
@@ -675,6 +726,7 @@ if ($action !== null) {
         }
 
         state.allLibrarians = result.librarians || [];
+        state.currentPage = 1;
         updateStats();
         renderLibrarians();
         setBulkDeleteState();
@@ -763,6 +815,7 @@ if ($action !== null) {
   document.getElementById('librarianSearch').addEventListener('input', function () {
     clearTimeout(state.searchTimer);
     state.searchTimer = setTimeout(() => {
+      state.currentPage = 1;
       fetchLibrarians(this.value.trim());
     }, 250);
   });

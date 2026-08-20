@@ -70,6 +70,7 @@ $_SESSION['user_id']   = $user['id'];
 $_SESSION['username']  = $user['username'];
 $_SESSION['full_name'] = $user['full_name'];
 $_SESSION['role']      = $user['role'];
+$_SESSION['authenticated'] = true;
 
 if (!empty($_POST['remember'])) {
     // Remember this device

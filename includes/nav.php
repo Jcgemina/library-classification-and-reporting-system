@@ -4,6 +4,7 @@ if (!isset($currentPage)) {
 }
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
+$isValidatedUser = !empty($_SESSION['authenticated']) && !empty($_SESSION['user_id']);
 $navItems = [
     ['label' => 'Dashboard', 'page' => 'dashboard', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
     ['label' => 'Inventory', 'page' => 'inventory', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
@@ -12,10 +13,14 @@ $navItems = [
     ['label' => 'User', 'page' => 'user', 'href' => 'app.php?page=user', 'icon' => 'users'],
 ];
 
-if ($userRole !== 'admin') {
+if (!$isValidatedUser || $userRole !== 'admin') {
     $navItems = array_values(array_filter($navItems, static function ($item) {
         return $item['page'] !== 'user';
     }));
+}
+
+if (!$isValidatedUser) {
+  $navItems = [];
 }
 
 $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
@@ -37,7 +42,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     left: 0;
     height: calc(100% - 0.3rem);
     border-radius: 0.75rem;
-    background: #e9486b;
+    background: #f43f5e;
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
     transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), width 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
     z-index: 0;

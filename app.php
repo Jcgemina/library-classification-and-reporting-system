@@ -35,14 +35,20 @@ $currentPage = $page;
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AppSys Library - Dashboard</title>
 <style>
-  html {
-    scrollbar-gutter: stable;
+  html,
+  body {
+    scrollbar-width: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
   }
 </style>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="min-h-screen bg-gray-50">
+<body class="min-h-screen overflow-x-hidden bg-[#dfdfdf]">
 
   <?php require_once __DIR__ . '/includes/nav.php'; ?>
 
@@ -50,7 +56,7 @@ $currentPage = $page;
     lucide.createIcons();
   </script>
 
-  <main id="pageContent" class="max-w-4xl mx-auto mt-10 p-6"></main>
+  <main id="pageContent" class="mx-auto w-full max-w-[1440px] min-w-0 overflow-x-hidden p-6"></main>
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
@@ -85,6 +91,7 @@ $currentPage = $page;
             link.classList.toggle('text-slate-600', !isActive);
             link.classList.toggle('hover:text-slate-900', !isActive);
 
+            link.classList.remove('text-slate-900');
             link.classList.remove('shadow-sm');
             link.classList.remove('hover:bg-slate-100');
 
@@ -131,6 +138,7 @@ $currentPage = $page;
       .then((html) => {
         const pageContainer = document.getElementById('pageContent');
         pageContainer.innerHTML = html;
+        lucide.createIcons();
 
         const scripts = [...pageContainer.querySelectorAll('script')];
         scripts.forEach((oldScript) => {

@@ -94,7 +94,7 @@ function clearAttempts(PDO $pdo, string $username, string $ip): void {
 
 /** Authentication access protection: guard pages that require login. */
 function requireLogin(): void {
-    if (empty($_SESSION['user_id'])) {
+    if (empty($_SESSION['authenticated']) || empty($_SESSION['user_id'])) {
         header('Location: login.php');
         exit;
     }
