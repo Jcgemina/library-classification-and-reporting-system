@@ -11,6 +11,11 @@ requireLogin();
 ?>
 
 <div class="min-h-[calc(100vh-5rem)] p-1 text-slate-900 sm:p-2">
+  <div class="mb-6">
+    <h2 class="text-2xl font-bold text-slate-900">Dashboard</h2>
+    <p class="mt-1 text-sm text-slate-500">Overview of library books, copyright status, and quarterly progress.</p>
+  </div>
+
   <div class="grid grid-cols-1 gap-4 xl:grid-cols-4">
     <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
       <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div>
