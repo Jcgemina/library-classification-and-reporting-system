@@ -31,6 +31,11 @@ if ($username === '' || $password === '') {
 $lockSeconds = isRateLimited($pdo, $username, $ip);
 if ($lockSeconds > 0) {
     $formattedTime = formatLockoutDuration($lockSeconds);
+    if (!hasRecentSecurityLog($pdo, $ip, 'login_blocked', BASE_LOCKOUT_MINUTES * 60)) {
+        $previousBlocks = countSecurityLogs($pdo, $ip, 'login_blocked');
+        $severity = $previousBlocks > 0 ? 'critical' : 'warning';
+        recordSecurityLog($pdo, null, $username, 'login_blocked', $severity, 'Login blocked after repeated failed attempts from this IP.', $ip);
+    }
     setFlash("Too many failed attempts. Please try again in {$formattedTime}.", true);
     header('Location: login.php');
     exit;
@@ -60,6 +65,8 @@ if (!$user || !password_verify($password, $user['password']) || (int)$user['is_a
 
 // Success: reset failed attempts, log the successful attempt
 recordAttempt($pdo, $username, $ip, true);
+recordSecurityLog($pdo, (int)$user['id'], $username, 'login_success', 'info', 'Successful login.', $ip);
+recordActivityLog($pdo, (int)$user['id'], 'login', 'User signed in to the library system.');
 clearAttempts($pdo, $username, $ip);
 
 // Prevent session fixation

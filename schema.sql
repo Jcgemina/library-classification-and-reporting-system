@@ -47,6 +47,38 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     INDEX idx_ip_time (ip_address, attempted_at)
 ) ENGINE=InnoDB;
 
+-- Audit trail for normal librarian and administrator actions.
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT DEFAULT NULL,
+    action VARCHAR(100) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    entity_type VARCHAR(50) DEFAULT NULL,
+    entity_id INT DEFAULT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_activity_created_at (created_at),
+    INDEX idx_activity_user_id (user_id),
+    CONSTRAINT fk_activity_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Security events, including successful/failed logins and blocked requests.
+CREATE TABLE IF NOT EXISTS security_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT DEFAULT NULL,
+    username VARCHAR(50) DEFAULT NULL,
+    event_type VARCHAR(50) NOT NULL,
+    severity ENUM('info', 'warning', 'critical') NOT NULL DEFAULT 'info',
+    description VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    user_agent VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_security_created_at (created_at),
+    INDEX idx_security_event_type (event_type),
+    INDEX idx_security_ip_address (ip_address),
+    CONSTRAINT fk_security_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 -- To create a sample librarian account with a properly hashed password,
 -- run the included create_admin.php script from the command line (php create_admin.php).
 -- Do NOT insert a plaintext or hand-typed hash directly into this table.

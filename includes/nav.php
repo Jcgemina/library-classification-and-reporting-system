@@ -11,12 +11,19 @@ $navItems = [
     ['label' => 'Organization', 'page' => 'organization', 'href' => 'app.php?page=organization', 'icon' => 'building-2'],
     ['label' => 'Report', 'page' => 'report', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
     ['label' => 'User', 'page' => 'user', 'href' => 'app.php?page=user', 'icon' => 'users'],
+    ['label' => 'Logs', 'page' => 'logs', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text'],
 ];
 
 if (!$isValidatedUser || $userRole !== 'admin') {
     $navItems = array_values(array_filter($navItems, static function ($item) {
         return $item['page'] !== 'user';
     }));
+}
+
+if (!$isValidatedUser || $userRole !== 'admin') {
+  $navItems = array_values(array_filter($navItems, static function ($item) {
+    return $item['page'] !== 'logs';
+  }));
 }
 
 if (!$isValidatedUser) {
@@ -44,8 +51,14 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     border-radius: 0.75rem;
     background: #f43f5e;
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
-    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), width 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+    opacity: 0;
+    will-change: transform, width;
+    transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), width 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
     z-index: 0;
+  }
+
+  .nav-highlight.is-ready {
+    opacity: 1;
   }
 
   [data-page] {
@@ -67,6 +80,17 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
   @media (max-width: 768px) {
     .nav-track {
       display: none;
+    }
+
+    .mobile-nav-menu {
+      position: fixed;
+      top: 52px;
+      right: 0;
+      left: 0;
+      z-index: 39;
+      max-height: calc(100vh - 52px);
+      overflow-y: auto;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
     }
   }
 </style>
@@ -112,6 +136,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
               w-9 h-9 rounded-lg text-slate-700 hover:bg-slate-100
               transition-colors flex-shrink-0"
         aria-label="Open navigation menu"
+        aria-expanded="false"
     >
         <i data-lucide="menu" class="w-5 h-5"></i>
     </button>
@@ -141,7 +166,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
 </nav>
 
 <!-- Mobile navigation menu -->
-<div id="mobileMenu" class="hidden md:hidden border-t border-slate-200 bg-white px-3 py-3">
+<div id="mobileMenu" class="mobile-nav-menu hidden md:hidden border-t border-slate-200 bg-white px-3 py-3">
   <div class="flex flex-col gap-1">
     <?php foreach ($navItems as $item): ?>
       <?php $isActive = $item['page'] === $currentPage; ?>
@@ -160,6 +185,7 @@ document.getElementById('mobileMenuButton')?.addEventListener('click', function 
     const icon = this.querySelector('[data-lucide]');
     
     menu.classList.toggle('hidden');
+    this.setAttribute('aria-expanded', menu.classList.contains('hidden') ? 'false' : 'true');
     
     if (menu.classList.contains('hidden')) {
         icon.setAttribute('data-lucide', 'menu');
@@ -178,6 +204,7 @@ document.querySelectorAll('#mobileMenu a').forEach(link => {
         const icon = button.querySelector('[data-lucide]');
         
         menu.classList.add('hidden');
+        button.setAttribute('aria-expanded', 'false');
         icon.setAttribute('data-lucide', 'menu');
         lucide.createIcons();
     });

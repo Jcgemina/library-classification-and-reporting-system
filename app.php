@@ -12,6 +12,7 @@ $allPages = [
     'organization',
     'report',
     'user',
+    'logs',
 ];
 
 $allowedPages = $userRole === 'admin'
@@ -20,7 +21,7 @@ $allowedPages = $userRole === 'admin'
 
 $pageParam = $_GET['page'] ?? 'dashboard';
 
-if ($userRole !== 'admin' && $pageParam === 'user') {
+if ($userRole !== 'admin' && in_array($pageParam, ['user', 'logs'], true)) {
     header('Location: app.php?page=dashboard');
     exit;
 }
@@ -61,14 +62,14 @@ $currentPage = $page;
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
     const allowedPages = currentUserRole === 'admin'
-      ? ['dashboard', 'inventory', 'organization', 'report', 'user']
+      ? ['dashboard', 'inventory', 'organization', 'report', 'user', 'logs']
       : ['dashboard', 'inventory', 'organization', 'report'];
 
     function getCurrentPageFromUrl() {
       const params = new URLSearchParams(window.location.search);
       const requestedPage = params.get('page');
 
-      if (currentUserRole !== 'admin' && requestedPage === 'user') {
+      if (currentUserRole !== 'admin' && ['user', 'logs'].includes(requestedPage)) {
         return 'dashboard';
       }
 
@@ -106,14 +107,27 @@ $currentPage = $page;
             const trackRect = navTrack.getBoundingClientRect();
             const linkRect = activeLink.getBoundingClientRect();
             const offsetLeft = linkRect.left - trackRect.left;
-            
+
+          if (!highlight.classList.contains('is-ready')) {
+            highlight.style.transition = 'none';
             highlight.style.width = activeLink.offsetWidth + 'px';
-            highlight.style.transform = `translateX(${offsetLeft}px)`;
+            highlight.style.transform = `translate3d(${offsetLeft}px, 0, 0)`;
+
+            requestAnimationFrame(function () {
+              highlight.classList.add('is-ready');
+              highlight.style.transition = '';
+            });
+          } else {
+            requestAnimationFrame(function () {
+              highlight.style.width = activeLink.offsetWidth + 'px';
+              highlight.style.transform = `translate3d(${offsetLeft}px, 0, 0)`;
+            });
+          }
         }
     }
 
     function loadPage(pageName, updateHistory = true) {
-      const safePage = currentUserRole !== 'admin' && pageName === 'user'
+      const safePage = currentUserRole !== 'admin' && ['user', 'logs'].includes(pageName)
         ? 'dashboard'
         : allowedPages.includes(pageName) ? pageName : 'dashboard';
 
@@ -165,6 +179,11 @@ $currentPage = $page;
       }
 
       event.preventDefault();
+
+      if (link.dataset.page === getCurrentPageFromUrl()) {
+        return;
+      }
+
       loadPage(link.dataset.page, true);
     });
 

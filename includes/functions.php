@@ -84,6 +84,57 @@ function recordAttempt(PDO $pdo, string $username, string $ip, bool $success): v
     ]);
 }
 
+function recordSecurityLog(PDO $pdo, ?int $userId, ?string $username, string $eventType, string $severity, string $description, string $ip): void {
+    $stmt = $pdo->prepare(
+        'INSERT INTO security_logs (user_id, username, event_type, severity, description, ip_address, user_agent)
+         VALUES (:user_id, :username, :event_type, :severity, :description, :ip_address, :user_agent)'
+    );
+    $stmt->execute([
+        ':user_id' => $userId,
+        ':username' => $username,
+        ':event_type' => $eventType,
+        ':severity' => $severity,
+        ':description' => $description,
+        ':ip_address' => $ip,
+        ':user_agent' => substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+    ]);
+}
+
+function hasRecentSecurityLog(PDO $pdo, string $ip, string $eventType, int $seconds): bool {
+    $seconds = max(1, $seconds);
+    $stmt = $pdo->prepare(
+        "SELECT id FROM security_logs
+         WHERE ip_address = :ip AND event_type = :event_type
+           AND created_at >= DATE_SUB(NOW(), INTERVAL {$seconds} SECOND)
+         LIMIT 1"
+    );
+    $stmt->execute([':ip' => $ip, ':event_type' => $eventType]);
+    return (bool) $stmt->fetchColumn();
+}
+
+function countSecurityLogs(PDO $pdo, string $ip, string $eventType): int {
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM security_logs WHERE ip_address = :ip AND event_type = :event_type'
+    );
+    $stmt->execute([':ip' => $ip, ':event_type' => $eventType]);
+    return (int) $stmt->fetchColumn();
+}
+
+function recordActivityLog(PDO $pdo, ?int $userId, string $action, string $description, ?string $entityType = null, ?int $entityId = null): void {
+    $stmt = $pdo->prepare(
+        'INSERT INTO activity_logs (user_id, action, description, entity_type, entity_id, ip_address)
+         VALUES (:user_id, :action, :description, :entity_type, :entity_id, :ip_address)'
+    );
+    $stmt->execute([
+        ':user_id' => $userId,
+        ':action' => $action,
+        ':description' => $description,
+        ':entity_type' => $entityType,
+        ':entity_id' => $entityId,
+        ':ip_address' => getClientIp(),
+    ]);
+}
+
 /** Clear failed attempts after a successful login. */
 function clearAttempts(PDO $pdo, string $username, string $ip): void {
     $stmt = $pdo->prepare(
