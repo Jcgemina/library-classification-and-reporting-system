@@ -216,6 +216,7 @@ if ($action !== null) {
 
     if ($action === 'delete') {
         $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int) $_POST['id'] : (isset($_GET['id']) ? (int) $_GET['id'] : 0);
+        $adminPassword = (string) ($_POST['admin_password'] ?? '');
 
         if ($id <= 0) {
             http_response_code(422);
@@ -224,8 +225,32 @@ if ($action !== null) {
             exit;
         }
 
+        $adminStmt = $pdo->prepare('SELECT id, username, password FROM users WHERE id = :id AND role = \'admin\' AND is_active = 1 LIMIT 1');
+        $adminStmt->execute([':id' => (int) ($_SESSION['user_id'] ?? 0)]);
+        $admin = $adminStmt->fetch();
+
+        if (!$admin || $adminPassword === '' || !password_verify($adminPassword, $admin['password'])) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'The administrator password is incorrect.']);
+            exit;
+        }
+
+        $targetStmt = $pdo->prepare('SELECT id, username, full_name FROM users WHERE id = :id AND role IN (\'admin\', \'librarian\') LIMIT 1');
+        $targetStmt->execute([':id' => $id]);
+        $target = $targetStmt->fetch();
+
+        if (!$target) {
+            http_response_code(404);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Librarian not found.']);
+            exit;
+        }
+
         $deleteStmt = $pdo->prepare('DELETE FROM users WHERE id = :id AND role IN (\'admin\', \'librarian\')');
         $deleteStmt->execute([':id' => $id]);
+        recordSecurityLog($pdo, (int) $admin['id'], $admin['username'], 'user_deleted', 'warning', 'Deleted user ' . $target['username'] . ' (' . $target['full_name'] . ').', getClientIp());
+        recordActivityLog($pdo, (int) $admin['id'], 'delete_user', 'Deleted user ' . $target['username'] . '.');
 
         header('Content-Type: application/json');
         echo json_encode([
@@ -397,6 +422,8 @@ if ($action !== null) {
         <p class="mt-2 text-sm font-semibold text-red-600">This action cannot be undone.</p>
       </div>
     </div>
+    <label for="adminDeletePassword" class="mt-5 block text-sm font-semibold text-slate-700">Administrator password</label>
+    <input type="password" id="adminDeletePassword" autocomplete="current-password" class="mt-2 w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200" placeholder="Enter your password">
     <div class="mt-6 flex justify-end gap-3">
       <button type="button" id="cancelDeleteBtn" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Cancel</button>
       <button type="button" id="confirmDeleteBtn" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700">
@@ -757,24 +784,33 @@ if ($action !== null) {
     const modal = document.getElementById('deleteConfirmModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    document.getElementById('adminDeletePassword').value = '';
     state.pendingDeleteIds = [];
   }
 
   function openDeleteConfirmation(ids, message) {
     state.pendingDeleteIds = ids;
     document.getElementById('deleteConfirmMessage').textContent = message;
+    document.getElementById('adminDeletePassword').value = '';
     const modal = document.getElementById('deleteConfirmModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    document.getElementById('adminDeletePassword').focus();
   }
 
   function confirmPendingDelete() {
     const selected = [...state.pendingDeleteIds];
     if (!selected.length) return;
+    const adminPassword = document.getElementById('adminDeletePassword').value;
+    if (!adminPassword) {
+      showToast('Enter the administrator password to continue.', 'error');
+      document.getElementById('adminDeletePassword').focus();
+      return;
+    }
     closeDeleteConfirmation();
 
     const deleteRequests = selected.map(id => {
-      const formData = new URLSearchParams({ action: 'delete', id: String(id) });
+      const formData = new URLSearchParams({ action: 'delete', id: String(id), admin_password: adminPassword });
       return fetch('pages/user.php', {
         method: 'POST',
         headers: {

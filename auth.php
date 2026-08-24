@@ -57,6 +57,12 @@ if (!$user || !password_verify($password, $user['password']) || (int)$user['is_a
     if ($failedCount >= 1 && $failedCount < MAX_ATTEMPTS) {
         $message .= " Attempt {$failedCount} of " . MAX_ATTEMPTS . '.';
     }
+
+    if ($failedCount >= MAX_ATTEMPTS && !hasRecentSecurityLog($pdo, $ip, 'login_blocked', BASE_LOCKOUT_MINUTES * 60)) {
+        $previousBlocks = countSecurityLogs($pdo, $ip, 'login_blocked');
+        $severity = $previousBlocks > 0 ? 'critical' : 'warning';
+        recordSecurityLog($pdo, $user !== false ? (int)$user['id'] : null, $username, 'login_blocked', $severity, 'Login blocked after repeated failed attempts from this username or IP.', $ip);
+    }
     
     setFlash($message, false, $failedCount);
     header('Location: login.php');
