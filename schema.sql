@@ -74,6 +74,33 @@ CREATE TABLE IF NOT EXISTS program_prospectuses (
     CONSTRAINT fk_prospectus_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_password_reset_user (user_id),
+    INDEX idx_password_reset_expiry (expires_at),
+    CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS email_queue (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    recipient VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    reset_token CHAR(64) NOT NULL,
+    email_type VARCHAR(20) NOT NULL DEFAULT 'setup',
+    attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    available_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at DATETIME DEFAULT NULL,
+    last_error VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email_queue_pending (sent_at, available_at)
+) ENGINE=InnoDB;
+
 -- wk2
 -- Upgrade older installations created before email was added.
 -- This is safe to run after the table already exists.
@@ -92,6 +119,22 @@ SET @add_email_column = IF(
 PREPARE add_email_column FROM @add_email_column;
 EXECUTE add_email_column;
 DEALLOCATE PREPARE add_email_column;
+
+SET @email_type_column_exists = (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'email_queue'
+      AND COLUMN_NAME = 'email_type'
+);
+SET @add_email_type_column = IF(
+    @email_type_column_exists = 0,
+    "ALTER TABLE email_queue ADD COLUMN email_type VARCHAR(20) NOT NULL DEFAULT 'setup' AFTER reset_token",
+    'SELECT 1'
+);
+PREPARE add_email_type_column FROM @add_email_type_column;
+EXECUTE add_email_type_column;
+DEALLOCATE PREPARE add_email_type_column;
 
 -- Upgrade older organization installations with majors and course-major links.
 SET @majors_table_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors');

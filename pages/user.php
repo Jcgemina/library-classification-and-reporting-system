@@ -195,7 +195,8 @@ if ($action !== null) {
 
         $emailSent = null;
         if ($id !== null && !isset($existingUser)) {
-            $emailSent = sendAccountDetailsEmail($email, $fullName, $username, $plainPassword, $role);
+          $resetToken = createPasswordResetToken($pdo, $id);
+            queuePasswordSetupEmail($pdo, $email, $fullName, $username, $resetToken);
         }
 
         $selectStmt = $pdo->prepare('SELECT id, username, full_name, email, role, is_active, created_at FROM users WHERE id = :id LIMIT 1');
@@ -206,7 +207,7 @@ if ($action !== null) {
         echo json_encode([
             'success' => true,
             'message' => $message,
-            'emailSent' => $emailSent,
+            'emailQueued' => $id !== null && !isset($existingUser),
             'librarian' => [
                 'id' => (int) $user['id'],
                 'fullName' => $user['full_name'],
@@ -951,12 +952,10 @@ if ($action !== null) {
         }
 
         closeModal();
-        const saveMessage = result.emailSent === true
-          ? `${result.message} Account details emailed.`
-          : result.emailSent === false
-            ? `${result.message} Email could not be sent; verify the server mail settings.`
-            : result.message;
-        showToast(saveMessage, result.emailSent === false ? 'error' : 'success');
+        const saveMessage = result.emailQueued === true
+          ? `${result.message} Password reset link queued for delivery.`
+          : result.message;
+        showToast(saveMessage);
         return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
       })
       .then(() => {

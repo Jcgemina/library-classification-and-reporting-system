@@ -144,6 +144,15 @@ if ($action !== null) {
         ];
         $entity = preg_replace('/^(add|edit|delete)_/', '', $action);
         $operation = substr($action, 0, strpos($action, '_'));
+        if ($operation === 'delete') {
+            $currentPassword = (string)($_POST['current_password'] ?? '');
+            $passwordStmt = $pdo->prepare('SELECT password FROM users WHERE id = :id AND is_active = 1 LIMIT 1');
+            $passwordStmt->execute([':id' => (int)$_SESSION['user_id']]);
+            $userPassword = (string)($passwordStmt->fetchColumn() ?: '');
+            if ($currentPassword === '' || $userPassword === '' || !password_verify($currentPassword, $userPassword)) {
+                organizationJson(['success' => false, 'message' => 'The current password is incorrect. Nothing was deleted.'], 403);
+            }
+        }
         if ($entity === 'course') {
             $table = 'courses';
             $id = (int)($_POST['id'] ?? 0);
@@ -210,7 +219,7 @@ if ($action !== null) {
             <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2"><i data-lucide="building-2" class="h-5 w-5 text-rose-600"></i><h3 class="text-xl font-bold text-slate-900">Institutional Structure</h3></div>
-                    <div class="flex items-center gap-3"><span id="organizationStatus" class="text-xs text-slate-400">Loading...</span><button type="button" id="addCollegeBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700"><i data-lucide="plus" class="h-4 w-4"></i> Add College</button></div>
+                    <div class="flex items-center gap-3"><span id="organizationStatus" class="text-xs text-slate-400">Loading...</span><button type="button" id="addCollegeBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 active:scale-95"><i data-lucide="plus" class="h-4 w-4"></i> Add College</button></div>
                 </div>
                 <div id="organizationTree" class="space-y-2"></div>
             </section>
@@ -236,6 +245,8 @@ if ($action !== null) {
     const form = document.getElementById('organizationForm');
     const prospectusList = document.getElementById('prospectusList');
     const prospectusForm = document.getElementById('prospectusForm');
+    const applyInputOutline = container => container.querySelectorAll('input:not([type="hidden"])').forEach(input => input.classList.add('border-2', 'border-slate-300', 'outline-none', 'focus:border-rose-600', 'focus:ring-2', 'focus:ring-rose-100'));
+    applyInputOutline(form);
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
     function toast(message, error = false) {
         const container = document.getElementById('toastContainer');
@@ -265,8 +276,8 @@ if ($action !== null) {
         setTimeout(dismiss, duration);
     }
   const openForm = (action, title, id = '', parent = '', item = {}, major = '') => { form.reset(); document.getElementById('organizationAction').value = action; document.getElementById('organizationId').value = id; document.getElementById('organizationParent').value = parent; document.getElementById('organizationMajor').value = major || item.major_id || ''; document.getElementById('organizationModalTitle').textContent = title; document.getElementById('courseFields').classList.toggle('hidden', !action.endsWith('course')); document.getElementById('organizationName').value = item.name || ''; if (item.code) form.code.value = item.code; if (item.year_level) form.year_level.value = item.year_level; modal.classList.remove('hidden'); modal.classList.add('flex'); document.getElementById('organizationName').focus(); };
-  const controls = (type, item, parent) => `<span class="flex items-center gap-2"><button type="button" data-edit="${type}" data-id="${item.id}" data-parent="${parent}" data-item='${esc(JSON.stringify(item))}' class="text-xs font-semibold text-slate-500 hover:text-rose-600">Edit</button><button type="button" data-delete="${type}" data-id="${item.id}" class="text-xs font-semibold text-red-500 hover:text-red-700">Delete</button></span>`;
-  const add = (action, title, parent, major = '') => `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" class="text-xs font-semibold text-rose-600">+ ${title}</button>`;
+    const controls = (type, item, parent) => `<span class="flex flex-wrap items-center gap-1"><button type="button" data-edit="${type}" data-id="${item.id}" data-parent="${parent}" data-item='${esc(JSON.stringify(item))}' class="inline-flex whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 shadow-sm transition hover:border-rose-500 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200">Edit</button><button type="button" data-delete="${type}" data-id="${item.id}" class="inline-flex whitespace-nowrap rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 shadow-sm transition hover:border-red-500 hover:bg-red-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-red-200">Delete</button></span>`;
+    const add = (action, title, parent, major = '') => `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" class="inline-flex whitespace-nowrap rounded-md border border-rose-300 bg-white px-2 py-1 text-[11px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200 active:scale-95">+ ${title}</button>`;
     let hierarchyBuilder;
     function createHierarchyBuilder() {
         if (hierarchyBuilder) return hierarchyBuilder;
@@ -274,6 +285,7 @@ if ($action !== null) {
         hierarchyBuilder.id = 'hierarchyBuilder';
         hierarchyBuilder.className = 'mt-5 hidden min-w-0 space-y-3';
         hierarchyBuilder.innerHTML = '<label class="block text-sm font-medium">College name<input data-field="college-name" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"></label><div data-departments class="space-y-3 border-l-2 border-rose-200 pl-3"></div><button type="button" data-builder-add="department" class="text-sm font-semibold text-rose-600">+ Add department</button>';
+        applyInputOutline(hierarchyBuilder);
         form.querySelector('#organizationMajor').after(hierarchyBuilder);
         hierarchyBuilder.addEventListener('click', event => {
             const action = event.target.closest('[data-builder-add]')?.dataset.builderAdd;
@@ -283,6 +295,7 @@ if ($action !== null) {
             if (action === 'program') addProgram(event.target.closest('[data-builder-item]'));
             if (action === 'major') addMajor(event.target.closest('[data-builder-item]'));
             if (action === 'course') addCourse(event.target.closest('[data-builder-item]'));
+            applyInputOutline(hierarchyBuilder);
         });
         return hierarchyBuilder;
     }
@@ -363,8 +376,36 @@ if ($action !== null) {
             })),
         };
     }
+    let deleteDialog;
+    function openDeleteDialog(type, id) {
+        if (!deleteDialog) {
+            deleteDialog = document.createElement('div');
+            deleteDialog.className = 'fixed inset-0 z-[80] hidden items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm';
+            deleteDialog.innerHTML = `<form class="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-2xl"><div class="flex items-start gap-3"><div class="rounded-full bg-red-100 p-2 text-red-600"><i data-lucide="triangle-alert" class="h-5 w-5"></i></div><div><h3 class="text-lg font-bold text-slate-900">Confirm deletion</h3><p class="mt-1 text-sm text-slate-500">This will delete the selected hierarchy and its connected records.</p></div></div><label class="mt-5 block text-sm font-semibold text-slate-700">Current password<input type="password" data-delete-password autocomplete="current-password" required class="mt-2 w-full rounded-lg border-2 border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="Enter your password"></label><div class="mt-6 flex justify-end gap-3"><button type="button" data-delete-cancel class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button><button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300">Delete</button></div></form>`;
+            document.body.append(deleteDialog);
+            lucide.createIcons();
+            deleteDialog.querySelector('[data-delete-cancel]').onclick = () => closeDeleteDialog();
+            deleteDialog.querySelector('form').onsubmit = event => {
+                event.preventDefault();
+                const password = deleteDialog.querySelector('[data-delete-password]').value;
+                submit({ action: `delete_${deleteDialog.dataset.type}`, id: deleteDialog.dataset.id, current_password: password });
+                closeDeleteDialog();
+            };
+        }
+        deleteDialog.dataset.type = type;
+        deleteDialog.dataset.id = id;
+        deleteDialog.querySelector('[data-delete-password]').value = '';
+        deleteDialog.classList.remove('hidden');
+        deleteDialog.classList.add('flex');
+        deleteDialog.querySelector('[data-delete-password]').focus();
+    }
+    function closeDeleteDialog() {
+        deleteDialog?.classList.add('hidden');
+        deleteDialog?.classList.remove('flex');
+    }
     const renderCollege = college => {
-        const departments = college.departments.map(department => {
+        const departmentItems = college.departments || [];
+        const departments = departmentItems.map(department => {
             const programs = department.programs.map(program => {
                 const majors = program.majors.map(major => {
                     const majorCourses = program.courses.filter(course => Number(course.major_id) === Number(major.id));
@@ -373,7 +414,7 @@ if ($action !== null) {
                         <div class="group flex items-center gap-2 text-sm font-semibold text-slate-700">
                             <i data-lucide="tag" class="h-3.5 w-3.5 shrink-0 text-rose-600"></i>
                             ${esc(major.name)}
-                            <span class="ml-auto flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">${controls('major', major, program.id)}${add('add_course', 'Add course', program.id, major.id)}</span>
+                            <span class="ml-auto flex flex-wrap items-center gap-1">${controls('major', major, program.id)}${add('add_course', 'Add course', program.id, major.id)}</span>
                         </div>
                         <div class="mt-1 space-y-1 pl-4">${majorCourses.map(course => `
                             <div class="group flex items-center gap-2 py-0.5 text-xs text-slate-500">
@@ -399,7 +440,7 @@ if ($action !== null) {
                         <div class="group flex items-center gap-2">
                             <i data-lucide="book" class="h-3.5 w-3.5 shrink-0 text-rose-600"></i>
                             <span class="text-sm font-semibold text-slate-700">${esc(program.name)}</span>
-                            <span class="ml-auto flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">${controls('program', program, department.id)}${add('add_major', 'Add major', program.id)}${add('add_course', 'Add course', program.id)}</span>
+                            <span class="ml-auto flex flex-wrap items-center gap-1">${controls('program', program, department.id)}${add('add_major', 'Add major', program.id)}${add('add_course', 'Add course', program.id)}</span>
                         </div>
                         <div class="mt-1 space-y-1 pl-4">${majors || '<p class="text-xs italic text-slate-400">No majors yet</p>'}${courses}</div>
                     </div>`;
@@ -410,7 +451,7 @@ if ($action !== null) {
                     <div class="group flex items-center gap-2">
                         <i data-lucide="layers" class="h-3.5 w-3.5 shrink-0 text-slate-500"></i>
                         <span class="text-sm font-semibold text-slate-700">${esc(department.name)}</span>
-                        <span class="ml-auto flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">${controls('department', department, college.id)}${add('add_program', 'Add program', department.id)}</span>
+                        <span class="ml-auto flex flex-wrap items-center gap-1">${controls('department', department, college.id)}${add('add_program', 'Add program', department.id)}</span>
                     </div>
                     ${programs || '<p class="mt-1 pl-4 text-xs italic text-slate-400">No programs yet</p>'}
                 </div>`;
@@ -421,10 +462,10 @@ if ($action !== null) {
                 <div class="flex cursor-pointer items-center gap-3 p-4" data-college-toggle="${college.id}">
                     <i data-lucide="chevron-right" class="college-chevron h-5 w-5 shrink-0 text-rose-600 transition-transform"></i>
                     <i data-lucide="building-2" class="h-5 w-5 shrink-0 text-rose-600"></i>
-                    <div class="min-w-0 flex-1"><h4 class="truncate text-sm font-bold text-slate-800">${esc(college.name)}</h4><p class="text-[10px] uppercase tracking-wide text-slate-500">${departments.length} Department${departments.length === 1 ? '' : 's'}</p></div>
-                    <div class="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">${controls('college', college)}${add('add_department', 'Add department', college.id)}</div>
+                    <div class="min-w-0 flex-1"><h4 class="truncate text-sm font-bold text-slate-800">${esc(college.name)}</h4><p class="text-[10px] uppercase tracking-wide text-slate-500">${departmentItems.length} Department${departmentItems.length === 1 ? '' : 's'}</p></div>
+                    <div class="flex flex-wrap items-center gap-1">${controls('college', college)}${add('add_department', 'Add department', college.id)}</div>
                 </div>
-                <div id="college-${college.id}" class="college-body hidden px-4"><div class="space-y-1 border-t border-slate-200 pb-4 pl-2 pt-2">${departments || '<p class="text-xs italic text-slate-400">No departments yet</p>'}</div></div>
+                <div id="college-${college.id}" class="college-body max-h-0 overflow-hidden px-4 opacity-0 transition-all duration-300 ease-in-out"><div class="overflow-hidden space-y-1 border-t border-slate-200 pb-4 pl-2 pt-2">${departments || '<p class="text-xs italic text-slate-400">No departments yet</p>'}</div></div>
             </article>`;
     };
   function render(data) {
@@ -462,12 +503,18 @@ if ($action !== null) {
         if (toggle && !addButton && !edit && !del) {
             const body = document.getElementById(`college-${toggle.dataset.collegeToggle}`);
             const chevron = toggle.querySelector('.college-chevron');
-            body?.classList.toggle('hidden');
+            if (body) {
+                const isOpening = body.classList.contains('max-h-0');
+                body.classList.toggle('max-h-0', !isOpening);
+                body.classList.toggle('max-h-[2000px]', isOpening);
+                body.classList.toggle('opacity-0', !isOpening);
+                body.classList.toggle('opacity-100', isOpening);
+            }
             chevron?.classList.toggle('rotate-90');
         }
         if (addButton) { closeHierarchyForm(); openForm(addButton.dataset.add, `Add ${addButton.dataset.title.replace('Add ', '')}`, '', addButton.dataset.parent, {}, addButton.dataset.major); }
         if (edit) { closeHierarchyForm(); openForm(`edit_${edit.dataset.edit}`, `Edit ${edit.dataset.edit}`, edit.dataset.id, edit.dataset.parent, JSON.parse(edit.dataset.item)); }
-        if (del && confirm(`Delete this ${del.dataset.delete}? This may also delete its children.`)) submit({ action: `delete_${del.dataset.delete}`, id: del.dataset.id });
+        if (del) openDeleteDialog(del.dataset.delete, del.dataset.id);
     };
   document.getElementById('closeOrganizationModal').onclick = () => modal.classList.add('hidden');
   const submit = data => fetch('pages/organization.php', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body: data instanceof FormData ? new URLSearchParams(data) : new URLSearchParams(data)}).then(r => r.json()).then(result => { if (!result.success) throw new Error(result.message); modal.classList.add('hidden'); toast(result.message); load(); }).catch(e => toast(e.message, true));

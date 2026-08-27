@@ -146,7 +146,7 @@ $isLocked = $lockSeconds > 0;
             <input type="checkbox" name="remember" class="rounded border-slate-300">
             Remember this device
           </label>
-          <a href="#" class="text-rose-600 font-medium hover:underline">Forgot Password?</a>
+          <a href="forgot_password.php" class="text-rose-600 font-medium hover:underline">Forgot Password?</a>
         </div>
 
         <button type="submit" id="signInBtn" <?php echo $isLocked ? 'disabled' : ''; ?>

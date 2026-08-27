@@ -1,0 +1,21 @@
+# Composer dependencies
+/vendor/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local runtime files
+*.log
+/cache/
+/tmp/
+
+# Markdown notes and documentation
+*.md
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
