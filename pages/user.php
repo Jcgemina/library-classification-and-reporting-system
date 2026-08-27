@@ -177,12 +177,13 @@ if ($action !== null) {
 
             $message = 'Librarian updated successfully.';
         } else {
+            $plainPassword = $password !== '' ? $password : 'Welcome123!';
             $stmt = $pdo->prepare(
                 'INSERT INTO users (username, password, full_name, email, role, is_active) VALUES (:username, :password, :full_name, :email, :role, 1)'
             );
             $stmt->execute([
                 ':username' => $username,
-                ':password' => password_hash($password !== '' ? $password : 'Welcome123!', PASSWORD_DEFAULT),
+              ':password' => password_hash($plainPassword, PASSWORD_DEFAULT),
                 ':full_name' => $fullName,
                 ':email' => $email,
                 ':role' => $role,
@@ -190,6 +191,11 @@ if ($action !== null) {
 
             $id = (int) $pdo->lastInsertId();
             $message = 'Librarian added successfully.';
+        }
+
+        $emailSent = null;
+        if ($id !== null && !isset($existingUser)) {
+            $emailSent = sendAccountDetailsEmail($email, $fullName, $username, $plainPassword, $role);
         }
 
         $selectStmt = $pdo->prepare('SELECT id, username, full_name, email, role, is_active, created_at FROM users WHERE id = :id LIMIT 1');
@@ -200,6 +206,7 @@ if ($action !== null) {
         echo json_encode([
             'success' => true,
             'message' => $message,
+            'emailSent' => $emailSent,
             'librarian' => [
                 'id' => (int) $user['id'],
                 'fullName' => $user['full_name'],
@@ -944,6 +951,12 @@ if ($action !== null) {
         }
 
         closeModal();
+        const saveMessage = result.emailSent === true
+          ? `${result.message} Account details emailed.`
+          : result.emailSent === false
+            ? `${result.message} Email could not be sent; verify the server mail settings.`
+            : result.message;
+        showToast(saveMessage, result.emailSent === false ? 'error' : 'success');
         return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
       })
       .then(() => {

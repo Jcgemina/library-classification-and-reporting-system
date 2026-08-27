@@ -6,7 +6,7 @@ require_once __DIR__ . '/includes/functions.php';
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
-if (!empty($_SESSION['user_id'])) {
+if (!empty($_SESSION['authenticated']) && !empty($_SESSION['user_id'])) {
     header('Location: app.php?page=dashboard');
     exit;
 }

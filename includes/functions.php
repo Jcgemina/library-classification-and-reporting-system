@@ -171,3 +171,24 @@ function getFlash(): array {
     }
     return ['message' => null, 'locked' => false, 'attempts' => null];
 }
+
+function sendAccountDetailsEmail(string $recipient, string $fullName, string $username, string $password, string $role): bool {
+    $subject = 'Your AppSys Library account details';
+    $safeName = htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8');
+    $safeUsername = htmlspecialchars($username, ENT_QUOTES, 'UTF-8');
+    $safeRole = htmlspecialchars(ucfirst($role), ENT_QUOTES, 'UTF-8');
+    $message = "<html><body style=\"font-family:Arial,sans-serif;color:#1e293b\">"
+        . "<h2>Welcome to AppSys Library</h2>"
+        . "<p>Hello {$safeName}, your account has been created.</p>"
+        . "<p><strong>Username:</strong> {$safeUsername}<br>"
+        . "<strong>Password:</strong> " . htmlspecialchars($password, ENT_QUOTES, 'UTF-8') . "<br>"
+        . "<strong>Role:</strong> {$safeRole}</p>"
+        . "<p>Please sign in and change your password after your first login.</p></body></html>";
+    $headers = [
+        'MIME-Version: 1.0',
+        'Content-type: text/html; charset=UTF-8',
+        'From: ' . (defined('MAIL_FROM') ? MAIL_FROM : 'no-reply@library.local'),
+    ];
+
+    return mail($recipient, $subject, $message, implode("\r\n", $headers));
+}

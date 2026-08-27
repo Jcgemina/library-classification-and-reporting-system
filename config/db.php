@@ -4,6 +4,8 @@ $DB_NAME = 'appsys_library';
 $DB_USER = 'root';
 $DB_PASS = '';
 
+const MAIL_FROM = 'no-reply@library.local';
+
 $pdo = null;
 $dbConnectionError = null;
 
