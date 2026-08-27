@@ -42,16 +42,27 @@ CREATE TABLE IF NOT EXISTS programs (
     CONSTRAINT fk_programs_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS majors (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    program_id INT NOT NULL,
+    name VARCHAR(180) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_major_program_name (program_id, name),
+    CONSTRAINT fk_majors_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS courses (
     id INT AUTO_INCREMENT PRIMARY KEY,
     program_id INT NOT NULL,
+    major_id INT DEFAULT NULL,
     code VARCHAR(30) NOT NULL,
     name VARCHAR(180) NOT NULL,
     year_level TINYINT UNSIGNED DEFAULT NULL,
     semester TINYINT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_course_program_code (program_id, code),
-    CONSTRAINT fk_courses_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
+    CONSTRAINT fk_courses_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_courses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS program_prospectuses (
@@ -81,6 +92,31 @@ SET @add_email_column = IF(
 PREPARE add_email_column FROM @add_email_column;
 EXECUTE add_email_column;
 DEALLOCATE PREPARE add_email_column;
+
+-- Upgrade older organization installations with majors and course-major links.
+SET @majors_table_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors');
+SET @create_majors_table = IF(@majors_table_exists = 0,
+    'CREATE TABLE majors (id INT AUTO_INCREMENT PRIMARY KEY, program_id INT NOT NULL, name VARCHAR(180) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_major_program_name (program_id, name), CONSTRAINT fk_majors_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE) ENGINE=InnoDB',
+    'SELECT 1');
+PREPARE create_majors_table FROM @create_majors_table;
+EXECUTE create_majors_table;
+DEALLOCATE PREPARE create_majors_table;
+
+SET @major_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'major_id');
+SET @add_major_column = IF(@major_column_exists = 0,
+    'ALTER TABLE courses ADD COLUMN major_id INT DEFAULT NULL AFTER program_id',
+    'SELECT 1');
+PREPARE add_major_column FROM @add_major_column;
+EXECUTE add_major_column;
+DEALLOCATE PREPARE add_major_column;
+
+SET @major_fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND CONSTRAINT_NAME = 'fk_courses_major');
+SET @add_major_fk = IF(@major_fk_exists = 0,
+    'ALTER TABLE courses ADD CONSTRAINT fk_courses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE',
+    'SELECT 1');
+PREPARE add_major_fk FROM @add_major_fk;
+EXECUTE add_major_fk;
+DEALLOCATE PREPARE add_major_fk;
 
 -- Table: login_attempts (used for rate limiting / brute-force protection)
 CREATE TABLE IF NOT EXISTS login_attempts (
