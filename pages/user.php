@@ -410,7 +410,7 @@ if ($action !== null) {
         <button type="button" data-close-modal class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
           Cancel
         </button>
-        <button type="submit" class="rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600">
+        <button type="submit" id="saveLibrarianBtn" class="rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-70">
           Save User
         </button>
       </div>
@@ -937,6 +937,13 @@ if ($action !== null) {
       payload.set('id', editingId);
     }
 
+    const saveButton = document.getElementById('saveLibrarianBtn');
+    const defaultSaveButtonContent = saveButton.innerHTML;
+    saveButton.disabled = true;
+    saveButton.setAttribute('aria-busy', 'true');
+    saveButton.innerHTML = `<i data-lucide="loader-circle" class="mr-2 inline-block h-4 w-4 animate-spin align-[-2px]"></i>${editingId ? 'Saving...' : 'Sending email...'}`;
+    lucide.createIcons();
+
     fetch('pages/user.php', {
       method: 'POST',
       headers: {
@@ -952,6 +959,9 @@ if ($action !== null) {
         }
 
         closeModal();
+        saveButton.disabled = false;
+        saveButton.removeAttribute('aria-busy');
+        saveButton.innerHTML = defaultSaveButtonContent;
         const saveMessage = result.emailQueued === true
           ? `${result.message} Password reset link queued for delivery.`
           : result.message;
@@ -963,6 +973,10 @@ if ($action !== null) {
         showToast(editingId ? 'Librarian updated successfully.' : 'Librarian added successfully.');
       })
       .catch(error => {
+        saveButton.disabled = false;
+        saveButton.removeAttribute('aria-busy');
+        saveButton.innerHTML = defaultSaveButtonContent;
+        lucide.createIcons();
         showToast(error.message || 'Unable to save librarian.', 'error');
       });
   });

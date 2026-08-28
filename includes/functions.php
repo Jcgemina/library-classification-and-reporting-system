@@ -155,9 +155,10 @@ function passwordResetUrl(string $token): string {
 function sendPasswordSetupEmail(string $recipient, string $fullName, string $username, string $token, string $emailType = 'setup'): bool {
     if (!class_exists('PHPMailer\\PHPMailer\\PHPMailer')) return false;
     $emailType = $emailType === 'reset' ? 'reset' : 'setup';
-    $safeName = htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8');
-    $safeUsername = htmlspecialchars($username, ENT_QUOTES, 'UTF-8');
-    $link = htmlspecialchars(passwordResetUrl($token), ENT_QUOTES, 'UTF-8');
+    $safeName = htmlspecialchars($fullName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $safeUsername = htmlspecialchars($username, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $resetUrl = passwordResetUrl($token);
+    $link = htmlspecialchars($resetUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
     try {
         $mail->isSMTP();
@@ -172,13 +173,60 @@ function sendPasswordSetupEmail(string $recipient, string $fullName, string $use
         $mail->isHTML(true);
         if ($emailType === 'reset') {
             $mail->Subject = 'Reset your AppSys Library password';
-            $mail->Body = "<html><body style=\"font-family:Arial,sans-serif;color:#1e293b\"><h2>Password reset request</h2><p>Hello {$safeName}, we received a request to reset your AppSys Library password.</p><p><a href=\"{$link}\" style=\"display:inline-block;background:#be123c;color:#fff;padding:12px 18px;text-decoration:none;border-radius:6px\">Reset your password</a></p><p>This link expires in one hour. If you did not request this, you can ignore this email.</p></body></html>";
-            $mail->AltBody = "Hello {$fullName}, reset your AppSys Library password here: " . passwordResetUrl($token) . " This link expires in one hour. If you did not request this, you can ignore this email.";
+            $eyebrow = 'ACCOUNT SECURITY';
+            $heading = 'Reset your password';
+            $intro = 'We received a request to reset the password for your AppSys Library account.';
+            $buttonLabel = 'Reset password';
+            $closing = 'If you did not request a password reset, you can safely ignore this email.';
+            $mail->AltBody = "Hello {$fullName},\n\nWe received a request to reset your AppSys Library password. Reset it here: {$resetUrl}\n\nThis link expires in one hour. {$closing}";
         } else {
             $mail->Subject = 'Set up your AppSys Library account';
-            $mail->Body = "<html><body style=\"font-family:Arial,sans-serif;color:#1e293b\"><h2>Welcome to AppSys Library</h2><p>Hello {$safeName}, your account has been created.</p><p><strong>Username:</strong> {$safeUsername}</p><p><a href=\"{$link}\" style=\"display:inline-block;background:#be123c;color:#fff;padding:12px 18px;text-decoration:none;border-radius:6px\">Set your password</a></p><p>This link expires in one hour.</p></body></html>";
-            $mail->AltBody = "Hello {$fullName}, set your AppSys Library password here: " . passwordResetUrl($token);
+            $eyebrow = 'WELCOME TO APPSYS LIBRARY';
+            $heading = 'Your account is ready';
+            $intro = 'An AppSys Library account has been created for you. Set a password to get started.';
+            $buttonLabel = 'Set your password';
+            $closing = 'For your security, this setup link expires in one hour.';
+            $mail->AltBody = "Hello {$fullName},\n\nYour AppSys Library account is ready. Username: {$username}\n\nSet your password here: {$resetUrl}\n\n{$closing}";
         }
+            $mail->Body = <<<HTML
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>{$heading}</title></head>
+<body style="margin:0;background:#f1f5f9;color:#1e293b;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 12px;">
+        <tr><td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+                <tr><td style="background:#172554;padding:28px 40px;text-align:center;">
+                    <div style="color:#fbbf24;font-size:12px;font-weight:bold;letter-spacing:2px;">APPSYS LIBRARY</div>
+                    <div style="color:#dbeafe;font-size:12px;margin-top:8px;">{$eyebrow}</div>
+                </td></tr>
+                <tr><td style="padding:40px;">
+                    <div style="display:inline-block;background:#fef3c7;color:#92400e;border-radius:999px;padding:7px 12px;font-size:11px;font-weight:bold;letter-spacing:1px;">SECURE ACCOUNT LINK</div>
+                    <h1 style="margin:22px 0 12px;color:#0f172a;font-size:30px;line-height:1.2;">{$heading}</h1>
+                    <p style="margin:0;color:#475569;font-size:16px;line-height:1.7;">Hello {$safeName},</p>
+                    <p style="margin:8px 0 0;color:#475569;font-size:16px;line-height:1.7;">{$intro}</p>
+HTML;
+        if ($emailType !== 'reset') {
+            $mail->Body .= <<<HTML
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#f8fafc;border-left:4px solid #fbbf24;">
+                        <tr><td style="padding:16px 18px;color:#334155;font-size:14px;line-height:1.5;"><strong>Username</strong><br>{$safeUsername}</td></tr>
+                    </table>
+HTML;
+            }
+            $mail->Body .= <<<HTML
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 24px;"><tr><td style="border-radius:8px;background:#e11d48;">
+                        <a href="{$link}" style="display:inline-block;padding:15px 24px;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none;">{$buttonLabel}</a>
+                    </td></tr></table>
+                    <p style="margin:0;color:#64748b;font-size:13px;line-height:1.7;">{$closing}</p>
+                    <p style="margin:20px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">If the button does not work, copy and paste this link into your browser:<br><span style="word-break:break-all;color:#64748b;">{$link}</span></p>
+                </td></tr>
+                <tr><td style="border-top:1px solid #e2e8f0;padding:22px 40px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.6;">This is an automated message from AppSys Library.<br>Please do not reply to this email.</td></tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>
+HTML;
         return $mail->send();
     } catch (\Throwable $exception) {
         error_log('SMTP email error: ' . $exception->getMessage());

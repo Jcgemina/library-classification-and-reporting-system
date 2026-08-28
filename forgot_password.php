@@ -15,7 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
         if ($user) {
             $token = createPasswordResetToken($pdo, (int)$user['id']);
-          queuePasswordSetupEmail($pdo, $email, (string)$user['full_name'], (string)$user['username'], $token, 'reset');
+            $fullName = (string)$user['full_name'];
+            $username = (string)$user['username'];
+            queuePasswordSetupEmail($pdo, $email, $fullName, $username, $token, 'reset');
+            if (filter_var(environmentValue('DIRECT_PASSWORD_RESET_EMAIL', 'false'), FILTER_VALIDATE_BOOLEAN)) {
+                if (!sendPasswordSetupEmail($email, $fullName, $username, $token, 'reset')) {
+                    error_log('Direct password reset email failed for queued recipient.');
+                }
+            }
         }
         $message = 'If an active account uses that email, a password reset link has been sent.';
     } else {
