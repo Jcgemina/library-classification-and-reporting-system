@@ -108,6 +108,18 @@ if ($action !== null) {
         $username = trim((string)($_POST['username'] ?? ''));
         $password = (string)($_POST['password'] ?? '');
         $role = strtolower(trim((string)($_POST['role'] ?? '')));
+        $adminPassword = (string)($_POST['admin_password'] ?? '');
+
+        $adminStmt = $pdo->prepare('SELECT id, username, password FROM users WHERE id = :id AND role = \'admin\' AND is_active = 1 LIMIT 1');
+        $adminStmt->execute([':id' => (int) ($_SESSION['user_id'] ?? 0)]);
+        $admin = $adminStmt->fetch();
+
+        if (!$admin || $adminPassword === '' || !password_verify($adminPassword, $admin['password'])) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'The administrator password is incorrect.']);
+            exit;
+        }
 
         if ($fullName === '' || $username === '' || $email === '') {
             http_response_code(422);
@@ -381,20 +393,20 @@ if ($action !== null) {
         </div>
 
         <div>
-          <label for="username" class="mb-1.5 block text-sm font-medium text-slate-700">Username (Read-only)</label>
-          <input id="username" name="username" type="text" readonly class="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500 cursor-not-allowed outline-none" />
-          <p class="mt-1 text-xs text-slate-500">Auto-generated from full name</p>
+          <label for="username" class="mb-1.5 block text-sm font-medium text-slate-700">Username</label>
+          <input id="username" name="username" type="text" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" placeholder="Enter username" />
+          <p class="mt-1 text-xs text-slate-500">Use the account username you want the user to sign in with.</p>
         </div>
 
         <div>
           <label for="password" class="mb-1.5 block text-sm font-medium text-slate-700">Password</label>
           <div class="relative">
-            <input id="password" name="password" type="password" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" />
+            <input id="password" name="password" type="password" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" placeholder="Type new password" />
             <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
               <i data-lucide="eye" class="h-4 w-4"></i>
             </button>
           </div>
-          <p class="mt-1 text-xs text-slate-500">Auto-generated, click eye icon to view, change if desired</p>
+          <p class="mt-1 text-xs text-slate-500">Leave blank to keep the existing password when editing.</p>
         </div>
 
         <div>
@@ -442,6 +454,29 @@ if ($action !== null) {
   </div>
 </div>
 
+<div id="saveConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+    <div class="flex items-start gap-4">
+      <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+        <i data-lucide="shield-check" class="h-5 w-5"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Confirm admin access</h3>
+        <p id="saveConfirmMessage" class="mt-1 text-sm text-slate-600">Please confirm the administrator password to save this user change.</p>
+      </div>
+    </div>
+    <label for="adminSavePassword" class="mt-5 block text-sm font-semibold text-slate-700">Administrator password</label>
+    <input type="password" id="adminSavePassword" autocomplete="current-password" class="mt-2 w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200" placeholder="Enter your password">
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" id="cancelSaveBtn" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Cancel</button>
+      <button type="button" id="confirmSaveBtn" class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700">
+        <i data-lucide="check" class="h-4 w-4"></i>
+        Confirm Save
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3"></div>
 
 <script>
@@ -452,6 +487,7 @@ if ($action !== null) {
     editingId: null,
     searchTimer: null,
     pendingDeleteIds: [],
+    pendingSavePayload: null,
     currentPage: 1,
     pageSize: 5,
   };
@@ -718,12 +754,11 @@ if ($action !== null) {
     document.getElementById('fullName').value = librarian ? capitalizeFullName(librarian.fullName) : '';
     document.getElementById('email').value = librarian ? librarian.email : '';
     document.getElementById('role').value = librarian ? librarian.role : 'librarian';
-    
-    // Auto-generate username based on full name
+
     const fullNameValue = librarian ? capitalizeFullName(librarian.fullName) : '';
-    document.getElementById('username').value = generateUsername(fullNameValue);
-    
-    // Auto-generate password or keep blank for edit mode
+    const generatedUsername = generateUsername(fullNameValue);
+    document.getElementById('username').value = librarian ? librarian.username : generatedUsername;
+
     if (mode === 'add') {
       document.getElementById('password').value = generatePassword();
     } else {
@@ -848,10 +883,90 @@ if ($action !== null) {
       });
   }
 
+  function closeSaveConfirmation() {
+    const modal = document.getElementById('saveConfirmModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('adminSavePassword').value = '';
+    state.pendingSavePayload = null;
+  }
+
+  function openSaveConfirmation(payload) {
+    state.pendingSavePayload = payload;
+    document.getElementById('saveConfirmMessage').textContent = 'Please confirm the administrator password to save this user change.';
+    document.getElementById('adminSavePassword').value = '';
+    const modal = document.getElementById('saveConfirmModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('adminSavePassword').focus();
+  }
+
+  function confirmPendingSave() {
+    if (!state.pendingSavePayload) return;
+
+    const adminPassword = document.getElementById('adminSavePassword').value.trim();
+    if (!adminPassword) {
+      showToast('Enter the administrator password to continue.', 'error');
+      document.getElementById('adminSavePassword').focus();
+      return;
+    }
+
+    const payload = new URLSearchParams(state.pendingSavePayload.toString());
+    payload.set('admin_password', adminPassword);
+    closeSaveConfirmation();
+
+    const saveButton = document.getElementById('saveLibrarianBtn');
+    const defaultSaveButtonContent = saveButton.innerHTML;
+    saveButton.disabled = true;
+    saveButton.setAttribute('aria-busy', 'true');
+    saveButton.innerHTML = `<i data-lucide="loader-circle" class="mr-2 inline-block h-4 w-4 animate-spin align-[-2px]"></i>Saving...`;
+    lucide.createIcons();
+
+    fetch('pages/user.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: payload.toString()
+    })
+      .then(response => response.json())
+      .then(result => {
+        if (!result.success) {
+          throw new Error(result.message || 'Unable to save librarian.');
+        }
+
+        closeModal();
+        saveButton.disabled = false;
+        saveButton.removeAttribute('aria-busy');
+        saveButton.innerHTML = defaultSaveButtonContent;
+        const saveMessage = result.emailQueued === true
+          ? `${result.message} Password reset link queued for delivery.`
+          : result.message;
+        showToast(saveMessage);
+        return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
+      })
+      .then(() => {
+        document.getElementById('bulkDeleteBtn').disabled = true;
+      })
+      .catch(error => {
+        saveButton.disabled = false;
+        saveButton.removeAttribute('aria-busy');
+        saveButton.innerHTML = defaultSaveButtonContent;
+        lucide.createIcons();
+        showToast(error.message || 'Unable to save librarian.', 'error');
+      });
+  }
+
   document.getElementById('addLibrarianBtn').addEventListener('click', () => openModal('add'));
   document.getElementById('bulkDeleteBtn').addEventListener('click', handleBulkDelete);
   document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteConfirmation);
   document.getElementById('confirmDeleteBtn').addEventListener('click', confirmPendingDelete);
+  document.getElementById('cancelSaveBtn').addEventListener('click', closeSaveConfirmation);
+  document.getElementById('confirmSaveBtn').addEventListener('click', confirmPendingSave);
+  document.getElementById('saveConfirmModal').addEventListener('click', event => {
+    if (event.target.id === 'saveConfirmModal') closeSaveConfirmation();
+  });
   document.getElementById('deleteConfirmModal').addEventListener('click', event => {
     if (event.target.id === 'deleteConfirmModal') closeDeleteConfirmation();
   });
@@ -872,13 +987,6 @@ if ($action !== null) {
     if (event.target.id === 'librarianModal') {
       closeModal();
     }
-  });
-
-  document.getElementById('fullName').addEventListener('input', function () {
-    const capitalizedName = capitalizeFullName(this.value);
-    this.value = capitalizedName;
-    const generatedUsername = generateUsername(capitalizedName);
-    document.getElementById('username').value = generatedUsername;
   });
 
   document.getElementById('togglePassword').addEventListener('click', function (e) {
@@ -937,48 +1045,7 @@ if ($action !== null) {
       payload.set('id', editingId);
     }
 
-    const saveButton = document.getElementById('saveLibrarianBtn');
-    const defaultSaveButtonContent = saveButton.innerHTML;
-    saveButton.disabled = true;
-    saveButton.setAttribute('aria-busy', 'true');
-    saveButton.innerHTML = `<i data-lucide="loader-circle" class="mr-2 inline-block h-4 w-4 animate-spin align-[-2px]"></i>${editingId ? 'Saving...' : 'Sending email...'}`;
-    lucide.createIcons();
-
-    fetch('pages/user.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: payload.toString()
-    })
-      .then(response => response.json())
-      .then(result => {
-        if (!result.success) {
-          throw new Error(result.message || 'Unable to save librarian.');
-        }
-
-        closeModal();
-        saveButton.disabled = false;
-        saveButton.removeAttribute('aria-busy');
-        saveButton.innerHTML = defaultSaveButtonContent;
-        const saveMessage = result.emailQueued === true
-          ? `${result.message} Password reset link queued for delivery.`
-          : result.message;
-        showToast(saveMessage);
-        return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
-      })
-      .then(() => {
-        document.getElementById('bulkDeleteBtn').disabled = true;
-        showToast(editingId ? 'Librarian updated successfully.' : 'Librarian added successfully.');
-      })
-      .catch(error => {
-        saveButton.disabled = false;
-        saveButton.removeAttribute('aria-busy');
-        saveButton.innerHTML = defaultSaveButtonContent;
-        lucide.createIcons();
-        showToast(error.message || 'Unable to save librarian.', 'error');
-      });
+    openSaveConfirmation(payload);
   });
 
   document.getElementById('bulkDeleteBtn').disabled = true;
