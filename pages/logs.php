@@ -20,6 +20,9 @@ $securityLogs = [];
 $databaseError = null;
 
 try {
+    if($pdo === null) {
+        throw new PDOException('Database connection is not established.');
+    }
     $activityLogs = $pdo->query(
         "SELECT a.*, u.full_name FROM activity_logs a
          LEFT JOIN users u ON u.id = a.user_id
@@ -33,7 +36,8 @@ try {
          ORDER BY s.created_at DESC"
     )->fetchAll();
 } catch (PDOException $exception) {
-    $databaseError = 'Logs are not available yet. Run the updated schema.sql to create the audit tables.';
+    error_log('Error fetching logs: ' . $exception->getMessage());
+    $databaseError = 'Unable to retrieve logs at this time. Please try again later.';
 }
 ?>
 <style>

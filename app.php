@@ -6,22 +6,14 @@ require_once __DIR__ . '/includes/functions.php';
 requireLogin();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$allPages = [
-    'dashboard',
-    'inventory',
-    'organization',
-    'report',
-    'user',
-    'logs',
-];
+$adminPages = ['dashboard', 'inventory', 'organization', 'report', 'user', 'logs'];
+$staffPages = ['dashboard', 'inventory', 'organization', 'report'];
+$restrictedPages = ['user', 'logs'];
 
-$allowedPages = $userRole === 'admin'
-    ? $allPages
-    : ['dashboard', 'inventory', 'organization', 'report'];
-
+$allowedPages = $userRole === 'admin' ? $adminPages : $staffPages;
 $pageParam = $_GET['page'] ?? 'dashboard';
 
-if ($userRole !== 'admin' && in_array($pageParam, ['user', 'logs'], true)) {
+if ($userRole !== 'admin' && in_array($pageParam, $restrictedPages, true)) {
     header('Location: app.php?page=dashboard');
     exit;
 }
@@ -61,19 +53,23 @@ $currentPage = $page;
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
-    const allowedPages = currentUserRole === 'admin'
-      ? ['dashboard', 'inventory', 'organization', 'report', 'user', 'logs']
-      : ['dashboard', 'inventory', 'organization', 'report'];
+    const adminPages = ['dashboard', 'inventory', 'organization', 'report', 'user', 'logs'];
+    const staffPages = ['dashboard', 'inventory', 'organization', 'report'];
+    const restrictedPages = ['user', 'logs'];
+    const allowedPages = currentUserRole === 'admin' ? adminPages : staffPages;
+
+    function normalizePage(pageName) {
+      if (currentUserRole !== 'admin' && restrictedPages.includes(pageName)) {
+        return 'dashboard';
+      }
+
+      return allowedPages.includes(pageName) ? pageName : 'dashboard';
+    }
 
     function getCurrentPageFromUrl() {
       const params = new URLSearchParams(window.location.search);
       const requestedPage = params.get('page');
-
-      if (currentUserRole !== 'admin' && ['user', 'logs'].includes(requestedPage)) {
-        return 'dashboard';
-      }
-
-      return allowedPages.includes(requestedPage) ? requestedPage : 'dashboard';
+      return normalizePage(requestedPage);
     }
 
     function updateActiveTab(activePage) {
@@ -127,9 +123,7 @@ $currentPage = $page;
     }
 
     function loadPage(pageName, updateHistory = true) {
-      const safePage = currentUserRole !== 'admin' && ['user', 'logs'].includes(pageName)
-        ? 'dashboard'
-        : allowedPages.includes(pageName) ? pageName : 'dashboard';
+      const safePage = normalizePage(pageName);
 
       if (updateHistory) {
         const url = new URL(window.location.href);
