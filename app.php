@@ -131,7 +131,11 @@ $currentPage = $page;
         history.pushState({ page: safePage }, '', url);
       }
 
-      fetch('pages/' + safePage + '.php', {
+      const pageParams = new URLSearchParams(window.location.search);
+      pageParams.delete('page');
+      const pageQuery = safePage === 'logs' && pageParams.toString() ? '?' + pageParams.toString() : '';
+
+      fetch('pages/' + safePage + '.php' + pageQuery, {
         method: 'GET',
         headers: {
           'X-Requested-With': 'XMLHttpRequest'

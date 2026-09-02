@@ -19,3 +19,14 @@
 Thumbs.db
 .vscode/
 .idea/
+
+# Node.js dependencies
+/node_modules/
+
+# Impeccable lock file for Node.js dependencies
+package-lock.json
+
+# Codex and other AI-generated files
+*.codex
+*.cursor
+*.claude
