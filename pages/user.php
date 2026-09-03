@@ -280,6 +280,63 @@ if ($action !== null) {
         ]);
         exit;
     }
+
+      if ($action === 'toggle_status') {
+        $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+        $adminPassword = (string) ($_POST['admin_password'] ?? '');
+
+        if ($id <= 0) {
+          http_response_code(422);
+          header('Content-Type: application/json');
+          echo json_encode(['success' => false, 'message' => 'Invalid librarian ID.']);
+          exit;
+        }
+
+        if ($id === (int) ($_SESSION['user_id'] ?? 0)) {
+          http_response_code(422);
+          header('Content-Type: application/json');
+          echo json_encode(['success' => false, 'message' => 'You cannot change your own account status.']);
+          exit;
+        }
+
+        $adminStmt = $pdo->prepare('SELECT id, username, password FROM users WHERE id = :id AND role = \'admin\' AND is_active = 1 LIMIT 1');
+        $adminStmt->execute([':id' => (int) ($_SESSION['user_id'] ?? 0)]);
+        $admin = $adminStmt->fetch();
+
+        if (!$admin || $adminPassword === '' || !password_verify($adminPassword, $admin['password'])) {
+          http_response_code(403);
+          header('Content-Type: application/json');
+          echo json_encode(['success' => false, 'message' => 'The administrator password is incorrect.']);
+          exit;
+        }
+
+        $targetStmt = $pdo->prepare('SELECT id, username, full_name, is_active FROM users WHERE id = :id AND role IN (\'admin\', \'librarian\') LIMIT 1');
+        $targetStmt->execute([':id' => $id]);
+        $target = $targetStmt->fetch();
+
+        if (!$target) {
+          http_response_code(404);
+          header('Content-Type: application/json');
+          echo json_encode(['success' => false, 'message' => 'Librarian not found.']);
+          exit;
+        }
+
+        $newStatus = (int) $target['is_active'] === 1 ? 0 : 1;
+        $statusStmt = $pdo->prepare('UPDATE users SET is_active = :is_active WHERE id = :id');
+        $statusStmt->execute([':is_active' => $newStatus, ':id' => $id]);
+        $statusLabel = $newStatus === 1 ? 'activated' : 'deactivated';
+
+        recordSecurityLog($pdo, (int) $admin['id'], $admin['username'], 'user_status_changed', 'warning', ucfirst($statusLabel) . ' user ' . $target['username'] . ' (' . $target['full_name'] . ').', getClientIp());
+        recordActivityLog($pdo, (int) $admin['id'], 'change_user_status', ucfirst($statusLabel) . ' user ' . $target['username'] . '.', 'user', $id);
+
+        header('Content-Type: application/json');
+        echo json_encode([
+          'success' => true,
+          'status' => $newStatus === 1 ? 'active' : 'inactive',
+          'message' => 'Librarian ' . $statusLabel . ' successfully.'
+        ]);
+        exit;
+      }
 }
 ?>
 
@@ -350,16 +407,39 @@ if ($action !== null) {
         <p class="text-sm text-slate-500">Review staff profiles and update access rights.</p>
       </div>
 
-      <div class="relative w-full max-w-xs">
-        <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
-        <input
-          id="librarianSearch"
-          type="text"
-          placeholder="Search librarian"
-          class="w-full rounded-xl border-2 border-slate-300 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-[#4B5694] focus:bg-white focus:ring-2 focus:ring-[#4B5694]/20"
-        />
+      <div class="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+        <div class="relative w-full sm:w-56">
+          <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+          <input
+            id="librarianSearch"
+            type="text"
+            placeholder="Search librarian"
+            aria-label="Search librarian accounts"
+            class="w-full rounded-xl border-2 border-slate-300 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-[#4B5694] focus:bg-white focus:ring-2 focus:ring-[#4B5694]/20"
+          />
+        </div>
+        <label class="sr-only" for="librarianStatusFilter">Filter by account status</label>
+        <select
+          id="librarianStatusFilter"
+          class="w-full rounded-xl border-2 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-[#4B5694] focus:bg-white focus:ring-2 focus:ring-[#4B5694]/20 sm:w-36"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active only</option>
+          <option value="inactive">Inactive only</option>
+        </select>
+        <label class="sr-only" for="librarianRoleFilter">Filter by account role</label>
+        <select
+          id="librarianRoleFilter"
+          class="w-full rounded-xl border-2 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-[#4B5694] focus:bg-white focus:ring-2 focus:ring-[#4B5694]/20 sm:w-36"
+        >
+          <option value="all">All roles</option>
+          <option value="librarian">Librarians</option>
+          <option value="admin">Admins</option>
+        </select>
       </div>
     </div>
+
+    <p id="librarianResultSummary" class="mt-4 text-xs font-medium text-slate-500" aria-live="polite"></p>
 
     <div id="librarianList" class="mt-6 space-y-3"></div>
     <div id="librarianPagination" class="mt-6 flex flex-wrap items-center justify-center gap-2"></div>
@@ -477,6 +557,59 @@ if ($action !== null) {
   </div>
 </div>
 
+<div id="statusConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+    <div class="flex items-start gap-4">
+      <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+        <i data-lucide="shield-check" class="h-5 w-5"></i>
+      </div>
+      <div>
+        <h3 id="statusConfirmTitle" class="text-lg font-bold text-slate-900">Change account status?</h3>
+        <p id="statusConfirmMessage" class="mt-1 text-sm text-slate-600"></p>
+      </div>
+    </div>
+    <label for="adminStatusPassword" class="mt-5 block text-sm font-semibold text-slate-700">Administrator password</label>
+    <input type="password" id="adminStatusPassword" autocomplete="current-password" class="mt-2 w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200" placeholder="Enter your password">
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" id="cancelStatusBtn" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Cancel</button>
+      <button type="button" id="confirmStatusBtn" class="inline-flex items-center gap-2 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-800">
+        <i data-lucide="shield-check" class="h-4 w-4"></i>
+        Confirm change
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="userDetailDrawer" class="fixed inset-0 z-[55] hidden" aria-hidden="true">
+  <button type="button" data-close-drawer class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" aria-label="Close user details"></button>
+  <aside class="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl" aria-labelledby="detailDrawerTitle">
+    <div class="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Account profile</p>
+        <h3 id="detailDrawerTitle" class="mt-1 text-xl font-bold text-slate-900">User details</h3>
+      </div>
+      <button type="button" data-close-drawer class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close user details">
+        <i data-lucide="x" class="h-4 w-4"></i>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-6 py-6">
+      <div class="flex items-center gap-4">
+        <div id="detailInitials" class="flex h-14 w-14 items-center justify-center rounded-xl bg-rose-100 text-lg font-bold text-rose-700">L</div>
+        <div>
+          <h4 id="detailFullName" class="text-lg font-bold text-slate-900"></h4>
+          <p id="detailUsername" class="text-sm text-slate-500"></p>
+        </div>
+      </div>
+      <dl class="mt-8 divide-y divide-slate-100 rounded-xl border border-slate-200">
+        <div class="flex items-center justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-500">Email</dt><dd id="detailEmail" class="text-right text-sm font-medium text-slate-800"></dd></div>
+        <div class="flex items-center justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-500">Role</dt><dd id="detailRole" class="text-right text-sm font-medium capitalize text-slate-800"></dd></div>
+        <div class="flex items-center justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-500">Status</dt><dd id="detailStatus" class="text-right text-sm font-medium capitalize text-slate-800"></dd></div>
+        <div class="flex items-center justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-500">Joined</dt><dd id="detailJoined" class="text-right text-sm font-medium text-slate-800"></dd></div>
+      </dl>
+    </div>
+  </aside>
+</div>
+
 <div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3"></div>
 
 <script>
@@ -488,6 +621,7 @@ if ($action !== null) {
     searchTimer: null,
     pendingDeleteIds: [],
     pendingSavePayload: null,
+    pendingStatusId: null,
     currentPage: 1,
     pageSize: 5,
   };
@@ -566,8 +700,15 @@ if ($action !== null) {
     const list = document.getElementById('librarianList');
     const pagination = document.getElementById('librarianPagination');
     const searchValue = document.getElementById('librarianSearch')?.value.trim().toLowerCase() || '';
+    const statusValue = document.getElementById('librarianStatusFilter')?.value || 'all';
+    const roleValue = document.getElementById('librarianRoleFilter')?.value || 'all';
+    const resultSummary = document.getElementById('librarianResultSummary');
 
     const visibleLibrarians = state.allLibrarians.filter(librarian => {
+      const matchesStatus = statusValue === 'all' || librarian.status === statusValue;
+      const matchesRole = roleValue === 'all' || librarian.role === roleValue;
+      if (!matchesRole) return false;
+      if (!matchesStatus) return false;
       if (!searchValue) return true;
 
       return (
@@ -577,11 +718,15 @@ if ($action !== null) {
       );
     });
 
+    if (resultSummary) {
+      resultSummary.textContent = `Showing ${visibleLibrarians.length} of ${state.allLibrarians.length} account${state.allLibrarians.length === 1 ? '' : 's'}`;
+    }
+
     if (!visibleLibrarians.length) {
       list.innerHTML = `
         <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-          <p class="text-base font-semibold text-slate-700">No librarians found</p>
-          <p class="mt-1 text-sm text-slate-500">Try a different search, or add a new librarian.</p>
+          <p class="text-base font-semibold text-slate-700">No accounts found</p>
+          <p class="mt-1 text-sm text-slate-500">Try a different search or status filter.</p>
         </div>
       `;
       pagination.innerHTML = '';
@@ -614,30 +759,44 @@ if ($action !== null) {
               ${esc(initials || 'L')}
             </div>
 
-            <div>
+            <div class="min-w-0">
+              <p class="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Account</p>
               <div class="flex items-center gap-2">
                 <p class="font-semibold text-slate-900">${esc(librarian.fullName)}</p>
                 <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold ${isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">
                   ${esc(librarian.role)}
                 </span>
               </div>
-              <div class="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                <span>@${esc(librarian.username)}</span>
-                <span>Joined: ${esc(librarian.joinedAt || 'Recently')}</span>
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+                <span><span class="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Username</span>@${esc(librarian.username)}</span>
+                <span><span class="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Joined</span>${esc(librarian.joinedAt || 'Recently')}</span>
               </div>
             </div>
           </div>
 
-          <div class="flex items-center gap-2 md:flex-shrink-0">
-            <button type="button" data-action="edit" data-id="${librarian.id}" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700">
+          <div class="flex flex-col gap-1.5 md:flex-shrink-0">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Actions</p>
+            <div class="flex flex-wrap items-center gap-2">
+            <button type="button" data-action="edit" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700">
               <i data-lucide="pencil-line" class="h-3.5 w-3.5"></i>
               Edit
             </button>
 
-            <button type="button" data-action="delete" data-id="${librarian.id}" class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
+            <button type="button" data-action="view" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-200 hover:text-sky-700">
+              <i data-lucide="eye" class="h-3.5 w-3.5"></i>
+              View
+            </button>
+
+            <button type="button" data-action="toggle-status" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
+              <i data-lucide="${isActive ? 'user-round-x' : 'user-round-check'}" class="h-3.5 w-3.5"></i>
+              ${isActive ? 'Deactivate' : 'Activate'}
+            </button>
+
+            <button type="button" data-action="delete" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
               <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
               Delete
             </button>
+            </div>
           </div>
         </div>
       `;
@@ -690,6 +849,13 @@ if ($action !== null) {
   }
 
   function bindRowActions() {
+    document.querySelectorAll('[data-action="view"]').forEach(button => {
+      button.addEventListener('click', () => {
+        const librarian = state.allLibrarians.find(item => item.id === Number(button.dataset.id));
+        if (librarian) openUserDetail(librarian);
+      });
+    });
+
     document.querySelectorAll('[data-action="edit"]').forEach(button => {
       button.addEventListener('click', () => {
         const id = Number(button.dataset.id);
@@ -705,6 +871,14 @@ if ($action !== null) {
       });
     });
 
+    document.querySelectorAll('[data-action="toggle-status"]').forEach(button => {
+      button.addEventListener('click', () => {
+        const id = Number(button.dataset.id);
+        const librarian = state.allLibrarians.find(item => item.id === id);
+        if (librarian) openStatusConfirmation(librarian);
+      });
+    });
+
     document.querySelectorAll('[data-select-id]').forEach(check => {
       check.addEventListener('change', event => {
         const id = Number(event.target.dataset.selectId);
@@ -717,6 +891,32 @@ if ($action !== null) {
         setBulkDeleteState();
       });
     });
+  }
+
+  function openUserDetail(librarian) {
+    const initials = String(librarian.fullName || '')
+      .split(' ')
+      .map(part => part[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+    document.getElementById('detailInitials').textContent = initials || 'L';
+    document.getElementById('detailFullName').textContent = librarian.fullName;
+    document.getElementById('detailUsername').textContent = `@${librarian.username}`;
+    document.getElementById('detailEmail').textContent = librarian.email || 'No email recorded';
+    document.getElementById('detailRole').textContent = librarian.role;
+    document.getElementById('detailStatus').textContent = librarian.status;
+    document.getElementById('detailJoined').textContent = librarian.joinedAt || 'Recently';
+
+    const drawer = document.getElementById('userDetailDrawer');
+    drawer.classList.remove('hidden');
+    drawer.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeUserDetail() {
+    const drawer = document.getElementById('userDetailDrawer');
+    drawer.classList.add('hidden');
+    drawer.setAttribute('aria-hidden', 'true');
   }
 
   function generateUsername(fullName) {
@@ -891,6 +1091,57 @@ if ($action !== null) {
     state.pendingSavePayload = null;
   }
 
+  function closeStatusConfirmation() {
+    const modal = document.getElementById('statusConfirmModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('adminStatusPassword').value = '';
+    state.pendingStatusId = null;
+  }
+
+  function openStatusConfirmation(librarian) {
+    state.pendingStatusId = librarian.id;
+    const nextStatus = librarian.status === 'active' ? 'deactivate' : 'activate';
+    document.getElementById('statusConfirmTitle').textContent = `${nextStatus[0].toUpperCase()}${nextStatus.slice(1)} account?`;
+    document.getElementById('statusConfirmMessage').textContent = `${nextStatus[0].toUpperCase()}${nextStatus.slice(1)} ${librarian.fullName}'s access to AppSys Library.`;
+    document.getElementById('adminStatusPassword').value = '';
+    const modal = document.getElementById('statusConfirmModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('adminStatusPassword').focus();
+  }
+
+  function confirmPendingStatus() {
+    if (!state.pendingStatusId) return;
+
+    const adminPassword = document.getElementById('adminStatusPassword').value;
+    if (!adminPassword) {
+      showToast('Enter the administrator password to continue.', 'error');
+      document.getElementById('adminStatusPassword').focus();
+      return;
+    }
+
+    const id = state.pendingStatusId;
+    closeStatusConfirmation();
+    const payload = new URLSearchParams({ action: 'toggle_status', id: String(id), admin_password: adminPassword });
+
+    fetch('pages/user.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: payload.toString()
+    })
+      .then(response => response.json())
+      .then(result => {
+        if (!result.success) throw new Error(result.message || 'Unable to change account status.');
+        showToast(result.message);
+        return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
+      })
+      .catch(error => showToast(error.message || 'Unable to change account status.', 'error'));
+  }
+
   function openSaveConfirmation(payload) {
     state.pendingSavePayload = payload;
     document.getElementById('saveConfirmMessage').textContent = 'Please confirm the administrator password to save this user change.';
@@ -964,11 +1215,19 @@ if ($action !== null) {
   document.getElementById('confirmDeleteBtn').addEventListener('click', confirmPendingDelete);
   document.getElementById('cancelSaveBtn').addEventListener('click', closeSaveConfirmation);
   document.getElementById('confirmSaveBtn').addEventListener('click', confirmPendingSave);
+  document.getElementById('cancelStatusBtn').addEventListener('click', closeStatusConfirmation);
+  document.getElementById('confirmStatusBtn').addEventListener('click', confirmPendingStatus);
   document.getElementById('saveConfirmModal').addEventListener('click', event => {
     if (event.target.id === 'saveConfirmModal') closeSaveConfirmation();
   });
   document.getElementById('deleteConfirmModal').addEventListener('click', event => {
     if (event.target.id === 'deleteConfirmModal') closeDeleteConfirmation();
+  });
+  document.getElementById('statusConfirmModal').addEventListener('click', event => {
+    if (event.target.id === 'statusConfirmModal') closeStatusConfirmation();
+  });
+  document.querySelectorAll('[data-close-drawer]').forEach(button => {
+    button.addEventListener('click', closeUserDetail);
   });
 
   document.getElementById('librarianSearch').addEventListener('input', function () {
@@ -977,6 +1236,16 @@ if ($action !== null) {
       state.currentPage = 1;
       fetchLibrarians(this.value.trim());
     }, 250);
+  });
+
+  document.getElementById('librarianStatusFilter').addEventListener('change', function () {
+    state.currentPage = 1;
+    renderLibrarians();
+  });
+
+  document.getElementById('librarianRoleFilter').addEventListener('change', function () {
+    state.currentPage = 1;
+    renderLibrarians();
   });
 
   document.querySelectorAll('[data-close-modal]').forEach(button => {
