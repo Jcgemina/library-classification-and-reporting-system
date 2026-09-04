@@ -189,13 +189,13 @@ if ($action !== null) {
 
             $message = 'Librarian updated successfully.';
         } else {
-            $plainPassword = $password !== '' ? $password : 'Welcome123!';
+            $temporaryPassword = $password !== '' ? $password : bin2hex(random_bytes(16));
             $stmt = $pdo->prepare(
                 'INSERT INTO users (username, password, full_name, email, role, is_active) VALUES (:username, :password, :full_name, :email, :role, 1)'
             );
             $stmt->execute([
                 ':username' => $username,
-              ':password' => password_hash($plainPassword, PASSWORD_DEFAULT),
+                ':password' => password_hash($temporaryPassword, PASSWORD_DEFAULT),
                 ':full_name' => $fullName,
                 ':email' => $email,
                 ':role' => $role,
@@ -203,12 +203,16 @@ if ($action !== null) {
 
             $id = (int) $pdo->lastInsertId();
             $message = 'Librarian added successfully.';
+
+            if ($password === '') {
+                $resetToken = createPasswordResetToken($pdo, $id);
+                queuePasswordSetupEmail($pdo, $email, $fullName, $username, $resetToken);
+            }
         }
 
-        $emailSent = null;
-        if ($id !== null && !isset($existingUser)) {
-          $resetToken = createPasswordResetToken($pdo, $id);
-            queuePasswordSetupEmail($pdo, $email, $fullName, $username, $resetToken);
+        $emailQueued = false;
+        if ($id !== null && !isset($existingUser) && $password === '') {
+            $emailQueued = true;
         }
 
         $selectStmt = $pdo->prepare('SELECT id, username, full_name, email, role, is_active, created_at FROM users WHERE id = :id LIMIT 1');
@@ -219,7 +223,7 @@ if ($action !== null) {
         echo json_encode([
             'success' => true,
             'message' => $message,
-            'emailQueued' => $id !== null && !isset($existingUser),
+            'emailQueued' => $emailQueued,
             'librarian' => [
                 'id' => (int) $user['id'],
                 'fullName' => $user['full_name'],
@@ -353,9 +357,9 @@ if ($action !== null) {
        <button
         type="button"
         id="bulkDeleteBtn"
-        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600">
+        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60">
         <i data-lucide="trash-2" class="w-4 h-4"></i>
-        Delete
+        <span id="bulkDeleteBtnLabel">Delete selected</span>
       </button>
       
       <button
@@ -363,9 +367,19 @@ if ($action !== null) {
         id="addLibrarianBtn"
         class="inline-flex items-center gap-2 rounded-xl bg-[#f43f5e] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-900">
         <i data-lucide="user-plus" class="w-4 h-4"></i>
-        Add User
+        Add Librarian
       </button>
     </div>
+  </div>
+
+  <div id="bulkActionBar" class="hidden items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+    <div class="flex items-center gap-2 font-semibold">
+      <i data-lucide="check-square" class="h-4 w-4"></i>
+      <span id="selectedCountLabel">0 selected</span>
+    </div>
+    <button type="button" id="clearSelectionBtn" class="text-sm font-semibold text-rose-700 underline-offset-2 hover:underline">
+      Clear selection
+    </button>
   </div>
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -446,8 +460,8 @@ if ($action !== null) {
   </div>
 </div>
 
-<div id="librarianModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <div class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+<div id="librarianModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
     <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
       <div>
         <h3 id="modalTitle" class="text-xl font-bold text-slate-900">Add User</h3>
@@ -481,12 +495,12 @@ if ($action !== null) {
         <div>
           <label for="password" class="mb-1.5 block text-sm font-medium text-slate-700">Password</label>
           <div class="relative">
-            <input id="password" name="password" type="password" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" placeholder="Type new password" />
-            <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
+            <input id="password" name="password" type="password" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" placeholder="Type new password or leave blank for setup email" />
+            <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" aria-label="Show or hide password">
               <i data-lucide="eye" class="h-4 w-4"></i>
             </button>
           </div>
-          <p class="mt-1 text-xs text-slate-500">Leave blank to keep the existing password when editing.</p>
+          <p class="mt-1 text-xs text-slate-500">Leave blank for a secure setup link when creating a new account; keep the current password when editing.</p>
         </div>
 
         <div>
@@ -510,14 +524,14 @@ if ($action !== null) {
   </div>
 </div>
 
-<div id="deleteConfirmModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+<div id="deleteConfirmModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle" tabindex="-1">
     <div class="flex items-start gap-4">
       <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
         <i data-lucide="trash-2" class="h-5 w-5"></i>
       </div>
       <div>
-        <h3 class="text-lg font-bold text-slate-900">Delete librarian?</h3>
+        <h3 id="deleteConfirmTitle" class="text-lg font-bold text-slate-900">Delete librarian?</h3>
         <p id="deleteConfirmMessage" class="mt-1 text-sm text-slate-600"></p>
         <p class="mt-2 text-sm font-semibold text-red-600">This action cannot be undone.</p>
       </div>
@@ -534,14 +548,14 @@ if ($action !== null) {
   </div>
 </div>
 
-<div id="saveConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+<div id="saveConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="saveConfirmTitle" tabindex="-1">
     <div class="flex items-start gap-4">
       <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
         <i data-lucide="shield-check" class="h-5 w-5"></i>
       </div>
       <div>
-        <h3 class="text-lg font-bold text-slate-900">Confirm admin access</h3>
+        <h3 id="saveConfirmTitle" class="text-lg font-bold text-slate-900">Confirm admin access</h3>
         <p id="saveConfirmMessage" class="mt-1 text-sm text-slate-600">Please confirm the administrator password to save this user change.</p>
       </div>
     </div>
@@ -557,8 +571,8 @@ if ($action !== null) {
   </div>
 </div>
 
-<div id="statusConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+<div id="statusConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="statusConfirmTitle" tabindex="-1">
     <div class="flex items-start gap-4">
       <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
         <i data-lucide="shield-check" class="h-5 w-5"></i>
@@ -582,7 +596,7 @@ if ($action !== null) {
 
 <div id="userDetailDrawer" class="fixed inset-0 z-[55] hidden" aria-hidden="true">
   <button type="button" data-close-drawer class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" aria-label="Close user details"></button>
-  <aside class="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl" aria-labelledby="detailDrawerTitle">
+  <aside class="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl" aria-labelledby="detailDrawerTitle" role="dialog" aria-modal="true" tabindex="-1">
     <div class="flex items-start justify-between border-b border-slate-200 px-6 py-5">
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Account profile</p>
@@ -607,6 +621,13 @@ if ($action !== null) {
         <div class="flex items-center justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-500">Joined</dt><dd id="detailJoined" class="text-right text-sm font-medium text-slate-800"></dd></div>
       </dl>
     </div>
+    <div class="border-t border-slate-200 bg-slate-50 px-6 py-4">
+      <div class="flex flex-wrap justify-end gap-2">
+        <button type="button" id="drawerEditAction" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Edit</button>
+        <button type="button" id="drawerStatusAction" class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100">Activate</button>
+        <button type="button" id="drawerDeleteAction" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100">Delete</button>
+      </div>
+    </div>
   </aside>
 </div>
 
@@ -624,6 +645,9 @@ if ($action !== null) {
     pendingStatusId: null,
     currentPage: 1,
     pageSize: 5,
+    isDeleting: false,
+    lastFocusedElement: null,
+    activeDrawerUserId: null,
   };
 
   function showToast(message, type = 'success') {
@@ -680,12 +704,29 @@ if ($action !== null) {
 
   function setBulkDeleteState() {
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-    if (!bulkDeleteBtn) return;
-
+    const bulkDeleteBtnLabel = document.getElementById('bulkDeleteBtnLabel');
+    const bulkActionBar = document.getElementById('bulkActionBar');
+    const selectedCountLabel = document.getElementById('selectedCountLabel');
     const hasSelection = state.selectedIds.size > 0;
-    bulkDeleteBtn.disabled = !hasSelection;
-    bulkDeleteBtn.classList.toggle('opacity-60', !hasSelection);
-    bulkDeleteBtn.classList.toggle('cursor-not-allowed', !hasSelection);
+
+    if (bulkActionBar) {
+      bulkActionBar.classList.toggle('hidden', !hasSelection);
+      bulkActionBar.classList.toggle('flex', hasSelection);
+    }
+
+    if (selectedCountLabel) {
+      selectedCountLabel.textContent = `${state.selectedIds.size} selected`;
+    }
+
+    if (bulkDeleteBtn) {
+      bulkDeleteBtn.disabled = !hasSelection;
+      bulkDeleteBtn.classList.toggle('opacity-60', !hasSelection);
+      bulkDeleteBtn.classList.toggle('cursor-not-allowed', !hasSelection);
+    }
+
+    if (bulkDeleteBtnLabel) {
+      bulkDeleteBtnLabel.textContent = hasSelection ? `Delete selected (${state.selectedIds.size})` : 'Delete selected';
+    }
 
     document.querySelectorAll('[data-action="delete"][data-id]').forEach(button => {
       const isSelected = state.selectedIds.has(Number(button.dataset.id));
@@ -694,6 +735,14 @@ if ($action !== null) {
       button.classList.toggle('cursor-not-allowed', isSelected);
       button.classList.toggle('pointer-events-none', isSelected);
     });
+  }
+
+  function clearSelection() {
+    state.selectedIds.clear();
+    document.querySelectorAll('[data-select-id]').forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    setBulkDeleteState();
   }
 
   function renderLibrarians() {
@@ -775,27 +824,29 @@ if ($action !== null) {
           </div>
 
           <div class="flex flex-col gap-1.5 md:flex-shrink-0">
-            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Actions</p>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Primary actions</p>
             <div class="flex flex-wrap items-center gap-2">
-            <button type="button" data-action="edit" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700">
-              <i data-lucide="pencil-line" class="h-3.5 w-3.5"></i>
-              Edit
-            </button>
+              <button type="button" data-action="view" data-id="${librarian.id}" aria-label="View ${esc(librarian.fullName)}" class="inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-200 hover:text-sky-700">
+                <i data-lucide="eye" class="h-3.5 w-3.5"></i>
+                View
+              </button>
 
-            <button type="button" data-action="view" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-200 hover:text-sky-700">
-              <i data-lucide="eye" class="h-3.5 w-3.5"></i>
-              View
-            </button>
+              <button type="button" data-action="edit" data-id="${librarian.id}" aria-label="Edit ${esc(librarian.fullName)}" class="inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700">
+                <i data-lucide="pencil-line" class="h-3.5 w-3.5"></i>
+                Edit
+              </button>
+            </div>
 
-            <button type="button" data-action="toggle-status" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
-              <i data-lucide="${isActive ? 'user-round-x' : 'user-round-check'}" class="h-3.5 w-3.5"></i>
-              ${isActive ? 'Deactivate' : 'Activate'}
-            </button>
+            <div class="mt-1 flex flex-wrap items-center gap-2">
+              <button type="button" data-action="toggle-status" data-id="${librarian.id}" aria-label="${isActive ? 'Deactivate' : 'Activate'} ${esc(librarian.fullName)}" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-100">
+                <i data-lucide="${isActive ? 'user-round-x' : 'user-round-check'}" class="h-3.5 w-3.5"></i>
+                ${isActive ? 'Disable' : 'Enable'}
+              </button>
 
-            <button type="button" data-action="delete" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
-              <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-              Delete
-            </button>
+              <button type="button" data-action="delete" data-id="${librarian.id}" aria-label="Delete ${esc(librarian.fullName)}" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-100 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
+                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -894,6 +945,9 @@ if ($action !== null) {
   }
 
   function openUserDetail(librarian) {
+    state.lastFocusedElement = document.activeElement;
+    state.activeDrawerUserId = librarian.id;
+
     const initials = String(librarian.fullName || '')
       .split(' ')
       .map(part => part[0])
@@ -909,14 +963,24 @@ if ($action !== null) {
     document.getElementById('detailJoined').textContent = librarian.joinedAt || 'Recently';
 
     const drawer = document.getElementById('userDetailDrawer');
+    const drawerStatusAction = document.getElementById('drawerStatusAction');
+    const isActive = librarian.status === 'active';
+    drawerStatusAction.textContent = isActive ? 'Disable' : 'Enable';
+    drawerStatusAction.className = `rounded-xl border px-3 py-2 text-sm font-semibold transition ${isActive ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100' : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`;
+
     drawer.classList.remove('hidden');
     drawer.setAttribute('aria-hidden', 'false');
+    drawer.querySelector('aside').focus();
   }
 
   function closeUserDetail() {
     const drawer = document.getElementById('userDetailDrawer');
     drawer.classList.add('hidden');
     drawer.setAttribute('aria-hidden', 'true');
+    state.activeDrawerUserId = null;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function generateUsername(fullName) {
@@ -937,15 +1001,12 @@ if ($action !== null) {
       .replace(/\b\w/g, character => character.toUpperCase());
   }
 
-  function generatePassword() {
-    return '123';
-  }
-
   function openModal(mode, librarian = null) {
     const modal = document.getElementById('librarianModal');
     const form = document.getElementById('librarianForm');
     const title = document.getElementById('modalTitle');
 
+    state.lastFocusedElement = document.activeElement;
     state.editingId = librarian ? librarian.id : null;
     title.textContent = mode === 'edit' ? 'Edit Librarian' : 'Add Librarian';
 
@@ -959,14 +1020,11 @@ if ($action !== null) {
     const generatedUsername = generateUsername(fullNameValue);
     document.getElementById('username').value = librarian ? librarian.username : generatedUsername;
 
-    if (mode === 'add') {
-      document.getElementById('password').value = generatePassword();
-    } else {
-      document.getElementById('password').value = '';
-    }
+    document.getElementById('password').value = '';
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
     setTimeout(() => {
       document.getElementById('fullName').focus();
     }, 50);
@@ -976,8 +1034,12 @@ if ($action !== null) {
     const modal = document.getElementById('librarianModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
     document.getElementById('librarianForm').reset();
     state.editingId = null;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function fetchLibrarians(search = '') {
@@ -1027,87 +1089,161 @@ if ($action !== null) {
     const modal = document.getElementById('deleteConfirmModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
     document.getElementById('adminDeletePassword').value = '';
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmDeleteBtn) {
+      confirmDeleteBtn.disabled = false;
+      confirmDeleteBtn.innerHTML = `
+        <i data-lucide="trash-2" class="h-4 w-4"></i>
+        Delete
+      `;
+      lucide.createIcons();
+    }
     state.pendingDeleteIds = [];
+    state.isDeleting = false;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function openDeleteConfirmation(ids, message) {
+    state.lastFocusedElement = document.activeElement;
     state.pendingDeleteIds = ids;
-    document.getElementById('deleteConfirmMessage').textContent = message;
+    const selectedNames = ids
+      .map(id => state.allLibrarians.find(user => user.id === id)?.fullName)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(', ');
+    const nameSummary = selectedNames ? ` ${selectedNames}${ids.length > 3 ? ' and more' : ''}` : '';
+    document.getElementById('deleteConfirmMessage').textContent = `${message}${nameSummary}. This removes their access immediately.`;
     document.getElementById('adminDeletePassword').value = '';
     const modal = document.getElementById('deleteConfirmModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
     document.getElementById('adminDeletePassword').focus();
   }
 
   function confirmPendingDelete() {
     const selected = [...state.pendingDeleteIds];
-    if (!selected.length) return;
+    if (!selected.length || state.isDeleting) return;
+
     const adminPassword = document.getElementById('adminDeletePassword').value;
     if (!adminPassword) {
       showToast('Enter the administrator password to continue.', 'error');
       document.getElementById('adminDeletePassword').focus();
       return;
     }
-    closeDeleteConfirmation();
 
-    const deleteRequests = selected.map(id => {
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    confirmDeleteBtn.disabled = true;
+    confirmDeleteBtn.innerHTML = `
+      <i data-lucide="loader-circle" class="h-4 w-4 animate-spin"></i>
+      Deleting...
+    `;
+    lucide.createIcons();
+    state.isDeleting = true;
+
+    const remainingIds = [...selected];
+    const successfulIds = [];
+    const failedIds = [];
+    const failedMessages = [];
+
+    const deleteNext = () => {
+      const id = remainingIds.shift();
+      if (id === undefined) {
+        const successCount = successfulIds.length;
+        const failureCount = failedIds.length;
+
+        state.selectedIds = new Set(failedIds);
+        fetchLibrarians(document.getElementById('librarianSearch').value.trim())
+          .then(() => {
+            setBulkDeleteState();
+            if (successCount > 0 && failureCount === 0) {
+              showToast(successCount === 1 ? 'Librarian deleted successfully.' : `${successCount} librarians deleted successfully.`);
+            } else if (successCount > 0 && failureCount > 0) {
+              showToast(`${successCount} deleted, ${failureCount} failed.`, 'error');
+            } else {
+              showToast(failedMessages[0] || 'Unable to delete selected librarians.', 'error');
+            }
+          })
+          .catch(() => {
+            showToast(failureCount > 0 ? `${successCount} deleted, ${failureCount} failed.` : 'Unable to delete selected librarians.', 'error');
+          })
+          .finally(() => {
+            closeDeleteConfirmation();
+          });
+        return;
+      }
+
       const formData = new URLSearchParams({ action: 'delete', id: String(id), admin_password: adminPassword });
-      return fetch('pages/user.php', {
+      fetch('pages/user.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
           'X-Requested-With': 'XMLHttpRequest'
         },
         body: formData.toString()
-      }).then(response => response.json());
-    });
-
-    Promise.all(deleteRequests)
-      .then(results => {
-        const failedResult = results.find(result => !result.success);
-        if (failedResult) {
-          throw new Error(failedResult.message || 'One or more librarians could not be deleted.');
-        }
-
-        state.selectedIds.clear();
-        return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
       })
-      .then(() => {
-        setBulkDeleteState();
-        showToast(selected.length === 1 ? 'Librarian deleted successfully.' : `${selected.length} librarians deleted successfully.`);
-      })
-      .catch(error => {
-        showToast(error.message || 'Unable to delete selected librarians.', 'error');
-      });
+        .then(response => response.json())
+        .then(result => {
+          if (!result.success) {
+            failedIds.push(id);
+            failedMessages.push(result.message || 'Unable to delete selected librarians.');
+            return;
+          }
+
+          successfulIds.push(id);
+        })
+        .catch(() => {
+          failedIds.push(id);
+          failedMessages.push('Unable to delete selected librarians.');
+        })
+        .finally(() => {
+          deleteNext();
+        });
+    };
+
+    deleteNext();
   }
 
   function closeSaveConfirmation() {
     const modal = document.getElementById('saveConfirmModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
     document.getElementById('adminSavePassword').value = '';
     state.pendingSavePayload = null;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function closeStatusConfirmation() {
     const modal = document.getElementById('statusConfirmModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
     document.getElementById('adminStatusPassword').value = '';
     state.pendingStatusId = null;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function openStatusConfirmation(librarian) {
+    state.lastFocusedElement = document.activeElement;
     state.pendingStatusId = librarian.id;
     const nextStatus = librarian.status === 'active' ? 'deactivate' : 'activate';
-    document.getElementById('statusConfirmTitle').textContent = `${nextStatus[0].toUpperCase()}${nextStatus.slice(1)} account?`;
-    document.getElementById('statusConfirmMessage').textContent = `${nextStatus[0].toUpperCase()}${nextStatus.slice(1)} ${librarian.fullName}'s access to AppSys Library.`;
+    const statusAction = nextStatus === 'deactivate' ? 'Deactivate' : 'Activate';
+    document.getElementById('statusConfirmTitle').textContent = `${statusAction} account?`;
+    document.getElementById('statusConfirmMessage').textContent = `${statusAction} ${librarian.fullName}'s access to AppSys Library. ${nextStatus === 'deactivate' ? 'They will no longer be able to sign in until re-enabled.' : 'They will regain sign-in access immediately.'}`;
     document.getElementById('adminStatusPassword').value = '';
     const modal = document.getElementById('statusConfirmModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
     document.getElementById('adminStatusPassword').focus();
   }
 
@@ -1143,12 +1279,14 @@ if ($action !== null) {
   }
 
   function openSaveConfirmation(payload) {
+    state.lastFocusedElement = document.activeElement;
     state.pendingSavePayload = payload;
     document.getElementById('saveConfirmMessage').textContent = 'Please confirm the administrator password to save this user change.';
     document.getElementById('adminSavePassword').value = '';
     const modal = document.getElementById('saveConfirmModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
     document.getElementById('adminSavePassword').focus();
   }
 
@@ -1211,6 +1349,28 @@ if ($action !== null) {
 
   document.getElementById('addLibrarianBtn').addEventListener('click', () => openModal('add'));
   document.getElementById('bulkDeleteBtn').addEventListener('click', handleBulkDelete);
+  document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
+  document.getElementById('drawerEditAction').addEventListener('click', () => {
+    const librarian = state.allLibrarians.find(item => item.id === state.activeDrawerUserId);
+    if (librarian) {
+      closeUserDetail();
+      openModal('edit', librarian);
+    }
+  });
+  document.getElementById('drawerStatusAction').addEventListener('click', () => {
+    const librarian = state.allLibrarians.find(item => item.id === state.activeDrawerUserId);
+    if (librarian) {
+      closeUserDetail();
+      openStatusConfirmation(librarian);
+    }
+  });
+  document.getElementById('drawerDeleteAction').addEventListener('click', () => {
+    const librarian = state.allLibrarians.find(item => item.id === state.activeDrawerUserId);
+    if (librarian) {
+      closeUserDetail();
+      removeLibrarian(librarian.id);
+    }
+  });
   document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteConfirmation);
   document.getElementById('confirmDeleteBtn').addEventListener('click', confirmPendingDelete);
   document.getElementById('cancelSaveBtn').addEventListener('click', closeSaveConfirmation);
@@ -1250,6 +1410,39 @@ if ($action !== null) {
 
   document.querySelectorAll('[data-close-modal]').forEach(button => {
     button.addEventListener('click', closeModal);
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+
+    const drawer = document.getElementById('userDetailDrawer');
+    if (!drawer.classList.contains('hidden')) {
+      closeUserDetail();
+      return;
+    }
+
+    const modal = document.getElementById('librarianModal');
+    if (!modal.classList.contains('hidden')) {
+      closeModal();
+      return;
+    }
+
+    const deleteModal = document.getElementById('deleteConfirmModal');
+    if (!deleteModal.classList.contains('hidden')) {
+      closeDeleteConfirmation();
+      return;
+    }
+
+    const saveModal = document.getElementById('saveConfirmModal');
+    if (!saveModal.classList.contains('hidden')) {
+      closeSaveConfirmation();
+      return;
+    }
+
+    const statusModal = document.getElementById('statusConfirmModal');
+    if (!statusModal.classList.contains('hidden')) {
+      closeStatusConfirmation();
+    }
   });
 
   document.getElementById('librarianModal').addEventListener('click', event => {
