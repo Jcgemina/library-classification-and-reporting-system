@@ -189,13 +189,13 @@ if ($action !== null) {
 
             $message = 'Librarian updated successfully.';
         } else {
-            $plainPassword = $password !== '' ? $password : 'Welcome123!';
+            $temporaryPassword = $password !== '' ? $password : bin2hex(random_bytes(16));
             $stmt = $pdo->prepare(
                 'INSERT INTO users (username, password, full_name, email, role, is_active) VALUES (:username, :password, :full_name, :email, :role, 1)'
             );
             $stmt->execute([
                 ':username' => $username,
-              ':password' => password_hash($plainPassword, PASSWORD_DEFAULT),
+                ':password' => password_hash($temporaryPassword, PASSWORD_DEFAULT),
                 ':full_name' => $fullName,
                 ':email' => $email,
                 ':role' => $role,
@@ -203,12 +203,16 @@ if ($action !== null) {
 
             $id = (int) $pdo->lastInsertId();
             $message = 'Librarian added successfully.';
+
+            if ($password === '') {
+                $resetToken = createPasswordResetToken($pdo, $id);
+                queuePasswordSetupEmail($pdo, $email, $fullName, $username, $resetToken);
+            }
         }
 
-        $emailSent = null;
-        if ($id !== null && !isset($existingUser)) {
-          $resetToken = createPasswordResetToken($pdo, $id);
-            queuePasswordSetupEmail($pdo, $email, $fullName, $username, $resetToken);
+        $emailQueued = false;
+        if ($id !== null && !isset($existingUser) && $password === '') {
+            $emailQueued = true;
         }
 
         $selectStmt = $pdo->prepare('SELECT id, username, full_name, email, role, is_active, created_at FROM users WHERE id = :id LIMIT 1');
@@ -219,7 +223,7 @@ if ($action !== null) {
         echo json_encode([
             'success' => true,
             'message' => $message,
-            'emailQueued' => $id !== null && !isset($existingUser),
+            'emailQueued' => $emailQueued,
             'librarian' => [
                 'id' => (int) $user['id'],
                 'fullName' => $user['full_name'],
@@ -353,9 +357,9 @@ if ($action !== null) {
        <button
         type="button"
         id="bulkDeleteBtn"
-        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600">
+        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60">
         <i data-lucide="trash-2" class="w-4 h-4"></i>
-        Delete
+        <span id="bulkDeleteBtnLabel">Delete selected</span>
       </button>
       
       <button
@@ -363,9 +367,19 @@ if ($action !== null) {
         id="addLibrarianBtn"
         class="inline-flex items-center gap-2 rounded-xl bg-[#f43f5e] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-900">
         <i data-lucide="user-plus" class="w-4 h-4"></i>
-        Add User
+        Add Librarian
       </button>
     </div>
+  </div>
+
+  <div id="bulkActionBar" class="hidden items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+    <div class="flex items-center gap-2 font-semibold">
+      <i data-lucide="check-square" class="h-4 w-4"></i>
+      <span id="selectedCountLabel">0 selected</span>
+    </div>
+    <button type="button" id="clearSelectionBtn" class="text-sm font-semibold text-rose-700 underline-offset-2 hover:underline">
+      Clear selection
+    </button>
   </div>
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -481,12 +495,12 @@ if ($action !== null) {
         <div>
           <label for="password" class="mb-1.5 block text-sm font-medium text-slate-700">Password</label>
           <div class="relative">
-            <input id="password" name="password" type="password" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" placeholder="Type new password" />
-            <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
+            <input id="password" name="password" type="password" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" placeholder="Type new password or leave blank for setup email" />
+            <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" aria-label="Show or hide password">
               <i data-lucide="eye" class="h-4 w-4"></i>
             </button>
           </div>
-          <p class="mt-1 text-xs text-slate-500">Leave blank to keep the existing password when editing.</p>
+          <p class="mt-1 text-xs text-slate-500">Leave blank for a secure setup link when creating a new account; keep the current password when editing.</p>
         </div>
 
         <div>
@@ -680,12 +694,29 @@ if ($action !== null) {
 
   function setBulkDeleteState() {
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-    if (!bulkDeleteBtn) return;
-
+    const bulkDeleteBtnLabel = document.getElementById('bulkDeleteBtnLabel');
+    const bulkActionBar = document.getElementById('bulkActionBar');
+    const selectedCountLabel = document.getElementById('selectedCountLabel');
     const hasSelection = state.selectedIds.size > 0;
-    bulkDeleteBtn.disabled = !hasSelection;
-    bulkDeleteBtn.classList.toggle('opacity-60', !hasSelection);
-    bulkDeleteBtn.classList.toggle('cursor-not-allowed', !hasSelection);
+
+    if (bulkActionBar) {
+      bulkActionBar.classList.toggle('hidden', !hasSelection);
+      bulkActionBar.classList.toggle('flex', hasSelection);
+    }
+
+    if (selectedCountLabel) {
+      selectedCountLabel.textContent = `${state.selectedIds.size} selected`;
+    }
+
+    if (bulkDeleteBtn) {
+      bulkDeleteBtn.disabled = !hasSelection;
+      bulkDeleteBtn.classList.toggle('opacity-60', !hasSelection);
+      bulkDeleteBtn.classList.toggle('cursor-not-allowed', !hasSelection);
+    }
+
+    if (bulkDeleteBtnLabel) {
+      bulkDeleteBtnLabel.textContent = hasSelection ? `Delete selected (${state.selectedIds.size})` : 'Delete selected';
+    }
 
     document.querySelectorAll('[data-action="delete"][data-id]').forEach(button => {
       const isSelected = state.selectedIds.has(Number(button.dataset.id));
@@ -694,6 +725,14 @@ if ($action !== null) {
       button.classList.toggle('cursor-not-allowed', isSelected);
       button.classList.toggle('pointer-events-none', isSelected);
     });
+  }
+
+  function clearSelection() {
+    state.selectedIds.clear();
+    document.querySelectorAll('[data-select-id]').forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    setBulkDeleteState();
   }
 
   function renderLibrarians() {
@@ -937,10 +976,6 @@ if ($action !== null) {
       .replace(/\b\w/g, character => character.toUpperCase());
   }
 
-  function generatePassword() {
-    return '123';
-  }
-
   function openModal(mode, librarian = null) {
     const modal = document.getElementById('librarianModal');
     const form = document.getElementById('librarianForm');
@@ -959,11 +994,7 @@ if ($action !== null) {
     const generatedUsername = generateUsername(fullNameValue);
     document.getElementById('username').value = librarian ? librarian.username : generatedUsername;
 
-    if (mode === 'add') {
-      document.getElementById('password').value = generatePassword();
-    } else {
-      document.getElementById('password').value = '';
-    }
+    document.getElementById('password').value = '';
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -1211,6 +1242,7 @@ if ($action !== null) {
 
   document.getElementById('addLibrarianBtn').addEventListener('click', () => openModal('add'));
   document.getElementById('bulkDeleteBtn').addEventListener('click', handleBulkDelete);
+  document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
   document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteConfirmation);
   document.getElementById('confirmDeleteBtn').addEventListener('click', confirmPendingDelete);
   document.getElementById('cancelSaveBtn').addEventListener('click', closeSaveConfirmation);
