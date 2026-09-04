@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS colleges (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL UNIQUE,
+    code VARCHAR(30) DEFAULT NULL,
+    status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -28,6 +30,8 @@ CREATE TABLE IF NOT EXISTS departments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     college_id INT NOT NULL,
     name VARCHAR(150) NOT NULL,
+    code VARCHAR(30) DEFAULT NULL,
+    status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_department_college_name (college_id, name),
     CONSTRAINT fk_departments_college FOREIGN KEY (college_id) REFERENCES colleges(id) ON DELETE CASCADE
@@ -37,6 +41,8 @@ CREATE TABLE IF NOT EXISTS programs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     department_id INT NOT NULL,
     name VARCHAR(180) NOT NULL,
+    code VARCHAR(30) DEFAULT NULL,
+    status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_program_department_name (department_id, name),
     CONSTRAINT fk_programs_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
@@ -46,6 +52,8 @@ CREATE TABLE IF NOT EXISTS majors (
     id INT AUTO_INCREMENT PRIMARY KEY,
     program_id INT NOT NULL,
     name VARCHAR(180) NOT NULL,
+    code VARCHAR(30) DEFAULT NULL,
+    status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_major_program_name (program_id, name),
     CONSTRAINT fk_majors_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
@@ -160,6 +168,26 @@ SET @add_major_fk = IF(@major_fk_exists = 0,
 PREPARE add_major_fk FROM @add_major_fk;
 EXECUTE add_major_fk;
 DEALLOCATE PREPARE add_major_fk;
+
+-- Upgrade existing organization records with searchable metadata.
+SET @organization_metadata = (
+    SELECT GROUP_CONCAT(sql_part SEPARATOR ' ')
+    FROM (
+        SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'colleges' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE colleges ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '') AS sql_part
+        UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'departments' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE departments ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
+        UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE programs ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
+        UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE majors ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
+    ) metadata_parts
+);
+-- Run individual upgrades below because MySQL prepared statements accept one ALTER at a time.
+SET @organization_table = 'colleges';
+SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE colleges ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
+SET @organization_table = 'departments';
+SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE departments ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
+SET @organization_table = 'programs';
+SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE programs ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
+SET @organization_table = 'majors';
+SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE majors ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
 
 -- Table: login_attempts (used for rate limiting / brute-force protection)
 CREATE TABLE IF NOT EXISTS login_attempts (

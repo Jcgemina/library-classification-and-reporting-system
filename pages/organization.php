@@ -24,18 +24,40 @@ if ($action !== null) {
     }
 
     try {
+        if ($action === 'records') {
+            $records = [];
+            $queries = [
+                ['table' => 'colleges', 'type' => 'University / College', 'parentColumn' => null],
+                ['table' => 'departments', 'type' => 'Department', 'parentColumn' => 'college_id'],
+                ['table' => 'programs', 'type' => 'Program', 'parentColumn' => 'department_id'],
+                ['table' => 'majors', 'type' => 'Major', 'parentColumn' => 'program_id'],
+            ];
+            foreach ($queries as $query) {
+                $parentSelect = $query['parentColumn'] ? ', ' . $query['parentColumn'] : '';
+                $rows = $pdo->query("SELECT id, name, code, status, created_at{$parentSelect} FROM {$query['table']} ORDER BY name")->fetchAll();
+                foreach ($rows as $row) {
+                    $records[] = [
+                        'id' => (int)$row['id'], 'name' => $row['name'], 'code' => $row['code'] ?? '',
+                        'type' => $query['type'], 'entity' => rtrim($query['table'], 's'), 'parentId' => $query['parentColumn'] ? (int)$row[$query['parentColumn']] : null,
+                        'status' => $row['status'] ?? 'active', 'createdAt' => $row['created_at'],
+                    ];
+                }
+            }
+            organizationJson(['success' => true, 'records' => $records]);
+        }
+
         if ($action === 'list') {
-            $colleges = $pdo->query('SELECT id, name FROM colleges ORDER BY name')->fetchAll();
+            $colleges = $pdo->query('SELECT id, name, code, status FROM colleges ORDER BY name')->fetchAll();
             foreach ($colleges as &$college) {
-                $stmt = $pdo->prepare('SELECT id, name FROM departments WHERE college_id = :id ORDER BY name');
+                $stmt = $pdo->prepare('SELECT id, name, code, status FROM departments WHERE college_id = :id ORDER BY name');
                 $stmt->execute([':id' => $college['id']]);
                 $college['departments'] = $stmt->fetchAll();
                 foreach ($college['departments'] as &$department) {
-                    $stmt = $pdo->prepare('SELECT id, name FROM programs WHERE department_id = :id ORDER BY name');
+                    $stmt = $pdo->prepare('SELECT id, name, code, status FROM programs WHERE department_id = :id ORDER BY name');
                     $stmt->execute([':id' => $department['id']]);
                     $department['programs'] = $stmt->fetchAll();
                     foreach ($department['programs'] as &$program) {
-                        $stmt = $pdo->prepare('SELECT id, name FROM majors WHERE program_id = :id ORDER BY name');
+                        $stmt = $pdo->prepare('SELECT id, name, code, status FROM majors WHERE program_id = :id ORDER BY name');
                         $stmt->execute([':id' => $program['id']]);
                         $program['majors'] = $stmt->fetchAll();
                         $stmt = $pdo->prepare('SELECT id, major_id, code, name, year_level FROM courses WHERE program_id = :id ORDER BY code');
@@ -142,7 +164,7 @@ if ($action !== null) {
             'program' => ['table' => 'programs', 'parent' => 'department_id'],
             'major' => ['table' => 'majors', 'parent' => 'program_id'],
         ];
-        $entity = preg_replace('/^(add|edit|delete)_/', '', $action);
+        $entity = preg_replace('/^(add|edit|delete|archive)_/', '', $action);
         $operation = substr($action, 0, strpos($action, '_'));
         if ($operation === 'delete') {
             $currentPassword = (string)($_POST['current_password'] ?? '');
@@ -161,7 +183,7 @@ if ($action !== null) {
                 $stmt->execute([':id' => $id]);
             } else {
                 $name = trim((string)($_POST['name'] ?? ''));
-                $code = strtoupper(trim((string)($_POST['code'] ?? '')));
+                $code = strtoupper(trim((string)($_POST['organization_code'] ?? $_POST['code'] ?? '')));
                 $programId = (int)($_POST['program_id'] ?? $_POST['parent_id'] ?? 0);
                 $majorId = (int)($_POST['major_id'] ?? 0) ?: null;
                 if ($name === '' || $code === '' || !$programId) organizationJson(['success' => false, 'message' => 'Course name, code, and program are required.'], 422);
@@ -181,20 +203,49 @@ if ($action !== null) {
         } elseif (isset($entityActions[$entity])) {
             $config = $entityActions[$entity];
             $id = (int)($_POST['id'] ?? 0);
+            if ($operation === 'archive') {
+                $stmt = $pdo->prepare("UPDATE {$config['table']} SET status = CASE WHEN status = 'archived' THEN 'active' ELSE 'archived' END WHERE id = :id");
+                $stmt->execute([':id' => $id]);
+                organizationJson(['success' => true, 'message' => 'Organization status updated successfully.']);
+            }
             if ($operation === 'delete') {
+                $dependentQueries = [
+                    'college' => 'SELECT COUNT(*) FROM departments WHERE college_id = :id',
+                    'department' => 'SELECT COUNT(*) FROM programs WHERE department_id = :id',
+                    'program' => 'SELECT COUNT(*) FROM majors WHERE program_id = :id',
+                    'major' => 'SELECT COUNT(*) FROM courses WHERE major_id = :id',
+                ];
+                $dependencyStmt = $pdo->prepare($dependentQueries[$entity]);
+                $dependencyStmt->execute([':id' => $id]);
+                $dependencyCount = (int)$dependencyStmt->fetchColumn();
+                if ($entity === 'program') {
+                    $courseStmt = $pdo->prepare('SELECT COUNT(*) FROM courses WHERE program_id = :id');
+                    $courseStmt->execute([':id' => $id]);
+                    $dependencyCount += (int)$courseStmt->fetchColumn();
+                    $prospectusStmt = $pdo->prepare('SELECT COUNT(*) FROM program_prospectuses WHERE program_id = :id');
+                    $prospectusStmt->execute([':id' => $id]);
+                    $dependencyCount += (int)$prospectusStmt->fetchColumn();
+                }
+                if ($dependencyCount > 0) {
+                    organizationJson(['success' => false, 'message' => 'This organization is still used by related records. Archive it instead or remove its dependent records first.'], 409);
+                }
                 $stmt = $pdo->prepare("DELETE FROM {$config['table']} WHERE id = :id");
                 $stmt->execute([':id' => $id]);
             } else {
                 $name = trim((string)($_POST['name'] ?? ''));
+                $code = strtoupper(trim((string)($_POST['code'] ?? '')));
+                $status = ($_POST['status'] ?? 'active') === 'archived' ? 'archived' : 'active';
                 if ($name === '') organizationJson(['success' => false, 'message' => 'A name is required.'], 422);
                 if ($operation === 'add') {
-                    $sql = "INSERT INTO {$config['table']} (" . ($config['parent'] ? $config['parent'] . ', ' : '') . "name) VALUES (" . ($config['parent'] ? ':parent_id, ' : '') . ':name)';
+                    $sql = "INSERT INTO {$config['table']} (" . ($config['parent'] ? $config['parent'] . ', ' : '') . "name, code, status) VALUES (" . ($config['parent'] ? ':parent_id, ' : '') . ':name, :code, :status)';
                 } else {
-                    $sql = "UPDATE {$config['table']} SET name = :name WHERE id = :id";
+                    $sql = "UPDATE {$config['table']} SET " . ($config['parent'] ? $config['parent'] . ' = :parent_id, ' : '') . "name = :name, code = :code, status = :status WHERE id = :id";
                 }
                 $stmt = $pdo->prepare($sql);
                 $stmt->bindValue(':name', $name);
-                if ($operation === 'add' && $config['parent']) $stmt->bindValue(':parent_id', (int)($_POST['parent_id'] ?? 0), PDO::PARAM_INT);
+                $stmt->bindValue(':code', $code !== '' ? $code : null, $code !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+                $stmt->bindValue(':status', $status);
+                if ($config['parent']) $stmt->bindValue(':parent_id', (int)($_POST['parent_id'] ?? 0), PDO::PARAM_INT);
                 if ($operation === 'edit') $stmt->bindValue(':id', $id, PDO::PARAM_INT);
                 $stmt->execute();
             }
@@ -223,6 +274,13 @@ if ($action !== null) {
                 </div>
                 <div id="organizationTree" class="space-y-2"></div>
             </section>
+            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div><h3 class="text-xl font-bold text-slate-900">Organization Records</h3><p class="text-sm text-slate-500">Search, filter, archive, and maintain stored organization information.</p></div>
+                    <div class="flex flex-col gap-2 sm:flex-row"><input id="organizationSearch" type="search" placeholder="Search organizations" class="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><select id="organizationStatusFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select><select id="organizationTypeFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All types</option><option value="college">University / College</option><option value="department">Department</option><option value="program">Program</option><option value="major">Major</option></select></div>
+                </div>
+                <div class="overflow-x-auto"><table class="w-full min-w-[700px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Organization Name</th><th class="px-3 py-3">Code</th><th class="px-3 py-3">Type</th><th class="px-3 py-3">Status</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="organizationRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
+            </section>
         </div>
         <div class="col-span-12 lg:col-span-4">
             <section class="flex h-full min-w-0 flex-col rounded-xl border-t-4 border-rose-600 bg-white p-5 shadow-sm">
@@ -236,7 +294,7 @@ if ($action !== null) {
             </section>
     </div>
 </div>
-<div id="organizationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="organizationForm" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 id="organizationModalTitle" class="text-xl font-bold">Add College</h3><button type="button" id="closeOrganizationModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" id="organizationAction" name="action"><input type="hidden" id="organizationId" name="id"><input type="hidden" id="organizationParent" name="parent_id"><input type="hidden" id="organizationMajor" name="major_id"><div id="courseFields" class="mt-5 hidden grid gap-4 sm:grid-cols-2"><label class="text-sm font-medium">Course code<input name="code" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label class="text-sm font-medium">Year level<input name="year_level" type="number" min="1" max="8" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label></div><label class="mt-5 block text-sm font-medium">Name<input id="organizationName" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><button class="mt-5 w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Save</button></form></div>
+<div id="organizationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="organizationForm" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 id="organizationModalTitle" class="text-xl font-bold">Add College</h3><button type="button" id="closeOrganizationModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" id="organizationAction" name="action"><input type="hidden" id="organizationId" name="id"><input type="hidden" id="organizationParent" name="parent_id"><input type="hidden" id="organizationMajor" name="major_id"><label id="parentSelectLabel" class="mt-5 hidden text-sm font-medium">Parent organization<select id="parentSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label id="majorSelectLabel" class="mt-3 hidden text-sm font-medium">Major<select id="majorSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">No major</option></select></label><div id="courseFields" class="mt-5 hidden grid gap-4 sm:grid-cols-2"><label class="text-sm font-medium">Course code<input name="code" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label class="text-sm font-medium">Year level<input name="year_level" type="number" min="1" max="8" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label></div><label id="organizationCodeLabel" class="mt-5 block text-sm font-medium">Organization code<input name="organization_code" id="organizationCode" maxlength="30" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label id="organizationStatusLabel" class="mt-3 block text-sm font-medium">Status<select name="status" id="organizationRecordStatus" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="active">Active</option><option value="archived">Archived</option></select></label><label class="mt-3 block text-sm font-medium">Name<input id="organizationName" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><button class="mt-5 w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Save</button></form></div>
 <div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3"></div>
 <script>
 (() => {
@@ -275,7 +333,53 @@ if ($action !== null) {
         notification.querySelector('button').addEventListener('click', dismiss);
         setTimeout(dismiss, duration);
     }
-  const openForm = (action, title, id = '', parent = '', item = {}, major = '') => { form.reset(); document.getElementById('organizationAction').value = action; document.getElementById('organizationId').value = id; document.getElementById('organizationParent').value = parent; document.getElementById('organizationMajor').value = major || item.major_id || ''; document.getElementById('organizationModalTitle').textContent = title; document.getElementById('courseFields').classList.toggle('hidden', !action.endsWith('course')); document.getElementById('organizationName').value = item.name || ''; if (item.code) form.code.value = item.code; if (item.year_level) form.year_level.value = item.year_level; modal.classList.remove('hidden'); modal.classList.add('flex'); document.getElementById('organizationName').focus(); };
+  let organizationData = { colleges: [] };
+  const parentOptions = (type, selected) => {
+      const options = [];
+      organizationData.colleges.forEach(college => {
+          if (type === 'department') options.push({ id: college.id, name: college.name });
+          (college.departments || []).forEach(department => {
+              if (type === 'program') options.push({ id: department.id, name: `${college.name} / ${department.name}` });
+              (department.programs || []).forEach(program => {
+                  if (type === 'major' || type === 'course') options.push({ id: program.id, name: `${department.name} / ${program.name}` });
+              });
+          });
+      });
+      return '<option value="">Select parent</option>' + options.map(option => `<option value="${option.id}" ${Number(option.id) === Number(selected) ? 'selected' : ''}>${esc(option.name)}</option>`).join('');
+  };
+  const openForm = (action, title, id = '', parent = '', item = {}, major = '') => {
+      form.reset();
+      document.getElementById('organizationAction').value = action;
+      document.getElementById('organizationId').value = id;
+      document.getElementById('organizationParent').value = parent;
+      document.getElementById('organizationMajor').value = major || item.major_id || '';
+      document.getElementById('organizationModalTitle').textContent = title;
+      document.getElementById('courseFields').classList.toggle('hidden', !action.endsWith('course'));
+    document.getElementById('organizationCodeLabel').classList.toggle('hidden', action.endsWith('course'));
+    document.getElementById('organizationStatusLabel').classList.toggle('hidden', action.endsWith('course'));
+      document.getElementById('organizationName').value = item.name || '';
+    document.getElementById('organizationCode').value = item.code || '';
+    document.getElementById('organizationRecordStatus').value = item.status || 'active';
+      if (item.code) form.code.value = item.code;
+      if (item.year_level) form.year_level.value = item.year_level;
+      const entity = action.replace(/^(add|edit)_/, '');
+      const isEdit = action.startsWith('edit_');
+      const parentSelect = document.getElementById('parentSelect');
+      const parentLabel = document.getElementById('parentSelectLabel');
+      parentLabel.classList.toggle('hidden', !isEdit || entity === 'college');
+      if (isEdit && entity !== 'college') {
+          parentSelect.innerHTML = parentOptions(entity, parent);
+          parentSelect.onchange = () => { document.getElementById('organizationParent').value = parentSelect.value; };
+      }
+      const majorLabel = document.getElementById('majorSelectLabel');
+      majorLabel.classList.toggle('hidden', !isEdit || entity !== 'course');
+      if (isEdit && entity === 'course') {
+          const program = organizationData.colleges.flatMap(c => c.departments || []).flatMap(d => d.programs || []).find(p => Number(p.id) === Number(parent));
+          document.getElementById('majorSelect').innerHTML = '<option value="">No major</option>' + (program?.majors || []).map(majorItem => `<option value="${majorItem.id}" ${Number(majorItem.id) === Number(item.major_id) ? 'selected' : ''}>${esc(majorItem.name)}</option>`).join('');
+          document.getElementById('majorSelect').onchange = () => { document.getElementById('organizationMajor').value = document.getElementById('majorSelect').value; };
+      }
+      modal.classList.remove('hidden'); modal.classList.add('flex'); document.getElementById('organizationName').focus();
+  };
     const controls = (type, item, parent) => `<span class="flex flex-wrap items-center gap-1"><button type="button" data-edit="${type}" data-id="${item.id}" data-parent="${parent}" data-item='${esc(JSON.stringify(item))}' class="inline-flex whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 shadow-sm transition hover:border-rose-500 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200">Edit</button><button type="button" data-delete="${type}" data-id="${item.id}" class="inline-flex whitespace-nowrap rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 shadow-sm transition hover:border-red-500 hover:bg-red-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-red-200">Delete</button></span>`;
     const add = (action, title, parent, major = '') => `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" class="inline-flex whitespace-nowrap rounded-md border border-rose-300 bg-white px-2 py-1 text-[11px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200 active:scale-95">+ ${title}</button>`;
     let hierarchyBuilder;
@@ -339,6 +443,8 @@ if ($action !== null) {
         document.getElementById('courseFields').classList.add('hidden');
         document.getElementById('organizationName').required = false;
         document.getElementById('organizationName').closest('label').classList.add('hidden');
+        document.getElementById('organizationCodeLabel').classList.add('hidden');
+        document.getElementById('organizationStatusLabel').classList.add('hidden');
         builder.classList.remove('hidden');
         builder.querySelector('[data-departments]').innerHTML = '';
         modal.classList.remove('hidden');
@@ -350,6 +456,8 @@ if ($action !== null) {
         hierarchyBuilder.classList.add('hidden');
         document.getElementById('organizationName').required = true;
         document.getElementById('organizationName').closest('label').classList.remove('hidden');
+        document.getElementById('organizationCodeLabel').classList.remove('hidden');
+        document.getElementById('organizationStatusLabel').classList.remove('hidden');
     }
     function collectHierarchy() {
         const builder = createHierarchyBuilder();
@@ -381,7 +489,7 @@ if ($action !== null) {
         if (!deleteDialog) {
             deleteDialog = document.createElement('div');
             deleteDialog.className = 'fixed inset-0 z-[80] hidden items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm';
-            deleteDialog.innerHTML = `<form class="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-2xl"><div class="flex items-start gap-3"><div class="rounded-full bg-red-100 p-2 text-red-600"><i data-lucide="triangle-alert" class="h-5 w-5"></i></div><div><h3 class="text-lg font-bold text-slate-900">Confirm deletion</h3><p class="mt-1 text-sm text-slate-500">This will delete the selected hierarchy and its connected records.</p></div></div><label class="mt-5 block text-sm font-semibold text-slate-700">Current password<input type="password" data-delete-password autocomplete="current-password" required class="mt-2 w-full rounded-lg border-2 border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="Enter your password"></label><div class="mt-6 flex justify-end gap-3"><button type="button" data-delete-cancel class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button><button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300">Delete</button></div></form>`;
+            deleteDialog.innerHTML = `<form class="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-2xl"><div class="flex items-start gap-3"><div class="rounded-full bg-red-100 p-2 text-red-600"><i data-lucide="triangle-alert" class="h-5 w-5"></i></div><div><h3 class="text-lg font-bold text-slate-900">Confirm deletion</h3><p class="mt-1 text-sm text-slate-500">Are you sure you want to delete this hierarchy entry? This may affect related records.</p></div></div><label class="mt-5 block text-sm font-semibold text-slate-700">Current password<input type="password" data-delete-password autocomplete="current-password" required class="mt-2 w-full rounded-lg border-2 border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="Enter your password"></label><div class="mt-6 flex justify-end gap-3"><button type="button" data-delete-cancel class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button><button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300">Delete</button></div></form>`;
             document.body.append(deleteDialog);
             lucide.createIcons();
             deleteDialog.querySelector('[data-delete-cancel]').onclick = () => closeDeleteDialog();
@@ -469,6 +577,7 @@ if ($action !== null) {
             </article>`;
     };
   function render(data) {
+        organizationData = data;
     Object.entries(data.counts).forEach(([key, value]) => { const el = document.querySelector(`[data-count="${key}"]`); if (el) el.textContent = value; });
     const programs = [];
     data.colleges.forEach(college => {
@@ -484,12 +593,28 @@ if ($action !== null) {
         : '<div class="flex flex-col items-center justify-center gap-2 py-12 text-slate-500"><i data-lucide="building-2" class="h-10 w-10 text-slate-400"></i><p class="text-sm">No colleges yet. Click <strong>Add College</strong> to get started.</p></div>';
     lucide.createIcons(); document.getElementById('organizationStatus').textContent = 'Updated just now';
   }
+    let organizationRecords = [];
+    function renderRecords() {
+            const search = document.getElementById('organizationSearch').value.trim().toLowerCase();
+            const status = document.getElementById('organizationStatusFilter').value;
+            const type = document.getElementById('organizationTypeFilter').value;
+            const rows = organizationRecords.filter(record => {
+                    return (!search || `${record.name} ${record.code} ${record.type}`.toLowerCase().includes(search)) &&
+                            (status === 'all' || record.status === status) && (type === 'all' || record.entity === type);
+            });
+            document.getElementById('organizationRecordsBody').innerHTML = rows.length ? rows.map(record => `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(record.code || '-')}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3 text-right"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-slate-600 hover:underline">${record.status === 'archived' ? 'Restore' : 'Archive'}</button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`).join('') : '<tr><td colspan="5" class="px-3 py-8 text-center text-sm italic text-slate-400">No organization records match your search.</td></tr>';
+    }
+    function loadRecords() {
+            fetch('pages/organization.php?action=records', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); organizationRecords = result.records || []; renderRecords(); }).catch(error => toast(error.message, true));
+    }
     function load() {
         fetch('pages/organization.php?action=list', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(response => response.json())
             .then(result => {
                 if (!result.success) throw new Error(result.message);
                 render(result);
+                loadRecords();
             })
             .catch(error => toast(error.message, true));
     }
@@ -515,6 +640,18 @@ if ($action !== null) {
         if (addButton) { closeHierarchyForm(); openForm(addButton.dataset.add, `Add ${addButton.dataset.title.replace('Add ', '')}`, '', addButton.dataset.parent, {}, addButton.dataset.major); }
         if (edit) { closeHierarchyForm(); openForm(`edit_${edit.dataset.edit}`, `Edit ${edit.dataset.edit}`, edit.dataset.id, edit.dataset.parent, JSON.parse(edit.dataset.item)); }
         if (del) openDeleteDialog(del.dataset.delete, del.dataset.id);
+    };
+    document.getElementById('organizationSearch').oninput = renderRecords;
+    document.getElementById('organizationStatusFilter').onchange = renderRecords;
+    document.getElementById('organizationTypeFilter').onchange = renderRecords;
+    document.getElementById('organizationRecordsBody').onclick = event => {
+            const edit = event.target.closest('[data-record-edit]');
+            const archive = event.target.closest('[data-record-archive]');
+            const del = event.target.closest('[data-record-delete]');
+            const record = organizationRecords.find(item => Number(item.id) === Number((edit || archive || del)?.dataset.id) && item.entity === (edit || archive || del)?.dataset[(edit ? 'recordEdit' : archive ? 'recordArchive' : 'recordDelete')]);
+            if (edit && record) { closeHierarchyForm(); openForm(`edit_${record.entity}`, `Edit ${record.type}`, record.id, record.parentId, record); }
+            if (archive) submit({ action: `archive_${archive.dataset.recordArchive}`, id: archive.dataset.id });
+            if (del) openDeleteDialog(del.dataset.recordDelete, del.dataset.id);
     };
   document.getElementById('closeOrganizationModal').onclick = () => modal.classList.add('hidden');
   const submit = data => fetch('pages/organization.php', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body: data instanceof FormData ? new URLSearchParams(data) : new URLSearchParams(data)}).then(r => r.json()).then(result => { if (!result.success) throw new Error(result.message); modal.classList.add('hidden'); toast(result.message); load(); }).catch(e => toast(e.message, true));
