@@ -814,27 +814,29 @@ if ($action !== null) {
           </div>
 
           <div class="flex flex-col gap-1.5 md:flex-shrink-0">
-            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Actions</p>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Primary actions</p>
             <div class="flex flex-wrap items-center gap-2">
-            <button type="button" data-action="edit" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700">
-              <i data-lucide="pencil-line" class="h-3.5 w-3.5"></i>
-              Edit
-            </button>
+              <button type="button" data-action="view" data-id="${librarian.id}" aria-label="View ${esc(librarian.fullName)}" class="inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-200 hover:text-sky-700">
+                <i data-lucide="eye" class="h-3.5 w-3.5"></i>
+                View
+              </button>
 
-            <button type="button" data-action="view" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-200 hover:text-sky-700">
-              <i data-lucide="eye" class="h-3.5 w-3.5"></i>
-              View
-            </button>
+              <button type="button" data-action="edit" data-id="${librarian.id}" aria-label="Edit ${esc(librarian.fullName)}" class="inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700">
+                <i data-lucide="pencil-line" class="h-3.5 w-3.5"></i>
+                Edit
+              </button>
+            </div>
 
-            <button type="button" data-action="toggle-status" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
-              <i data-lucide="${isActive ? 'user-round-x' : 'user-round-check'}" class="h-3.5 w-3.5"></i>
-              ${isActive ? 'Deactivate' : 'Activate'}
-            </button>
+            <div class="mt-1 flex flex-wrap items-center gap-2">
+              <button type="button" data-action="toggle-status" data-id="${librarian.id}" aria-label="${isActive ? 'Deactivate' : 'Activate'} ${esc(librarian.fullName)}" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-100">
+                <i data-lucide="${isActive ? 'user-round-x' : 'user-round-check'}" class="h-3.5 w-3.5"></i>
+                ${isActive ? 'Disable' : 'Enable'}
+              </button>
 
-            <button type="button" data-action="delete" data-id="${librarian.id}" class="inline-flex h-9 w-28 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
-              <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-              Delete
-            </button>
+              <button type="button" data-action="delete" data-id="${librarian.id}" aria-label="Delete ${esc(librarian.fullName)}" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-100 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
+                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -1064,7 +1066,13 @@ if ($action !== null) {
 
   function openDeleteConfirmation(ids, message) {
     state.pendingDeleteIds = ids;
-    document.getElementById('deleteConfirmMessage').textContent = message;
+    const selectedNames = ids
+      .map(id => state.allLibrarians.find(user => user.id === id)?.fullName)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(', ');
+    const nameSummary = selectedNames ? ` ${selectedNames}${ids.length > 3 ? ' and more' : ''}` : '';
+    document.getElementById('deleteConfirmMessage').textContent = `${message}${nameSummary}. This removes their access immediately.`;
     document.getElementById('adminDeletePassword').value = '';
     const modal = document.getElementById('deleteConfirmModal');
     modal.classList.remove('hidden');
@@ -1106,6 +1114,7 @@ if ($action !== null) {
         return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
       })
       .then(() => {
+        state.selectedIds.clear();
         setBulkDeleteState();
         showToast(selected.length === 1 ? 'Librarian deleted successfully.' : `${selected.length} librarians deleted successfully.`);
       })
@@ -1133,8 +1142,9 @@ if ($action !== null) {
   function openStatusConfirmation(librarian) {
     state.pendingStatusId = librarian.id;
     const nextStatus = librarian.status === 'active' ? 'deactivate' : 'activate';
-    document.getElementById('statusConfirmTitle').textContent = `${nextStatus[0].toUpperCase()}${nextStatus.slice(1)} account?`;
-    document.getElementById('statusConfirmMessage').textContent = `${nextStatus[0].toUpperCase()}${nextStatus.slice(1)} ${librarian.fullName}'s access to AppSys Library.`;
+    const statusAction = nextStatus === 'deactivate' ? 'Deactivate' : 'Activate';
+    document.getElementById('statusConfirmTitle').textContent = `${statusAction} account?`;
+    document.getElementById('statusConfirmMessage').textContent = `${statusAction} ${librarian.fullName}'s access to AppSys Library. ${nextStatus === 'deactivate' ? 'They will no longer be able to sign in until re-enabled.' : 'They will regain sign-in access immediately.'}`;
     document.getElementById('adminStatusPassword').value = '';
     const modal = document.getElementById('statusConfirmModal');
     modal.classList.remove('hidden');
