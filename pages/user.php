@@ -460,8 +460,8 @@ if ($action !== null) {
   </div>
 </div>
 
-<div id="librarianModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <div class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+<div id="librarianModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
     <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
       <div>
         <h3 id="modalTitle" class="text-xl font-bold text-slate-900">Add User</h3>
@@ -524,14 +524,14 @@ if ($action !== null) {
   </div>
 </div>
 
-<div id="deleteConfirmModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+<div id="deleteConfirmModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle" tabindex="-1">
     <div class="flex items-start gap-4">
       <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
         <i data-lucide="trash-2" class="h-5 w-5"></i>
       </div>
       <div>
-        <h3 class="text-lg font-bold text-slate-900">Delete librarian?</h3>
+        <h3 id="deleteConfirmTitle" class="text-lg font-bold text-slate-900">Delete librarian?</h3>
         <p id="deleteConfirmMessage" class="mt-1 text-sm text-slate-600"></p>
         <p class="mt-2 text-sm font-semibold text-red-600">This action cannot be undone.</p>
       </div>
@@ -548,14 +548,14 @@ if ($action !== null) {
   </div>
 </div>
 
-<div id="saveConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+<div id="saveConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="saveConfirmTitle" tabindex="-1">
     <div class="flex items-start gap-4">
       <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
         <i data-lucide="shield-check" class="h-5 w-5"></i>
       </div>
       <div>
-        <h3 class="text-lg font-bold text-slate-900">Confirm admin access</h3>
+        <h3 id="saveConfirmTitle" class="text-lg font-bold text-slate-900">Confirm admin access</h3>
         <p id="saveConfirmMessage" class="mt-1 text-sm text-slate-600">Please confirm the administrator password to save this user change.</p>
       </div>
     </div>
@@ -571,8 +571,8 @@ if ($action !== null) {
   </div>
 </div>
 
-<div id="statusConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+<div id="statusConfirmModal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
+  <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="statusConfirmTitle" tabindex="-1">
     <div class="flex items-start gap-4">
       <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
         <i data-lucide="shield-check" class="h-5 w-5"></i>
@@ -596,7 +596,7 @@ if ($action !== null) {
 
 <div id="userDetailDrawer" class="fixed inset-0 z-[55] hidden" aria-hidden="true">
   <button type="button" data-close-drawer class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" aria-label="Close user details"></button>
-  <aside class="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl" aria-labelledby="detailDrawerTitle">
+  <aside class="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl" aria-labelledby="detailDrawerTitle" role="dialog" aria-modal="true" tabindex="-1">
     <div class="flex items-start justify-between border-b border-slate-200 px-6 py-5">
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Account profile</p>
@@ -621,6 +621,13 @@ if ($action !== null) {
         <div class="flex items-center justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-500">Joined</dt><dd id="detailJoined" class="text-right text-sm font-medium text-slate-800"></dd></div>
       </dl>
     </div>
+    <div class="border-t border-slate-200 bg-slate-50 px-6 py-4">
+      <div class="flex flex-wrap justify-end gap-2">
+        <button type="button" id="drawerEditAction" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Edit</button>
+        <button type="button" id="drawerStatusAction" class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100">Activate</button>
+        <button type="button" id="drawerDeleteAction" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100">Delete</button>
+      </div>
+    </div>
   </aside>
 </div>
 
@@ -638,6 +645,9 @@ if ($action !== null) {
     pendingStatusId: null,
     currentPage: 1,
     pageSize: 5,
+    isDeleting: false,
+    lastFocusedElement: null,
+    activeDrawerUserId: null,
   };
 
   function showToast(message, type = 'success') {
@@ -935,6 +945,9 @@ if ($action !== null) {
   }
 
   function openUserDetail(librarian) {
+    state.lastFocusedElement = document.activeElement;
+    state.activeDrawerUserId = librarian.id;
+
     const initials = String(librarian.fullName || '')
       .split(' ')
       .map(part => part[0])
@@ -950,14 +963,24 @@ if ($action !== null) {
     document.getElementById('detailJoined').textContent = librarian.joinedAt || 'Recently';
 
     const drawer = document.getElementById('userDetailDrawer');
+    const drawerStatusAction = document.getElementById('drawerStatusAction');
+    const isActive = librarian.status === 'active';
+    drawerStatusAction.textContent = isActive ? 'Disable' : 'Enable';
+    drawerStatusAction.className = `rounded-xl border px-3 py-2 text-sm font-semibold transition ${isActive ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100' : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`;
+
     drawer.classList.remove('hidden');
     drawer.setAttribute('aria-hidden', 'false');
+    drawer.querySelector('aside').focus();
   }
 
   function closeUserDetail() {
     const drawer = document.getElementById('userDetailDrawer');
     drawer.classList.add('hidden');
     drawer.setAttribute('aria-hidden', 'true');
+    state.activeDrawerUserId = null;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function generateUsername(fullName) {
@@ -983,6 +1006,7 @@ if ($action !== null) {
     const form = document.getElementById('librarianForm');
     const title = document.getElementById('modalTitle');
 
+    state.lastFocusedElement = document.activeElement;
     state.editingId = librarian ? librarian.id : null;
     title.textContent = mode === 'edit' ? 'Edit Librarian' : 'Add Librarian';
 
@@ -1000,6 +1024,7 @@ if ($action !== null) {
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
     setTimeout(() => {
       document.getElementById('fullName').focus();
     }, 50);
@@ -1009,8 +1034,12 @@ if ($action !== null) {
     const modal = document.getElementById('librarianModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
     document.getElementById('librarianForm').reset();
     state.editingId = null;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function fetchLibrarians(search = '') {
@@ -1060,11 +1089,26 @@ if ($action !== null) {
     const modal = document.getElementById('deleteConfirmModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
     document.getElementById('adminDeletePassword').value = '';
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmDeleteBtn) {
+      confirmDeleteBtn.disabled = false;
+      confirmDeleteBtn.innerHTML = `
+        <i data-lucide="trash-2" class="h-4 w-4"></i>
+        Delete
+      `;
+      lucide.createIcons();
+    }
     state.pendingDeleteIds = [];
+    state.isDeleting = false;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function openDeleteConfirmation(ids, message) {
+    state.lastFocusedElement = document.activeElement;
     state.pendingDeleteIds = ids;
     const selectedNames = ids
       .map(id => state.allLibrarians.find(user => user.id === id)?.fullName)
@@ -1077,69 +1121,119 @@ if ($action !== null) {
     const modal = document.getElementById('deleteConfirmModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
     document.getElementById('adminDeletePassword').focus();
   }
 
   function confirmPendingDelete() {
     const selected = [...state.pendingDeleteIds];
-    if (!selected.length) return;
+    if (!selected.length || state.isDeleting) return;
+
     const adminPassword = document.getElementById('adminDeletePassword').value;
     if (!adminPassword) {
       showToast('Enter the administrator password to continue.', 'error');
       document.getElementById('adminDeletePassword').focus();
       return;
     }
-    closeDeleteConfirmation();
 
-    const deleteRequests = selected.map(id => {
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    confirmDeleteBtn.disabled = true;
+    confirmDeleteBtn.innerHTML = `
+      <i data-lucide="loader-circle" class="h-4 w-4 animate-spin"></i>
+      Deleting...
+    `;
+    lucide.createIcons();
+    state.isDeleting = true;
+
+    const remainingIds = [...selected];
+    const successfulIds = [];
+    const failedIds = [];
+    const failedMessages = [];
+
+    const deleteNext = () => {
+      const id = remainingIds.shift();
+      if (id === undefined) {
+        const successCount = successfulIds.length;
+        const failureCount = failedIds.length;
+
+        state.selectedIds = new Set(failedIds);
+        fetchLibrarians(document.getElementById('librarianSearch').value.trim())
+          .then(() => {
+            setBulkDeleteState();
+            if (successCount > 0 && failureCount === 0) {
+              showToast(successCount === 1 ? 'Librarian deleted successfully.' : `${successCount} librarians deleted successfully.`);
+            } else if (successCount > 0 && failureCount > 0) {
+              showToast(`${successCount} deleted, ${failureCount} failed.`, 'error');
+            } else {
+              showToast(failedMessages[0] || 'Unable to delete selected librarians.', 'error');
+            }
+          })
+          .catch(() => {
+            showToast(failureCount > 0 ? `${successCount} deleted, ${failureCount} failed.` : 'Unable to delete selected librarians.', 'error');
+          })
+          .finally(() => {
+            closeDeleteConfirmation();
+          });
+        return;
+      }
+
       const formData = new URLSearchParams({ action: 'delete', id: String(id), admin_password: adminPassword });
-      return fetch('pages/user.php', {
+      fetch('pages/user.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
           'X-Requested-With': 'XMLHttpRequest'
         },
         body: formData.toString()
-      }).then(response => response.json());
-    });
-
-    Promise.all(deleteRequests)
-      .then(results => {
-        const failedResult = results.find(result => !result.success);
-        if (failedResult) {
-          throw new Error(failedResult.message || 'One or more librarians could not be deleted.');
-        }
-
-        state.selectedIds.clear();
-        return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
       })
-      .then(() => {
-        state.selectedIds.clear();
-        setBulkDeleteState();
-        showToast(selected.length === 1 ? 'Librarian deleted successfully.' : `${selected.length} librarians deleted successfully.`);
-      })
-      .catch(error => {
-        showToast(error.message || 'Unable to delete selected librarians.', 'error');
-      });
+        .then(response => response.json())
+        .then(result => {
+          if (!result.success) {
+            failedIds.push(id);
+            failedMessages.push(result.message || 'Unable to delete selected librarians.');
+            return;
+          }
+
+          successfulIds.push(id);
+        })
+        .catch(() => {
+          failedIds.push(id);
+          failedMessages.push('Unable to delete selected librarians.');
+        })
+        .finally(() => {
+          deleteNext();
+        });
+    };
+
+    deleteNext();
   }
 
   function closeSaveConfirmation() {
     const modal = document.getElementById('saveConfirmModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
     document.getElementById('adminSavePassword').value = '';
     state.pendingSavePayload = null;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function closeStatusConfirmation() {
     const modal = document.getElementById('statusConfirmModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
     document.getElementById('adminStatusPassword').value = '';
     state.pendingStatusId = null;
+    if (state.lastFocusedElement && typeof state.lastFocusedElement.focus === 'function') {
+      state.lastFocusedElement.focus();
+    }
   }
 
   function openStatusConfirmation(librarian) {
+    state.lastFocusedElement = document.activeElement;
     state.pendingStatusId = librarian.id;
     const nextStatus = librarian.status === 'active' ? 'deactivate' : 'activate';
     const statusAction = nextStatus === 'deactivate' ? 'Deactivate' : 'Activate';
@@ -1149,6 +1243,7 @@ if ($action !== null) {
     const modal = document.getElementById('statusConfirmModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
     document.getElementById('adminStatusPassword').focus();
   }
 
@@ -1184,12 +1279,14 @@ if ($action !== null) {
   }
 
   function openSaveConfirmation(payload) {
+    state.lastFocusedElement = document.activeElement;
     state.pendingSavePayload = payload;
     document.getElementById('saveConfirmMessage').textContent = 'Please confirm the administrator password to save this user change.';
     document.getElementById('adminSavePassword').value = '';
     const modal = document.getElementById('saveConfirmModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
     document.getElementById('adminSavePassword').focus();
   }
 
@@ -1253,6 +1350,27 @@ if ($action !== null) {
   document.getElementById('addLibrarianBtn').addEventListener('click', () => openModal('add'));
   document.getElementById('bulkDeleteBtn').addEventListener('click', handleBulkDelete);
   document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
+  document.getElementById('drawerEditAction').addEventListener('click', () => {
+    const librarian = state.allLibrarians.find(item => item.id === state.activeDrawerUserId);
+    if (librarian) {
+      closeUserDetail();
+      openModal('edit', librarian);
+    }
+  });
+  document.getElementById('drawerStatusAction').addEventListener('click', () => {
+    const librarian = state.allLibrarians.find(item => item.id === state.activeDrawerUserId);
+    if (librarian) {
+      closeUserDetail();
+      openStatusConfirmation(librarian);
+    }
+  });
+  document.getElementById('drawerDeleteAction').addEventListener('click', () => {
+    const librarian = state.allLibrarians.find(item => item.id === state.activeDrawerUserId);
+    if (librarian) {
+      closeUserDetail();
+      removeLibrarian(librarian.id);
+    }
+  });
   document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteConfirmation);
   document.getElementById('confirmDeleteBtn').addEventListener('click', confirmPendingDelete);
   document.getElementById('cancelSaveBtn').addEventListener('click', closeSaveConfirmation);
@@ -1292,6 +1410,39 @@ if ($action !== null) {
 
   document.querySelectorAll('[data-close-modal]').forEach(button => {
     button.addEventListener('click', closeModal);
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+
+    const drawer = document.getElementById('userDetailDrawer');
+    if (!drawer.classList.contains('hidden')) {
+      closeUserDetail();
+      return;
+    }
+
+    const modal = document.getElementById('librarianModal');
+    if (!modal.classList.contains('hidden')) {
+      closeModal();
+      return;
+    }
+
+    const deleteModal = document.getElementById('deleteConfirmModal');
+    if (!deleteModal.classList.contains('hidden')) {
+      closeDeleteConfirmation();
+      return;
+    }
+
+    const saveModal = document.getElementById('saveConfirmModal');
+    if (!saveModal.classList.contains('hidden')) {
+      closeSaveConfirmation();
+      return;
+    }
+
+    const statusModal = document.getElementById('statusConfirmModal');
+    if (!statusModal.classList.contains('hidden')) {
+      closeStatusConfirmation();
+    }
   });
 
   document.getElementById('librarianModal').addEventListener('click', event => {
