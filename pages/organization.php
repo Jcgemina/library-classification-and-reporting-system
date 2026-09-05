@@ -269,7 +269,7 @@ if ($action !== null) {
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2"><i data-lucide="building-2" class="h-5 w-5 text-rose-600"></i><div><h3 class="text-xl font-bold text-slate-900">Institutional Structure</h3><p class="text-sm text-slate-500">Start with a college, then add its departments, programs, majors, and courses.</p></div></div>
-                    <div class="flex items-center gap-3"><span id="organizationStatus" class="text-xs text-slate-600">Loading...</span><button type="button" id="addCollegeBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 active:scale-95"><i data-lucide="plus" class="h-4 w-4"></i> Add College</button></div>
+                    <div class="flex items-center gap-3"><span id="organizationStatus" class="text-xs text-slate-600" aria-live="polite">Loading organization...</span><button type="button" id="retryOrganizationBtn" class="hidden text-xs font-semibold text-rose-700 underline underline-offset-2">Retry</button><button type="button" id="addCollegeBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 active:scale-95"><i data-lucide="plus" class="h-4 w-4"></i> Add College</button></div>
                 </div>
                 <div id="organizationTree" class="space-y-2"></div>
         </section>
@@ -293,7 +293,7 @@ if ($action !== null) {
                 <form id="prospectusForm" class="mt-4 min-w-0 space-y-2">
                     <select name="program_id" id="prospectusProgram" required class="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Select a program</option></select>
                     <input type="file" name="prospectus" accept="application/pdf,.pdf" required class="block h-auto w-full min-w-0 max-w-full rounded-xl border-2 border-dashed border-rose-300 bg-rose-50 p-3 text-xs text-slate-700">
-                    <button class="w-full rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700">Upload PDF</button>
+                    <button type="submit" class="w-full rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700">Upload PDF</button>
                 </form>
             </section>
         </div>
@@ -308,9 +308,17 @@ if ($action !== null) {
     const form = document.getElementById('organizationForm');
     const prospectusList = document.getElementById('prospectusList');
     const prospectusForm = document.getElementById('prospectusForm');
+    const organizationStatus = document.getElementById('organizationStatus');
+    const retryOrganizationBtn = document.getElementById('retryOrganizationBtn');
     const applyInputOutline = container => container.querySelectorAll('input:not([type="hidden"])').forEach(input => input.classList.add('border-2', 'border-slate-300', 'outline-none', 'focus:border-rose-600', 'focus:ring-2', 'focus:ring-rose-100'));
     applyInputOutline(form);
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    const setOrganizationStatus = (message, error = false) => {
+        organizationStatus.textContent = message;
+        organizationStatus.classList.toggle('text-red-700', error);
+        organizationStatus.classList.toggle('text-slate-600', !error);
+        retryOrganizationBtn.classList.toggle('hidden', !error);
+    };
     function toast(message, error = false) {
         const container = document.getElementById('toastContainer');
         const notification = document.createElement('div');
@@ -385,7 +393,7 @@ if ($action !== null) {
       }
       modal.classList.remove('hidden'); modal.classList.add('flex'); document.getElementById('organizationName').focus();
   };
-    const controls = (type, item, parent) => `<span class="flex flex-wrap items-center gap-1"><button type="button" data-edit="${type}" data-id="${item.id}" data-parent="${parent}" data-item='${esc(JSON.stringify(item))}' class="inline-flex whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 shadow-sm transition hover:border-rose-500 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200">Edit</button><button type="button" data-delete="${type}" data-id="${item.id}" class="inline-flex whitespace-nowrap rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 shadow-sm transition hover:border-red-500 hover:bg-red-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-red-200">Delete</button></span>`;
+    const controls = (type, item, parent) => `<span class="flex flex-wrap items-center gap-1"><button type="button" data-edit="${type}" data-id="${item.id}" data-parent="${parent}" data-item='${esc(JSON.stringify(item))}' class="inline-flex whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 shadow-sm transition hover:border-rose-500 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200">Edit</button><button type="button" data-delete="${type}" data-id="${item.id}" data-name="${esc(item.name)}" class="inline-flex whitespace-nowrap rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 shadow-sm transition hover:border-red-500 hover:bg-red-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-red-200">Delete</button></span>`;
     const add = (action, title, parent, major = '') => `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" class="inline-flex whitespace-nowrap rounded-md border border-rose-300 bg-white px-2 py-1 text-[11px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200 active:scale-95">+ ${title}</button>`;
     let hierarchyBuilder;
     function createHierarchyBuilder() {
@@ -435,9 +443,9 @@ if ($action !== null) {
         if (!program) return;
         const course = document.createElement('div');
         course.dataset.builderItem = 'course';
-        course.className = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,auto)_minmax(0,1fr)_minmax(4rem,auto)_auto]';
+        course.className = 'grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(5rem,7rem)_minmax(0,1fr)]';
         const owner = program.dataset.builderItem === 'major' ? 'Major' : 'Program';
-        course.innerHTML = `<p class="col-span-full text-[10px] font-semibold uppercase tracking-wide text-slate-500">Course under ${owner}</p><input data-field="code" placeholder="Code" required class="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><input data-field="name" placeholder="Course name" required class="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><input data-field="year_level" type="number" min="1" max="8" placeholder="Year" class="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button>`;
+        course.innerHTML = `<p class="col-span-full text-[10px] font-semibold uppercase tracking-wide text-slate-500">Course under ${owner}</p><input data-field="code" placeholder="Code" required class="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><input data-field="name" placeholder="Course name" required class="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100 sm:col-span-2"><input data-field="year_level" type="number" min="1" max="8" placeholder="Year" class="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="justify-self-start px-2 text-sm text-red-500 sm:justify-self-end">Remove</button>`;
         program.querySelector('[data-courses]').append(course);
     }
     function openHierarchyForm() {
@@ -451,6 +459,7 @@ if ($action !== null) {
         document.getElementById('organizationCodeLabel').classList.add('hidden');
         document.getElementById('organizationStatusLabel').classList.add('hidden');
         builder.classList.remove('hidden');
+        builder.querySelector('[data-field="college-name"]').required = true;
         builder.querySelector('[data-departments]').innerHTML = '';
         modal.classList.remove('hidden');
         modal.classList.add('flex');
@@ -459,6 +468,7 @@ if ($action !== null) {
     function closeHierarchyForm() {
         if (!hierarchyBuilder) return;
         hierarchyBuilder.classList.add('hidden');
+        hierarchyBuilder.querySelector('[data-field="college-name"]').required = false;
         document.getElementById('organizationName').required = true;
         document.getElementById('organizationName').closest('label').classList.remove('hidden');
         document.getElementById('organizationCodeLabel').classList.remove('hidden');
@@ -490,7 +500,7 @@ if ($action !== null) {
         };
     }
     let deleteDialog;
-    function openDeleteDialog(type, id) {
+    function openDeleteDialog(type, id, name = 'this organization') {
         if (!deleteDialog) {
             deleteDialog = document.createElement('div');
             deleteDialog.className = 'fixed inset-0 z-[80] hidden items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm';
@@ -507,6 +517,7 @@ if ($action !== null) {
         }
         deleteDialog.dataset.type = type;
         deleteDialog.dataset.id = id;
+        deleteDialog.querySelector('p').textContent = `Delete "${name}"? This permanently removes the organization if it has no related records.`;
         deleteDialog.querySelector('[data-delete-password]').value = '';
         deleteDialog.classList.remove('hidden');
         deleteDialog.classList.add('flex');
@@ -583,6 +594,7 @@ if ($action !== null) {
     };
   function render(data) {
         organizationData = data;
+        const expandedColleges = new Set([...tree.querySelectorAll('.college-body:not(.max-h-0)')].map(body => body.id.replace('college-', '')));
     Object.entries(data.counts).forEach(([key, value]) => { const el = document.querySelector(`[data-count="${key}"]`); if (el) el.textContent = value; });
     const programs = [];
     data.colleges.forEach(college => {
@@ -596,7 +608,15 @@ if ($action !== null) {
     tree.innerHTML = data.colleges.length
         ? data.colleges.map(renderCollege).join('')
         : '<div class="flex flex-col items-center justify-center gap-2 py-12 text-slate-500"><i data-lucide="building-2" class="h-10 w-10 text-slate-400"></i><p class="text-sm">No colleges yet. Click <strong>Add College</strong> to get started.</p></div>';
-    lucide.createIcons(); document.getElementById('organizationStatus').textContent = 'Updated just now';
+    lucide.createIcons();
+    expandedColleges.forEach(collegeId => {
+        const body = document.getElementById(`college-${collegeId}`);
+        const toggle = tree.querySelector(`[data-college-toggle="${collegeId}"]`);
+        body?.classList.remove('max-h-0', 'opacity-0');
+        body?.classList.add('max-h-[2000px]', 'opacity-100');
+        toggle?.querySelector('.college-chevron')?.classList.add('rotate-90');
+    });
+    setOrganizationStatus('Organization updated');
   }
     let organizationRecords = [];
     function renderRecords() {
@@ -611,7 +631,7 @@ if ($action !== null) {
     }
     function loadRecords() {
             fetch('pages/organization.php?action=records', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); organizationRecords = result.records || []; renderRecords(); }).catch(error => toast(error.message, true));
+                    .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); organizationRecords = result.records || []; renderRecords(); }).catch(error => toast(`Records could not be loaded. ${error.message}`, true));
     }
     function load() {
         fetch('pages/organization.php?action=list', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -621,7 +641,7 @@ if ($action !== null) {
                 render(result);
                 loadRecords();
             })
-            .catch(error => toast(error.message, true));
+            .catch(error => { setOrganizationStatus('Organization could not be loaded', true); toast(`Organization could not be loaded. ${error.message}`, true); });
     }
     document.getElementById('addCollegeBtn').onclick = openHierarchyForm;
     tree.onclick = event => {
@@ -644,7 +664,7 @@ if ($action !== null) {
         }
         if (addButton) { closeHierarchyForm(); openForm(addButton.dataset.add, `Add ${addButton.dataset.title.replace('Add ', '')}`, '', addButton.dataset.parent, {}, addButton.dataset.major); }
         if (edit) { closeHierarchyForm(); openForm(`edit_${edit.dataset.edit}`, `Edit ${edit.dataset.edit}`, edit.dataset.id, edit.dataset.parent, JSON.parse(edit.dataset.item)); }
-        if (del) openDeleteDialog(del.dataset.delete, del.dataset.id);
+        if (del) openDeleteDialog(del.dataset.delete, del.dataset.id, del.dataset.name);
     };
     document.getElementById('organizationSearch').oninput = renderRecords;
     document.getElementById('organizationStatusFilter').onchange = renderRecords;
@@ -655,13 +675,47 @@ if ($action !== null) {
             const del = event.target.closest('[data-record-delete]');
             const record = organizationRecords.find(item => Number(item.id) === Number((edit || archive || del)?.dataset.id) && item.entity === (edit || archive || del)?.dataset[(edit ? 'recordEdit' : archive ? 'recordArchive' : 'recordDelete')]);
             if (edit && record) { closeHierarchyForm(); openForm(`edit_${record.entity}`, `Edit ${record.type}`, record.id, record.parentId, record); }
-            if (archive) submit({ action: `archive_${archive.dataset.recordArchive}`, id: archive.dataset.id });
-            if (del) openDeleteDialog(del.dataset.recordDelete, del.dataset.id);
+            if (archive && record) {
+                const archiveAction = record.status === 'archived' ? 'restore' : 'archive';
+                if (archiveAction === 'archive' && !window.confirm(`Archive "${record.name}"? It will remain available in archived records.`)) return;
+                submit({ action: `archive_${archive.dataset.recordArchive}`, id: archive.dataset.id });
+            }
+            if (del) openDeleteDialog(del.dataset.recordDelete, del.dataset.id, record?.name);
     };
-  document.getElementById('closeOrganizationModal').onclick = () => modal.classList.add('hidden');
-  const submit = data => fetch('pages/organization.php', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body: data instanceof FormData ? new URLSearchParams(data) : new URLSearchParams(data)}).then(r => r.json()).then(result => { if (!result.success) throw new Error(result.message); modal.classList.add('hidden'); toast(result.message); load(); }).catch(e => toast(e.message, true));
+  const closeOrganizationModal = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
+  document.getElementById('closeOrganizationModal').onclick = closeOrganizationModal;
+  modal.addEventListener('click', event => { if (event.target === modal) closeOrganizationModal(); });
+  document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+          closeOrganizationModal();
+          closeDeleteDialog();
+      }
+  });
+  const setBusy = (button, busy, busyLabel = 'Working...') => {
+      if (!button) return;
+      if (busy) {
+          button.dataset.originalLabel = button.textContent.trim();
+          button.textContent = busyLabel;
+          button.disabled = true;
+          button.classList.add('cursor-wait', 'opacity-70');
+      } else {
+          button.textContent = button.dataset.originalLabel || button.textContent;
+          button.disabled = false;
+          button.classList.remove('cursor-wait', 'opacity-70');
+      }
+  };
+  const submit = data => {
+      const submitButton = form.querySelector('button[type="submit"]');
+      setBusy(submitButton, true, 'Saving...');
+      return fetch('pages/organization.php', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body: data instanceof FormData ? new URLSearchParams(data) : new URLSearchParams(data)})
+          .then(r => r.json())
+          .then(result => { if (!result.success) throw new Error(result.message); closeOrganizationModal(); toast(result.message); load(); })
+          .catch(e => toast(e.message, true))
+          .finally(() => setBusy(submitButton, false));
+  };
     form.onsubmit = e => {
         e.preventDefault();
+        if (!form.reportValidity()) return;
         if (document.getElementById('organizationAction').value === 'create_hierarchy') {
             submit({ action: 'create_hierarchy', hierarchy: JSON.stringify(collectHierarchy()) });
             return;
@@ -670,8 +724,11 @@ if ($action !== null) {
     };
     prospectusForm.onsubmit = event => {
         event.preventDefault();
+        if (!prospectusForm.reportValidity()) return;
         const data = new FormData(prospectusForm);
         data.append('action', 'upload_prospectus');
+        const uploadButton = prospectusForm.querySelector('button[type="submit"]');
+        setBusy(uploadButton, true, 'Uploading...');
 
         fetch('pages/organization.php', {
             method: 'POST',
@@ -685,8 +742,10 @@ if ($action !== null) {
                 toast(result.message);
                 load();
             })
-            .catch(error => toast(error.message, true));
+                        .catch(error => toast(`Prospectus could not be uploaded. ${error.message}`, true))
+                        .finally(() => setBusy(uploadButton, false));
     };
+    retryOrganizationBtn.onclick = load;
   load();
 })();
 </script>
