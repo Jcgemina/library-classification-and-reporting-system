@@ -260,38 +260,43 @@ if ($action !== null) {
 ?>
 <div class="space-y-8">
   <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div><p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Academic directory</p><h2 class="mt-1 text-3xl font-bold text-slate-900">Organization Management</h2><p class="mt-1 text-sm text-slate-500">Manage academic hierarchy: colleges, departments, programs, majors, and courses.</p></div>
+    <div><h2 class="text-3xl font-bold text-slate-900">Organization Management</h2><p class="mt-1 text-sm text-slate-500">Manage colleges, departments, programs, majors, and courses.</p></div>
         <div class="flex flex-wrap gap-3">
             <?php foreach (['colleges','departments','programs','majors','courses'] as $count): ?><div class="flex flex-col items-center border-b-2 border-rose-<?= $count === 'colleges' ? '600' : '300' ?> px-4 pb-2"><span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500"><?= ucfirst($count) ?></span><span data-count="<?= $count ?>" class="mt-1 text-2xl font-bold text-slate-900">0</span></div><?php endforeach; ?>
         </div>
   </div>
-    <div class="grid grid-cols-12 gap-6">
-        <div class="col-span-12 space-y-4 lg:col-span-8">
-            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="space-y-6">
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center gap-2"><i data-lucide="building-2" class="h-5 w-5 text-rose-600"></i><h3 class="text-xl font-bold text-slate-900">Institutional Structure</h3></div>
-                    <div class="flex items-center gap-3"><span id="organizationStatus" class="text-xs text-slate-400">Loading...</span><button type="button" id="addCollegeBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 active:scale-95"><i data-lucide="plus" class="h-4 w-4"></i> Add College</button></div>
+                    <div class="flex items-center gap-2"><i data-lucide="building-2" class="h-5 w-5 text-rose-600"></i><div><h3 class="text-xl font-bold text-slate-900">Institutional Structure</h3><p class="text-sm text-slate-500">Start with a college, then add its departments, programs, majors, and courses.</p></div></div>
+                    <div class="flex items-center gap-3"><span id="organizationStatus" class="text-xs text-slate-600">Loading...</span><button type="button" id="addCollegeBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 active:scale-95"><i data-lucide="plus" class="h-4 w-4"></i> Add College</button></div>
                 </div>
                 <div id="organizationTree" class="space-y-2"></div>
-            </section>
-            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        </section>
+        <div class="grid grid-cols-12 items-start gap-6">
+            <details class="col-span-12 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-8">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                    <div><h3 class="text-xl font-bold text-slate-900">Browse all records</h3><p class="text-sm text-slate-500">Search, filter, archive, and maintain stored organization information.</p></div>
+                    <i data-lucide="chevron-down" class="h-5 w-5 shrink-0 text-slate-500 transition-transform"></i>
+                </summary>
+                <div class="mt-5">
                 <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div><h3 class="text-xl font-bold text-slate-900">Organization Records</h3><p class="text-sm text-slate-500">Search, filter, archive, and maintain stored organization information.</p></div>
                     <div class="flex flex-col gap-2 sm:flex-row"><input id="organizationSearch" type="search" placeholder="Search organizations" class="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><select id="organizationStatusFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select><select id="organizationTypeFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All types</option><option value="college">University / College</option><option value="department">Department</option><option value="program">Program</option><option value="major">Major</option></select></div>
                 </div>
                 <div class="overflow-x-auto"><table class="w-full min-w-[700px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Organization Name</th><th class="px-3 py-3">Code</th><th class="px-3 py-3">Type</th><th class="px-3 py-3">Status</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="organizationRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
+                </div>
+            </details>
             </section>
-        </div>
-        <div class="col-span-12 lg:col-span-4">
-            <section class="flex h-full min-w-0 flex-col rounded-xl border-t-4 border-rose-600 bg-white p-5 shadow-sm">
+            <section class="col-span-12 flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-4">
                 <div class="mb-5 flex items-center gap-2"><i data-lucide="file-text" class="h-5 w-5 text-rose-600"></i><h3 class="font-bold text-slate-900">Course Prospectus</h3></div>
                 <div id="prospectusList" class="max-h-[420px] flex-1 space-y-3 overflow-y-auto pr-1"></div>
                 <form id="prospectusForm" class="mt-4 min-w-0 space-y-2">
                     <select name="program_id" id="prospectusProgram" required class="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Select a program</option></select>
-                    <input type="file" name="prospectus" accept="application/pdf,.pdf" required class="block h-auto w-full min-w-0 max-w-full rounded-xl border-2 border-dashed border-rose-300 bg-rose-50 p-3 text-xs text-slate-600">
+                    <input type="file" name="prospectus" accept="application/pdf,.pdf" required class="block h-auto w-full min-w-0 max-w-full rounded-xl border-2 border-dashed border-rose-300 bg-rose-50 p-3 text-xs text-slate-700">
                     <button class="w-full rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700">Upload PDF</button>
                 </form>
             </section>
+        </div>
     </div>
 </div>
 <div id="organizationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="organizationForm" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 id="organizationModalTitle" class="text-xl font-bold">Add College</h3><button type="button" id="closeOrganizationModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" id="organizationAction" name="action"><input type="hidden" id="organizationId" name="id"><input type="hidden" id="organizationParent" name="parent_id"><input type="hidden" id="organizationMajor" name="major_id"><label id="parentSelectLabel" class="mt-5 hidden text-sm font-medium">Parent organization<select id="parentSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label id="majorSelectLabel" class="mt-3 hidden text-sm font-medium">Major<select id="majorSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">No major</option></select></label><div id="courseFields" class="mt-5 hidden grid gap-4 sm:grid-cols-2"><label class="text-sm font-medium">Course code<input name="code" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label class="text-sm font-medium">Year level<input name="year_level" type="number" min="1" max="8" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label></div><label id="organizationCodeLabel" class="mt-5 block text-sm font-medium">Organization code<input name="organization_code" id="organizationCode" maxlength="30" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label id="organizationStatusLabel" class="mt-3 block text-sm font-medium">Status<select name="status" id="organizationRecordStatus" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="active">Active</option><option value="archived">Archived</option></select></label><label class="mt-3 block text-sm font-medium">Name<input id="organizationName" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><button class="mt-5 w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Save</button></form></div>
@@ -388,7 +393,7 @@ if ($action !== null) {
         hierarchyBuilder = document.createElement('div');
         hierarchyBuilder.id = 'hierarchyBuilder';
         hierarchyBuilder.className = 'mt-5 hidden min-w-0 space-y-3';
-        hierarchyBuilder.innerHTML = '<label class="block text-sm font-medium">College name<input data-field="college-name" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"></label><div data-departments class="space-y-3 border-l-2 border-rose-200 pl-3"></div><button type="button" data-builder-add="department" class="text-sm font-semibold text-rose-600">+ Add department</button>';
+        hierarchyBuilder.innerHTML = '<label class="block text-sm font-medium">College name<input data-field="college-name" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"></label><div data-departments class="space-y-3 border-l border-rose-200 pl-3"></div><button type="button" data-builder-add="department" class="text-sm font-semibold text-rose-600">+ Add department</button>';
         applyInputOutline(hierarchyBuilder);
         form.querySelector('#organizationMajor').after(hierarchyBuilder);
         hierarchyBuilder.addEventListener('click', event => {
@@ -407,23 +412,23 @@ if ($action !== null) {
         const department = document.createElement('div');
         department.dataset.builderItem = 'department';
         department.className = 'rounded-lg border border-slate-200 bg-slate-50 p-3';
-        department.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Department under College</p><div class="flex gap-2"><input data-field="name" placeholder="Department name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div><div data-programs class="mt-3 space-y-3 border-l-2 border-slate-200 pl-3"></div><button type="button" data-builder-add="program" class="mt-3 text-xs font-semibold text-rose-600">+ Add program</button>';
+        department.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Department under College</p><div class="flex gap-2"><input data-field="name" placeholder="Department name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div><div data-programs class="mt-3 space-y-3 border-l border-slate-200 pl-3"></div><button type="button" data-builder-add="program" class="mt-3 text-xs font-semibold text-rose-600">+ Add program</button>';
         hierarchyBuilder.querySelector('[data-departments]').append(department);
     }
     function addProgram(department) {
         if (!department) return;
         const program = document.createElement('div');
         program.dataset.builderItem = 'program';
-        program.className = 'rounded-lg border-l-2 border-rose-200 bg-white p-3';
-        program.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Program under Department</p><div class="flex gap-2"><input data-field="name" placeholder="Program name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div><div data-majors class="mt-3 space-y-2 border-l-2 border-rose-200 pl-3"></div><button type="button" data-builder-add="major" class="mt-2 text-xs font-semibold text-rose-600">+ Add major</button><div data-courses class="mt-3 space-y-2"></div><button type="button" data-builder-add="course" class="mt-2 text-xs font-semibold text-rose-600">+ Add course to program</button>';
+        program.className = 'rounded-lg border-l border-rose-200 bg-white p-3';
+        program.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Program under Department</p><div class="flex gap-2"><input data-field="name" placeholder="Program name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div><div data-majors class="mt-3 space-y-2 border-l border-rose-200 pl-3"></div><button type="button" data-builder-add="major" class="mt-2 text-xs font-semibold text-rose-600">+ Add major</button><div data-courses class="mt-3 space-y-2"></div><button type="button" data-builder-add="course" class="mt-2 text-xs font-semibold text-rose-600">+ Add course to program</button>';
         department.querySelector('[data-programs]').append(program);
     }
     function addMajor(program) {
         if (!program) return;
         const major = document.createElement('div');
         major.dataset.builderItem = 'major';
-        major.className = 'min-w-0 rounded-lg border-l-2 border-rose-200 p-2';
-        major.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Major under Program</p><div class="flex gap-2"><input data-field="name" placeholder="Major name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div><div data-courses class="mt-2 space-y-2 border-l-2 border-rose-200 pl-3"></div><button type="button" data-builder-add="course" class="mt-2 text-xs font-semibold text-rose-600">+ Add course to major</button>';
+        major.className = 'min-w-0 rounded-lg border-l border-rose-200 p-2';
+        major.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Major under Program</p><div class="flex gap-2"><input data-field="name" placeholder="Major name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div><div data-courses class="mt-2 space-y-2 border-l border-rose-200 pl-3"></div><button type="button" data-builder-add="course" class="mt-2 text-xs font-semibold text-rose-600">+ Add course to major</button>';
         program.querySelector('[data-majors]').append(major);
     }
     function addCourse(program) {
@@ -544,7 +549,7 @@ if ($action !== null) {
                     </div>`).join('');
 
                 return `
-                    <div class="mt-2 border-l-2 border-rose-200 pl-5">
+                    <div class="mt-2 border-l border-rose-200 pl-5">
                         <div class="group flex items-center gap-2">
                             <i data-lucide="book" class="h-3.5 w-3.5 shrink-0 text-rose-600"></i>
                             <span class="text-sm font-semibold text-slate-700">${esc(program.name)}</span>
@@ -555,7 +560,7 @@ if ($action !== null) {
             }).join('');
 
             return `
-                <div class="mt-2 border-l-2 border-slate-300 pl-4">
+                <div class="mt-2 border-l border-slate-300 pl-4">
                     <div class="group flex items-center gap-2">
                         <i data-lucide="layers" class="h-3.5 w-3.5 shrink-0 text-slate-500"></i>
                         <span class="text-sm font-semibold text-slate-700">${esc(department.name)}</span>
