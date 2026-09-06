@@ -31,10 +31,12 @@ if ($action !== null) {
                 ['table' => 'departments', 'type' => 'Department', 'parentColumn' => 'college_id'],
                 ['table' => 'programs', 'type' => 'Program', 'parentColumn' => 'department_id'],
                 ['table' => 'majors', 'type' => 'Major', 'parentColumn' => 'program_id'],
+                ['table' => 'courses', 'type' => 'Course / Subject', 'parentColumn' => 'program_id'],
             ];
             foreach ($queries as $query) {
                 $parentSelect = $query['parentColumn'] ? ', ' . $query['parentColumn'] : '';
-                $rows = $pdo->query("SELECT id, name, code, status, created_at{$parentSelect} FROM {$query['table']} ORDER BY name")->fetchAll();
+                $statusSelect = $query['table'] === 'courses' ? ", 'active' AS status" : ', status';
+                $rows = $pdo->query("SELECT id, name, code, created_at{$parentSelect}{$statusSelect} FROM {$query['table']} ORDER BY name")->fetchAll();
                 foreach ($rows as $row) {
                     $records[] = [
                         'id' => (int)$row['id'], 'name' => $row['name'], 'code' => $row['code'] ?? '',
@@ -276,14 +278,14 @@ if ($action !== null) {
         <div class="grid grid-cols-12 items-start gap-6">
             <details class="col-span-12 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-8">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                    <div><h3 class="text-xl font-bold text-slate-900">Browse all records</h3><p class="text-sm text-slate-500">Search, filter, archive, and maintain stored organization information.</p></div>
+                    <div><h3 class="text-xl font-bold text-slate-900">Browse all records</h3></div>
                     <i data-lucide="chevron-down" class="h-5 w-5 shrink-0 text-slate-500 transition-transform"></i>
                 </summary>
                 <div class="mt-5">
                 <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div class="flex flex-col gap-2 sm:flex-row"><input id="organizationSearch" type="search" placeholder="Search organizations" class="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><select id="organizationStatusFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select><select id="organizationTypeFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All types</option><option value="college">University / College</option><option value="department">Department</option><option value="program">Program</option><option value="major">Major</option></select></div>
+                    <div class="flex flex-col gap-2 sm:flex-row"><input id="organizationSearch" type="search" placeholder="Search organizations" class="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><select id="organizationStatusFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select><select id="organizationTypeFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All types</option><option value="college">University / College</option><option value="department">Department</option><option value="program">Program</option><option value="major">Major</option><option value="course">Course / Subject</option></select></div>
                 </div>
-                <div class="overflow-x-auto"><table class="w-full min-w-[700px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Organization Name</th><th class="px-3 py-3">Code</th><th class="px-3 py-3">Type</th><th class="px-3 py-3">Status</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="organizationRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
+                <div class="overflow-x-auto"><table class="w-full min-w-[700px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Organization Name</th><th class="px-3 py-3"></th><th class="px-3 py-3">Type</th><th class="px-3 py-3">Status</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="organizationRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
                 </div>
             </details>
             </section>
@@ -299,7 +301,7 @@ if ($action !== null) {
         </div>
     </div>
 </div>
-<div id="organizationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="organizationForm" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 id="organizationModalTitle" class="text-xl font-bold">Add College</h3><button type="button" id="closeOrganizationModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" id="organizationAction" name="action"><input type="hidden" id="organizationId" name="id"><input type="hidden" id="organizationParent" name="parent_id"><input type="hidden" id="organizationMajor" name="major_id"><label id="parentSelectLabel" class="mt-5 hidden text-sm font-medium">Parent organization<select id="parentSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label id="majorSelectLabel" class="mt-3 hidden text-sm font-medium">Major<select id="majorSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">No major</option></select></label><div id="courseFields" class="mt-5 hidden grid gap-4 sm:grid-cols-2"><label class="text-sm font-medium">Course code<input name="code" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label class="text-sm font-medium">Year level<input name="year_level" type="number" min="1" max="8" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label></div><label id="organizationCodeLabel" class="mt-5 block text-sm font-medium">Organization code<input name="organization_code" id="organizationCode" maxlength="30" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label id="organizationStatusLabel" class="mt-3 block text-sm font-medium">Status<select name="status" id="organizationRecordStatus" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="active">Active</option><option value="archived">Archived</option></select></label><label class="mt-3 block text-sm font-medium">Name<input id="organizationName" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><button class="mt-5 w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Save</button></form></div>
+<div id="organizationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="organizationForm" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 id="organizationModalTitle" class="text-xl font-bold">Add College</h3><button type="button" id="closeOrganizationModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" id="organizationAction" name="action"><input type="hidden" id="organizationId" name="id"><input type="hidden" id="organizationParent" name="parent_id"><input type="hidden" id="organizationMajor" name="major_id"><label id="parentSelectLabel" class="mt-5 hidden text-sm font-medium">Parent organization<select id="parentSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label id="majorSelectLabel" class="mt-3 hidden text-sm font-medium">Major<select id="majorSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">No major</option></select></label><div id="courseFields" class="mt-5 hidden grid gap-4 sm:grid-cols-2"><label class="text-sm font-medium">Course code<input name="code" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label class="text-sm font-medium">Year level<input name="year_level" type="number" min="1" max="8" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label></div><label id="organizationCodeLabel" class="mt-5 block text-sm font-medium">Program / Subject code<input name="organization_code" id="organizationCode" maxlength="30" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label id="organizationStatusLabel" class="mt-3 block text-sm font-medium">Status<select name="status" id="organizationRecordStatus" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="active">Active</option><option value="archived">Archived</option></select></label><label class="mt-3 block text-sm font-medium">Name<input id="organizationName" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><button class="mt-5 w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Save</button></form></div>
 <div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3"></div>
 <script>
 (() => {
@@ -367,15 +369,16 @@ if ($action !== null) {
       document.getElementById('organizationParent').value = parent;
       document.getElementById('organizationMajor').value = major || item.major_id || '';
       document.getElementById('organizationModalTitle').textContent = title;
+      const entity = action.replace(/^(add|edit)_/, '');
+      const needsCode = ['program', 'course'].includes(entity);
       document.getElementById('courseFields').classList.toggle('hidden', !action.endsWith('course'));
-    document.getElementById('organizationCodeLabel').classList.toggle('hidden', action.endsWith('course'));
-    document.getElementById('organizationStatusLabel').classList.toggle('hidden', action.endsWith('course'));
+      document.getElementById('organizationCodeLabel').classList.toggle('hidden', !needsCode);
+      document.getElementById('organizationStatusLabel').classList.toggle('hidden', action.endsWith('course'));
       document.getElementById('organizationName').value = item.name || '';
-    document.getElementById('organizationCode').value = item.code || '';
-    document.getElementById('organizationRecordStatus').value = item.status || 'active';
+      document.getElementById('organizationCode').value = item.code || '';
+      document.getElementById('organizationRecordStatus').value = item.status || 'active';
       if (item.code) form.code.value = item.code;
       if (item.year_level) form.year_level.value = item.year_level;
-      const entity = action.replace(/^(add|edit)_/, '');
       const isEdit = action.startsWith('edit_');
       const parentSelect = document.getElementById('parentSelect');
       const parentLabel = document.getElementById('parentSelectLabel');
@@ -627,7 +630,10 @@ if ($action !== null) {
                     return (!search || `${record.name} ${record.code} ${record.type}`.toLowerCase().includes(search)) &&
                             (status === 'all' || record.status === status) && (type === 'all' || record.entity === type);
             });
-            document.getElementById('organizationRecordsBody').innerHTML = rows.length ? rows.map(record => `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(record.code || '-')}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3 text-right"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-slate-600 hover:underline">${record.status === 'archived' ? 'Restore' : 'Archive'}</button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`).join('') : '<tr><td colspan="5" class="px-3 py-8 text-center text-sm italic text-slate-400">No organization records match your search.</td></tr>';
+            document.getElementById('organizationRecordsBody').innerHTML = rows.length ? rows.map(record => {
+                    const codeValue = ['program', 'course'].includes(record.entity) ? (record.code || '-') : '-';
+                    return `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(codeValue)}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3 text-right"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-slate-600 hover:underline">${record.status === 'archived' ? 'Restore' : 'Archive'}</button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
+            }).join('') : '<tr><td colspan="5" class="px-3 py-8 text-center text-sm italic text-slate-400">No organization records match your search.</td></tr>';
     }
     function loadRecords() {
             fetch('pages/organization.php?action=records', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
