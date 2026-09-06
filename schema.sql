@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS courses (
     major_id INT DEFAULT NULL,
     code VARCHAR(30) NOT NULL,
     name VARCHAR(180) NOT NULL,
+    description VARCHAR(500) DEFAULT NULL,
     year_level TINYINT UNSIGNED DEFAULT NULL,
     semester TINYINT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -168,6 +169,14 @@ SET @add_major_fk = IF(@major_fk_exists = 0,
 PREPARE add_major_fk FROM @add_major_fk;
 EXECUTE add_major_fk;
 DEALLOCATE PREPARE add_major_fk;
+
+SET @course_description_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'description');
+SET @add_course_description_column = IF(@course_description_column_exists = 0,
+    'ALTER TABLE courses ADD COLUMN description VARCHAR(500) DEFAULT NULL AFTER name',
+    'SELECT 1');
+PREPARE add_course_description_column FROM @add_course_description_column;
+EXECUTE add_course_description_column;
+DEALLOCATE PREPARE add_course_description_column;
 
 -- Upgrade existing organization records with searchable metadata.
 SET @organization_metadata = (
