@@ -262,7 +262,10 @@ if ($action !== null) {
 ?>
 <div class="space-y-8">
   <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-    <div><h2 class="text-3xl font-bold text-slate-900">Organization Management</h2><p class="mt-1 text-sm text-slate-500">Manage colleges, departments, programs, majors, and courses.</p></div>
+    <div>
+        <h2 class="text-3xl font-bold text-slate-900">Organization Management</h2>
+        <p class="mt-1 text-sm text-slate-500">Use the hierarchy below to build and maintain the academic structure. Search is a secondary view for auditing records.</p>
+    </div>
         <div class="flex flex-wrap gap-3">
             <?php foreach (['colleges','departments','programs','majors','courses'] as $count): ?><div class="flex flex-col items-center border-b-2 border-rose-<?= $count === 'colleges' ? '600' : '300' ?> px-4 pb-2"><span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500"><?= ucfirst($count) ?></span><span data-count="<?= $count ?>" class="mt-1 text-2xl font-bold text-slate-900">0</span></div><?php endforeach; ?>
         </div>
@@ -278,7 +281,7 @@ if ($action !== null) {
         <div class="grid grid-cols-12 items-start gap-6">
             <details class="col-span-12 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-8">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                    <div><h3 class="text-xl font-bold text-slate-900">Browse all records</h3></div>
+                    <div><h3 class="text-xl font-bold text-slate-900">Secondary records view</h3><p class="text-sm text-slate-500">Optional: search and filter records after the hierarchy is in place.</p></div>
                     <i data-lucide="chevron-down" class="h-5 w-5 shrink-0 text-slate-500 transition-transform"></i>
                 </summary>
                 <div class="mt-5">
@@ -321,6 +324,7 @@ if ($action !== null) {
         organizationStatus.classList.toggle('text-slate-600', !error);
         retryOrganizationBtn.classList.toggle('hidden', !error);
     };
+    const defaultHierarchyStatus = 'Use the hierarchy to add departments, programs, majors, and courses.';
     function toast(message, error = false) {
         const container = document.getElementById('toastContainer');
         const notification = document.createElement('div');
@@ -645,6 +649,7 @@ if ($action !== null) {
             .then(result => {
                 if (!result.success) throw new Error(result.message);
                 render(result);
+                setOrganizationStatus(defaultHierarchyStatus);
                 loadRecords();
             })
             .catch(error => { setOrganizationStatus('Organization could not be loaded', true); toast(`Organization could not be loaded. ${error.message}`, true); });
