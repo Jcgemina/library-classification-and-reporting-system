@@ -26,26 +26,15 @@ CREATE TABLE IF NOT EXISTS colleges (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS departments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    college_id INT NOT NULL,
-    name VARCHAR(150) NOT NULL,
-    code VARCHAR(30) DEFAULT NULL,
-    status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_department_college_name (college_id, name),
-    CONSTRAINT fk_departments_college FOREIGN KEY (college_id) REFERENCES colleges(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
-
 CREATE TABLE IF NOT EXISTS programs (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    department_id INT NOT NULL,
+    college_id INT NOT NULL,
     name VARCHAR(180) NOT NULL,
     code VARCHAR(30) DEFAULT NULL,
     status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_program_department_name (department_id, name),
-    CONSTRAINT fk_programs_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+    UNIQUE KEY uq_program_college_name (college_id, name),
+    CONSTRAINT fk_programs_college FOREIGN KEY (college_id) REFERENCES colleges(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS majors (
@@ -178,12 +167,74 @@ PREPARE add_course_description_column FROM @add_course_description_column;
 EXECUTE add_course_description_column;
 DEALLOCATE PREPARE add_course_description_column;
 
+-- Replace the department layer with a direct college-to-program relationship.
+SET @program_college_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'college_id');
+SET @add_program_college = IF(@program_college_exists = 0,
+    'ALTER TABLE programs ADD COLUMN college_id INT NULL AFTER id',
+    'SELECT 1');
+PREPARE add_program_college FROM @add_program_college;
+EXECUTE add_program_college;
+DEALLOCATE PREPARE add_program_college;
+
+SET @departments_table_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'departments');
+SET @program_college_data = IF(@departments_table_exists = 1,
+    'UPDATE programs p INNER JOIN departments d ON d.id = p.department_id SET p.college_id = d.college_id WHERE p.college_id IS NULL',
+    'SELECT 1');
+PREPARE migrate_program_college FROM @program_college_data;
+EXECUTE migrate_program_college;
+DEALLOCATE PREPARE migrate_program_college;
+
+SET @program_department_fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND CONSTRAINT_NAME = 'fk_programs_department');
+SET @drop_program_department_fk = IF(@program_department_fk_exists = 1,
+    'ALTER TABLE programs DROP FOREIGN KEY fk_programs_department',
+    'SELECT 1');
+PREPARE drop_program_department_fk FROM @drop_program_department_fk;
+EXECUTE drop_program_department_fk;
+DEALLOCATE PREPARE drop_program_department_fk;
+
+SET @program_department_key_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND INDEX_NAME = 'uq_program_department_name');
+SET @drop_program_department_key = IF(@program_department_key_exists = 1,
+    'ALTER TABLE programs DROP INDEX uq_program_department_name',
+    'SELECT 1');
+PREPARE drop_program_department_key FROM @drop_program_department_key;
+EXECUTE drop_program_department_key;
+DEALLOCATE PREPARE drop_program_department_key;
+
+SET @program_department_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'department_id');
+SET @drop_program_department_column = IF(@program_department_column_exists = 1,
+    'ALTER TABLE programs DROP COLUMN department_id',
+    'SELECT 1');
+PREPARE drop_program_department_column FROM @drop_program_department_column;
+EXECUTE drop_program_department_column;
+DEALLOCATE PREPARE drop_program_department_column;
+
+ALTER TABLE programs MODIFY COLUMN college_id INT NOT NULL;
+SET @program_college_fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND CONSTRAINT_NAME = 'fk_programs_college');
+SET @add_program_college_fk = IF(@program_college_fk_exists = 0,
+    'ALTER TABLE programs ADD CONSTRAINT fk_programs_college FOREIGN KEY (college_id) REFERENCES colleges(id) ON DELETE CASCADE',
+    'SELECT 1');
+PREPARE add_program_college_fk FROM @add_program_college_fk;
+EXECUTE add_program_college_fk;
+DEALLOCATE PREPARE add_program_college_fk;
+
+SET @program_college_key_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND INDEX_NAME = 'uq_program_college_name');
+SET @add_program_college_key = IF(@program_college_key_exists = 0,
+    'ALTER TABLE programs ADD UNIQUE KEY uq_program_college_name (college_id, name)',
+    'SELECT 1');
+PREPARE add_program_college_key FROM @add_program_college_key;
+EXECUTE add_program_college_key;
+DEALLOCATE PREPARE add_program_college_key;
+
+SET @drop_departments_table = IF(@departments_table_exists = 1, 'DROP TABLE departments', 'SELECT 1');
+PREPARE drop_departments_table FROM @drop_departments_table;
+EXECUTE drop_departments_table;
+DEALLOCATE PREPARE drop_departments_table;
+
 -- Upgrade existing organization records with searchable metadata.
 SET @organization_metadata = (
     SELECT GROUP_CONCAT(sql_part SEPARATOR ' ')
     FROM (
         SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'colleges' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE colleges ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '') AS sql_part
-        UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'departments' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE departments ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
         UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE programs ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
         UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE majors ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
     ) metadata_parts
@@ -191,8 +242,6 @@ SET @organization_metadata = (
 -- Run individual upgrades below because MySQL prepared statements accept one ALTER at a time.
 SET @organization_table = 'colleges';
 SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE colleges ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
-SET @organization_table = 'departments';
-SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE departments ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
 SET @organization_table = 'programs';
 SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE programs ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
 SET @organization_table = 'majors';
