@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
-    header('Location: ../app.php?page=organization');
+    header('Location: ../app.php?page=academics');
     exit;
 }
 requireLogin();
@@ -30,7 +30,6 @@ if ($action !== null) {
                 ['table' => 'colleges', 'type' => 'University / College', 'parentColumn' => null],
                 ['table' => 'programs', 'type' => 'Program', 'parentColumn' => 'college_id'],
                 ['table' => 'majors', 'type' => 'Major', 'parentColumn' => 'program_id'],
-                ['table' => 'courses', 'type' => 'Course / Subject', 'parentColumn' => 'program_id'],
             ];
             foreach ($queries as $query) {
                 $parentSelect = $query['parentColumn'] ? ', ' . $query['parentColumn'] : '';
@@ -58,9 +57,7 @@ if ($action !== null) {
                         $stmt = $pdo->prepare('SELECT id, name, code, status FROM majors WHERE program_id = :id ORDER BY name');
                         $stmt->execute([':id' => $program['id']]);
                         $program['majors'] = $stmt->fetchAll();
-                        $stmt = $pdo->prepare('SELECT id, major_id, code, name, description, year_level FROM courses WHERE program_id = :id ORDER BY code');
-                        $stmt->execute([':id' => $program['id']]);
-                        $program['courses'] = $stmt->fetchAll();
+                        $program['courses'] = [];
                         $stmt = $pdo->prepare('SELECT file_name, file_path FROM program_prospectuses WHERE program_id = :id LIMIT 1');
                         $stmt->execute([':id' => $program['id']]);
                         $program['prospectus'] = $stmt->fetch() ?: null;
@@ -69,7 +66,7 @@ if ($action !== null) {
                     }
             unset($college, $program);
             $counts = [];
-            foreach (['colleges', 'programs', 'majors', 'courses'] as $table) {
+            foreach (['colleges', 'programs', 'majors'] as $table) {
                 $counts[$table] = (int)$pdo->query("SELECT COUNT(*) FROM {$table}")->fetchColumn();
             }
             organizationJson(['success' => true, 'colleges' => $colleges, 'counts' => $counts]);
@@ -135,34 +132,6 @@ if ($action !== null) {
                             $stmt = $pdo->prepare('INSERT INTO majors (program_id, name) VALUES (:program_id, :name)');
                             $stmt->execute([':program_id' => $programId, ':name' => $majorName]);
                             $majorId = (int)$pdo->lastInsertId();
-                            foreach (($major['courses'] ?? []) as $course) {
-                                $courseName = trim((string)($course['name'] ?? ''));
-                                $courseCode = strtoupper(trim((string)($course['code'] ?? '')));
-                                if ($courseName === '' || $courseCode === '') continue;
-                                $stmt = $pdo->prepare('INSERT INTO courses (program_id, major_id, code, name, description, year_level) VALUES (:program_id, :major_id, :code, :name, :description, :year_level)');
-                                $stmt->bindValue(':program_id', $programId, PDO::PARAM_INT);
-                                $stmt->bindValue(':major_id', $majorId, PDO::PARAM_INT);
-                                $stmt->bindValue(':code', $courseCode);
-                                $stmt->bindValue(':name', $courseName);
-                                $description = trim((string)($course['description'] ?? ''));
-                                $stmt->bindValue(':description', $description !== '' ? $description : null, $description !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
-                                $stmt->bindValue(':year_level', ($course['year_level'] ?? '') !== '' ? (int)$course['year_level'] : null, ($course['year_level'] ?? '') !== '' ? PDO::PARAM_INT : PDO::PARAM_NULL);
-                                $stmt->execute();
-                            }
-                        }
-
-                        foreach (($program['courses'] ?? []) as $course) {
-                            $courseName = trim((string)($course['name'] ?? ''));
-                            $courseCode = strtoupper(trim((string)($course['code'] ?? '')));
-                            if ($courseName === '' || $courseCode === '') continue;
-                            $stmt = $pdo->prepare('INSERT INTO courses (program_id, code, name, description, year_level) VALUES (:program_id, :code, :name, :description, :year_level)');
-                            $stmt->bindValue(':program_id', $programId, PDO::PARAM_INT);
-                            $stmt->bindValue(':code', $courseCode);
-                            $stmt->bindValue(':name', $courseName);
-                            $description = trim((string)($course['description'] ?? ''));
-                            $stmt->bindValue(':description', $description !== '' ? $description : null, $description !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
-                            $stmt->bindValue(':year_level', ($course['year_level'] ?? '') !== '' ? (int)$course['year_level'] : null, ($course['year_level'] ?? '') !== '' ? PDO::PARAM_INT : PDO::PARAM_NULL);
-                            $stmt->execute();
                         }
                 }
                 $pdo->commit();
@@ -180,6 +149,9 @@ if ($action !== null) {
         ];
         $entity = preg_replace('/^(add|edit|delete|archive)_/', '', $action);
         $operation = substr($action, 0, strpos($action, '_'));
+        if ($entity === 'course') {
+            organizationJson(['success' => false, 'message' => 'Courses are managed in the Courses tab.'], 422);
+        }
         if ($operation === 'delete') {
             $currentPassword = (string)($_POST['current_password'] ?? '');
             $passwordStmt = $pdo->prepare('SELECT password FROM users WHERE id = :id AND is_active = 1 LIMIT 1');
@@ -276,17 +248,17 @@ if ($action !== null) {
 <div class="space-y-8">
   <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
     <div>
-        <h2 class="text-3xl font-bold text-slate-900">Organization Management</h2>
+        <h2 class="text-3xl font-bold text-slate-900">Academic Structure</h2>
         <p class="mt-1 text-sm text-slate-500">Use the hierarchy below to build and maintain the academic structure. Search is a secondary view for auditing records.</p>
     </div>
         <div class="flex flex-wrap gap-3">
-            <?php foreach (['colleges','programs','majors','courses'] as $count): ?><div class="flex flex-col items-center border-b-2 border-rose-<?= $count === 'colleges' ? '600' : '300' ?> px-4 pb-2"><span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500"><?= ucfirst($count) ?></span><span data-count="<?= $count ?>" class="mt-1 text-2xl font-bold text-slate-900">0</span></div><?php endforeach; ?>
+            <?php foreach (['colleges','programs','majors'] as $count): ?><div class="flex flex-col items-center border-b-2 border-rose-<?= $count === 'colleges' ? '600' : '300' ?> px-4 pb-2"><span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500"><?= ucfirst($count) ?></span><span data-count="<?= $count ?>" class="mt-1 text-2xl font-bold text-slate-900">0</span></div><?php endforeach; ?>
         </div>
   </div>
     <div class="space-y-6">
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center gap-2"><i data-lucide="building-2" class="h-5 w-5 text-rose-600"></i><div><h3 class="text-xl font-bold text-slate-900">Institutional Structure</h3><p class="text-sm text-slate-500">Start with a college, then add its programs, majors, and courses.</p></div></div>
+                    <div class="flex items-center gap-2"><i data-lucide="building-2" class="h-5 w-5 text-rose-600"></i><div><h3 class="text-xl font-bold text-slate-900">Institutional Structure</h3><p class="text-sm text-slate-500">Start with a college, then add its programs and majors.</p></div></div>
                     <div class="flex items-center gap-3"><span id="organizationStatus" class="text-xs text-slate-600" aria-live="polite">Loading organization...</span><button type="button" id="retryOrganizationBtn" class="hidden text-xs font-semibold text-rose-700 underline underline-offset-2">Retry</button><button type="button" id="addCollegeBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 active:scale-95"><i data-lucide="plus" class="h-4 w-4"></i> Add College</button></div>
                 </div>
                 <div id="organizationTree" class="space-y-2"></div>
@@ -299,9 +271,9 @@ if ($action !== null) {
                 </summary>
                 <div class="mt-5">
                 <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div class="flex flex-col gap-2 sm:flex-row"><input id="organizationSearch" type="search" placeholder="Search organizations" class="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><select id="organizationStatusFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select><select id="organizationTypeFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All types</option><option value="college">University / College</option><option value="department">Department</option><option value="program">Program</option><option value="major">Major</option><option value="course">Course / Subject</option></select></div>
+                    <div class="flex flex-col gap-2 sm:flex-row"><input id="organizationSearch" type="search" placeholder="Search organizations" class="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><select id="organizationStatusFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select><select id="organizationTypeFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All types</option><option value="college">University / College</option><option value="department">Department</option><option value="program">Program</option><option value="major">Major</option></select></div>
                 </div>
-                <div class="overflow-x-auto"><table class="w-full min-w-[850px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Organization Name</th><th class="px-3 py-3">Code</th><th class="px-3 py-3">Description</th><th class="px-3 py-3">Type</th><th class="px-3 py-3">Status</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="organizationRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
+                <div class="overflow-x-auto"><table class="w-full min-w-[650px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Organization Name</th><th class="px-3 py-3">Type</th><th class="px-3 py-3">Status</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="organizationRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
                 </div>
             </details>
             </section>
@@ -343,7 +315,7 @@ if ($action !== null) {
         hint.textContent = text;
         hint.classList.toggle('hidden', !text);
     };
-    const defaultHierarchyStatus = 'Use the hierarchy to add programs, majors, and courses.';
+    const defaultHierarchyStatus = 'Use the hierarchy to add programs and majors.';
     function toast(message, error = false) {
         const container = document.getElementById('toastContainer');
         const notification = document.createElement('div');
@@ -463,7 +435,7 @@ if ($action !== null) {
       modal.classList.remove('hidden'); modal.classList.add('flex'); document.getElementById('organizationName').focus();
   };
     const controls = (type, item, parent) => `<span class="flex flex-wrap items-center gap-1"><button type="button" data-edit="${type}" data-id="${item.id}" data-parent="${parent}" data-item='${esc(JSON.stringify(item))}' class="inline-flex whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 shadow-sm transition hover:border-rose-500 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200">Edit</button><button type="button" data-delete="${type}" data-id="${item.id}" data-name="${esc(item.name)}" class="inline-flex whitespace-nowrap rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 shadow-sm transition hover:border-red-500 hover:bg-red-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-red-200">Delete</button></span>`;
-    const add = (action, title, parent, major = '') => `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" class="inline-flex whitespace-nowrap rounded-md border border-rose-300 bg-white px-2 py-1 text-[11px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200 active:scale-95">+ ${title}</button>`;
+    const add = (action, title, parent, major = '') => action === 'add_course' ? '' : `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" class="inline-flex whitespace-nowrap rounded-md border border-rose-300 bg-white px-2 py-1 text-[11px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200 active:scale-95">+ ${title}</button>`;
         const countLabel = (count, singular) => `${count} ${singular}${count === 1 ? '' : 's'}`;
     let hierarchyBuilder;
     function createHierarchyBuilder() {
@@ -480,7 +452,6 @@ if ($action !== null) {
             if (remove) remove.closest('[data-builder-item]')?.remove();
             if (action === 'program') addProgram(hierarchyBuilder);
             if (action === 'major') addMajor(event.target.closest('[data-builder-item]'));
-            if (action === 'course') addCourse(event.target.closest('[data-builder-item]'));
             applyInputOutline(hierarchyBuilder);
         });
         return hierarchyBuilder;
@@ -490,7 +461,7 @@ if ($action !== null) {
         const program = document.createElement('div');
         program.dataset.builderItem = 'program';
         program.className = 'rounded-lg border-l border-rose-200 bg-white p-3';
-        program.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Program under College</p><div class="flex gap-2"><input data-field="name" placeholder="Program name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div><div data-majors class="mt-3 space-y-2 border-l border-rose-200 pl-3"></div><button type="button" data-builder-add="major" class="mt-2 text-xs font-semibold text-rose-600">+ Add major</button><div data-courses class="mt-3 space-y-2"></div><button type="button" data-builder-add="course" class="mt-2 text-xs font-semibold text-rose-600">+ Add course to program</button>';
+        program.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Program under College</p><div class="flex gap-2"><input data-field="name" placeholder="Program name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div><div data-majors class="mt-3 space-y-2 border-l border-rose-200 pl-3"></div><button type="button" data-builder-add="major" class="mt-2 text-xs font-semibold text-rose-600">+ Add major</button>';
         builder.querySelector('[data-programs]').append(program);
     }
     function addMajor(program) {
@@ -498,7 +469,7 @@ if ($action !== null) {
         const major = document.createElement('div');
         major.dataset.builderItem = 'major';
         major.className = 'min-w-0 rounded-lg border-l border-rose-200 p-2';
-        major.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Major under Program</p><div class="flex gap-2"><input data-field="name" placeholder="Major name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div><div data-courses class="mt-2 space-y-2 border-l border-rose-200 pl-3"></div><button type="button" data-builder-add="course" class="mt-2 text-xs font-semibold text-rose-600">+ Add course to major</button>';
+        major.innerHTML = '<p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Major under Program</p><div class="flex gap-2"><input data-field="name" placeholder="Major name" required class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><button type="button" data-builder-remove class="px-2 text-sm text-red-500">Remove</button></div>';
         program.querySelector('[data-majors]').append(major);
     }
     function addCourse(program) {
@@ -520,7 +491,7 @@ if ($action !== null) {
         document.getElementById('organizationName').closest('label').classList.add('hidden');
         document.getElementById('organizationCodeLabel').classList.add('hidden');
         document.getElementById('organizationStatusLabel').classList.add('hidden');
-        updateContextHint('Create a full college hierarchy in one flow: start with the college, then add programs, majors, and courses before saving.');
+        updateContextHint('Create a full college hierarchy in one flow: start with the college, then add programs and majors before saving.');
         builder.classList.remove('hidden');
         builder.querySelector('[data-field="college-name"]').required = true;
         builder.querySelector('[data-programs]').innerHTML = '';
@@ -604,7 +575,7 @@ if ($action !== null) {
                         <div class="group flex items-center gap-2 text-sm font-semibold text-slate-700">
                             <i data-lucide="tag" class="h-3.5 w-3.5 shrink-0 text-rose-600"></i>
                             ${esc(major.name)}
-                            <span class="ml-auto flex flex-wrap items-center gap-1">${controls('major', major, program.id)}${add('add_course', 'Add course', program.id, major.id)}</span>
+                            <span class="ml-auto flex flex-wrap items-center gap-1">${controls('major', major, program.id)}</span>
                         </div>
                         <div class="mt-1 space-y-1 pl-4">${majorCourses.map(course => `
                             <div class="group flex items-center gap-2 py-0.5 text-xs text-slate-500">
@@ -630,7 +601,7 @@ if ($action !== null) {
                         <div class="group flex items-center gap-2">
                             <i data-lucide="book" class="h-3.5 w-3.5 shrink-0 text-rose-600"></i>
                             <span class="text-sm font-semibold text-slate-700">${esc(program.name)}</span>
-                            <span class="ml-auto flex flex-wrap items-center gap-1">${controls('program', program, department.id)}${add('add_major', 'Add major', program.id)}${add('add_course', 'Add course', program.id)}</span>
+                            <span class="ml-auto flex flex-wrap items-center gap-1">${controls('program', program, department.id)}${add('add_major', 'Add major', program.id)}</span>
                         </div>
                         <div class="mt-1 space-y-1 pl-4">${majors || '<p class="text-xs italic text-slate-400">No majors yet</p>'}${courses}</div>
                     </div>`;
@@ -662,7 +633,7 @@ if ($action !== null) {
         const programs = college.programs || [];
         const programMarkup = programs.map(program => {
             const majors = program.majors || [];
-            const courses = program.courses || [];
+            const courses = [];
             const majorMarkup = majors.map(major => `<div class="mt-2"><div class="flex items-center gap-2 text-sm font-semibold text-slate-700"><i data-lucide="tag" class="h-3.5 w-3.5 text-rose-600"></i><span>${esc(major.name)}</span><span class="ml-auto">${controls('major', major, program.id)}${add('add_course', 'Add course', program.id, major.id)}</span></div><div class="mt-1 space-y-1 pl-4">${courses.filter(course => Number(course.major_id) === Number(major.id)).map(course => `<div class="flex items-center gap-2 text-xs text-slate-500"><b class="rounded bg-rose-100 px-1 py-0.5 text-[10px] text-rose-700">${esc(course.code)}</b><span title="${esc(course.description || '')}">${esc(course.name)}</span><span class="text-[10px] text-slate-400">Yr${course.year_level || '-'}</span><span class="ml-auto">${controls('course', course, program.id)}</span></div>`).join('') || '<p class="text-xs italic text-slate-400">No courses yet</p>'}</div></div>`).join('');
             const unassignedCourses = courses.filter(course => !course.major_id).map(course => `<div class="flex items-center gap-2 text-xs text-slate-500"><b class="rounded bg-rose-100 px-1 py-0.5 text-[10px] text-rose-700">${esc(course.code)}</b><span title="${esc(course.description || '')}">${esc(course.name)}</span><span class="text-[10px] text-slate-400">Yr${course.year_level || '-'}</span><span class="ml-auto">${controls('course', course, program.id)}</span></div>`).join('');
             return `<div class="border-l-2 border-rose-200 pl-4"><div class="flex items-center gap-2"><i data-lucide="book" class="h-3.5 w-3.5 text-rose-600"></i><strong class="text-sm text-slate-700">${esc(program.name)}</strong><span class="ml-auto flex flex-wrap gap-1">${controls('program', program, college.id)}${add('add_major', 'Add major', program.id)}${add('add_course', 'Add course', program.id)}</span></div><div class="mt-1 space-y-1 pl-4">${majorMarkup}${unassignedCourses}</div></div>`;
@@ -700,10 +671,8 @@ if ($action !== null) {
                             (status === 'all' || record.status === status) && (type === 'all' || record.entity === type);
             });
             document.getElementById('organizationRecordsBody').innerHTML = rows.length ? rows.map(record => {
-                    const codeValue = record.entity === 'course' ? (record.code || '-') : '-';
-                    const descriptionValue = record.entity === 'course' ? (record.description || '-') : '-';
-                    return `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(codeValue)}</td><td class="max-w-xs px-3 py-3 text-slate-500">${esc(descriptionValue)}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3 text-right"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-slate-600 hover:underline">${record.status === 'archived' ? 'Restore' : 'Archive'}</button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
-            }).join('') : '<tr><td colspan="6" class="px-3 py-8 text-center text-sm italic text-slate-400">No organization records match your search.</td></tr>';
+                        return `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3 text-right"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-slate-600 hover:underline">${record.status === 'archived' ? 'Restore' : 'Archive'}</button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
+                    }).join('') : '<tr><td colspan="4" class="px-3 py-8 text-center text-sm italic text-slate-400">No organization records match your search.</td></tr>';
     }
     function loadRecords() {
             fetch('pages/organization.php?action=records', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })

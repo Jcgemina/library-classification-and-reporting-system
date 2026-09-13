@@ -6,8 +6,8 @@ require_once __DIR__ . '/includes/functions.php';
 requireLogin();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$adminPages = ['dashboard', 'inventory', 'organization', 'course', 'report', 'user', 'logs'];
-$staffPages = ['dashboard', 'inventory', 'organization', 'course', 'report'];
+$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'report', 'user', 'logs'];
+$staffPages = ['dashboard', 'inventory', 'academics', 'course', 'report'];
 $restrictedPages = ['user', 'logs'];
 
 $allowedPages = $userRole === 'admin' ? $adminPages : $staffPages;
@@ -53,8 +53,8 @@ $currentPage = $page;
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
-    const adminPages = ['dashboard', 'inventory', 'organization', 'course', 'report', 'user', 'logs'];
-    const staffPages = ['dashboard', 'inventory', 'organization', 'course', 'report'];
+    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'report', 'user', 'logs'];
+    const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'report'];
     const restrictedPages = ['user', 'logs'];
     const allowedPages = currentUserRole === 'admin' ? adminPages : staffPages;
 
@@ -135,7 +135,9 @@ $currentPage = $page;
       pageParams.delete('page');
       const pageQuery = safePage === 'logs' && pageParams.toString() ? '?' + pageParams.toString() : '';
 
-      fetch('pages/' + safePage + '.php' + pageQuery, {
+      const pageFile = safePage === 'academics' ? 'organization' : safePage;
+
+      fetch('pages/' + pageFile + '.php' + pageQuery, {
         method: 'GET',
         headers: {
           'X-Requested-With': 'XMLHttpRequest'
