@@ -6,8 +6,8 @@ require_once __DIR__ . '/includes/functions.php';
 requireLogin();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$adminPages = ['dashboard', 'inventory', 'organization', 'report', 'user', 'logs'];
-$staffPages = ['dashboard', 'inventory', 'organization', 'report'];
+$adminPages = ['dashboard', 'inventory', 'organization', 'course', 'report', 'user', 'logs'];
+$staffPages = ['dashboard', 'inventory', 'organization', 'course', 'report'];
 $restrictedPages = ['user', 'logs'];
 
 $allowedPages = $userRole === 'admin' ? $adminPages : $staffPages;
@@ -53,8 +53,8 @@ $currentPage = $page;
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
-    const adminPages = ['dashboard', 'inventory', 'organization', 'report', 'user', 'logs'];
-    const staffPages = ['dashboard', 'inventory', 'organization', 'report'];
+    const adminPages = ['dashboard', 'inventory', 'organization', 'course', 'report', 'user', 'logs'];
+    const staffPages = ['dashboard', 'inventory', 'organization', 'course', 'report'];
     const restrictedPages = ['user', 'logs'];
     const allowedPages = currentUserRole === 'admin' ? adminPages : staffPages;
 

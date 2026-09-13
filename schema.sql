@@ -50,11 +50,14 @@ CREATE TABLE IF NOT EXISTS majors (
 
 CREATE TABLE IF NOT EXISTS courses (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    program_id INT NOT NULL,
+    program_id INT DEFAULT NULL,
     major_id INT DEFAULT NULL,
     code VARCHAR(30) NOT NULL,
     name VARCHAR(180) NOT NULL,
     description VARCHAR(500) DEFAULT NULL,
+    units TINYINT UNSIGNED DEFAULT NULL,
+    type VARCHAR(30) NOT NULL DEFAULT 'Major',
+    status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
     year_level TINYINT UNSIGNED DEFAULT NULL,
     semester TINYINT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -166,6 +169,35 @@ SET @add_course_description_column = IF(@course_description_column_exists = 0,
 PREPARE add_course_description_column FROM @add_course_description_column;
 EXECUTE add_course_description_column;
 DEALLOCATE PREPARE add_course_description_column;
+
+SET @course_program_nullable = 'ALTER TABLE courses MODIFY COLUMN program_id INT DEFAULT NULL';
+PREPARE course_program_nullable_stmt FROM @course_program_nullable;
+EXECUTE course_program_nullable_stmt;
+DEALLOCATE PREPARE course_program_nullable_stmt;
+
+SET @course_units_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'units');
+SET @add_course_units_column = IF(@course_units_column_exists = 0,
+    'ALTER TABLE courses ADD COLUMN units TINYINT UNSIGNED DEFAULT NULL AFTER description',
+    'SELECT 1');
+PREPARE add_course_units_column FROM @add_course_units_column;
+EXECUTE add_course_units_column;
+DEALLOCATE PREPARE add_course_units_column;
+
+SET @course_type_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'type');
+SET @add_course_type_column = IF(@course_type_column_exists = 0,
+    'ALTER TABLE courses ADD COLUMN type VARCHAR(30) NOT NULL DEFAULT ''Major'' AFTER units',
+    'SELECT 1');
+PREPARE add_course_type_column FROM @add_course_type_column;
+EXECUTE add_course_type_column;
+DEALLOCATE PREPARE add_course_type_column;
+
+SET @course_status_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'status');
+SET @add_course_status_column = IF(@course_status_column_exists = 0,
+    'ALTER TABLE courses ADD COLUMN status ENUM(''active'', ''inactive'') NOT NULL DEFAULT ''active'' AFTER type',
+    'SELECT 1');
+PREPARE add_course_status_column FROM @add_course_status_column;
+EXECUTE add_course_status_column;
+DEALLOCATE PREPARE add_course_status_column;
 
 -- Replace the department layer with a direct college-to-program relationship.
 SET @program_college_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'college_id');

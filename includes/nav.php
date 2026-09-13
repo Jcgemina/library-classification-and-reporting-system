@@ -9,6 +9,7 @@ $navItems = [
     ['label' => 'Dashboard', 'page' => 'dashboard', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
     ['label' => 'Inventory', 'page' => 'inventory', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
     ['label' => 'Organization', 'page' => 'organization', 'href' => 'app.php?page=organization', 'icon' => 'building-2'],
+    ['label' => 'Courses', 'page' => 'course', 'href' => 'app.php?page=course', 'icon' => 'book-open'],
     ['label' => 'Report', 'page' => 'report', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
     ['label' => 'User', 'page' => 'user', 'href' => 'app.php?page=user', 'icon' => 'users'],
     ['label' => 'Logs', 'page' => 'logs', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text'],
