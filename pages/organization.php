@@ -259,7 +259,7 @@ if ($action !== null) {
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2"><i data-lucide="building-2" class="h-5 w-5 text-rose-600"></i><div><h3 class="text-xl font-bold text-slate-900">Institutional Structure</h3><p class="text-sm text-slate-500">Start with a college, then add its programs and majors.</p></div></div>
-                    <div class="flex items-center gap-3"><span id="organizationStatus" class="text-xs text-slate-600" aria-live="polite">Loading organization...</span><button type="button" id="retryOrganizationBtn" class="hidden text-xs font-semibold text-rose-700 underline underline-offset-2">Retry</button><button type="button" id="addCollegeBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 active:scale-95"><i data-lucide="plus" class="h-4 w-4"></i> Add College</button></div>
+                    <div class="flex items-center gap-3"><span id="organizationStatus" class="text-xs text-slate-600" aria-live="polite">Loading organization...</span><button type="button" id="retryOrganizationBtn" class="hidden text-xs font-semibold text-rose-700 underline underline-offset-2">Retry</button><button type="button" id="addCollegeBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 active:scale-95"><i data-lucide="plus" class="h-4 w-4"></i> Add Academic Unit</button></div>
                 </div>
                 <div id="organizationTree" class="space-y-2"></div>
         </section>
@@ -485,13 +485,13 @@ if ($action !== null) {
         const builder = createHierarchyBuilder();
         form.reset();
         document.getElementById('organizationAction').value = 'create_hierarchy';
-        document.getElementById('organizationModalTitle').textContent = 'Add College Hierarchy';
+        document.getElementById('organizationModalTitle').textContent = 'Add Academic Hierarchy';
         document.getElementById('courseFields').classList.add('hidden');
         document.getElementById('organizationName').required = false;
         document.getElementById('organizationName').closest('label').classList.add('hidden');
         document.getElementById('organizationCodeLabel').classList.add('hidden');
         document.getElementById('organizationStatusLabel').classList.add('hidden');
-        updateContextHint('Create a full college hierarchy in one flow: start with the college, then add programs and majors before saving.');
+        updateContextHint('Create a full academic hierarchy in one flow: start with the academic unit, then add programs and majors before saving.');
         builder.classList.remove('hidden');
         builder.querySelector('[data-field="college-name"]').required = true;
         builder.querySelector('[data-programs]').innerHTML = '';
