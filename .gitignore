@@ -30,3 +30,6 @@ package-lock.json
 *.codex
 *.cursor
 *.claude
+
+# AI agent files
+*.agent
