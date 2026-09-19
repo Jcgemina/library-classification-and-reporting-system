@@ -9,6 +9,15 @@ if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQU
 }
 requireLogin();
 
+if ($pdo) {
+    foreach ([
+        "CREATE TABLE IF NOT EXISTS prospectuses (id INT AUTO_INCREMENT PRIMARY KEY, program_id INT NOT NULL, major_id INT DEFAULT NULL, title VARCHAR(255) NOT NULL, curriculum_year VARCHAR(30) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_prospectuses_program (program_id), INDEX idx_prospectuses_major (major_id), CONSTRAINT fk_prospectuses_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE, CONSTRAINT fk_prospectuses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE) ENGINE=InnoDB",
+        "CREATE TABLE IF NOT EXISTS prospectus_courses (id INT AUTO_INCREMENT PRIMARY KEY, prospectus_id INT NOT NULL, course_id INT NOT NULL, year_level TINYINT UNSIGNED NOT NULL, semester TINYINT UNSIGNED NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_prospectus_course (prospectus_id, course_id), INDEX idx_prospectus_courses_term (prospectus_id, year_level, semester), CONSTRAINT fk_prospectus_courses_prospectus FOREIGN KEY (prospectus_id) REFERENCES prospectuses(id) ON DELETE CASCADE, CONSTRAINT fk_prospectus_courses_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE) ENGINE=InnoDB",
+    ] as $upgrade) {
+        try { $pdo->exec($upgrade); } catch (PDOException $ignored) { }
+    }
+}
+
 function organizationJson(array $payload, int $status = 200): never {
     http_response_code($status);
     header('Content-Type: application/json');
@@ -70,6 +79,73 @@ if ($action !== null) {
                 $counts[$table] = (int)$pdo->query("SELECT COUNT(*) FROM {$table}")->fetchColumn();
             }
             organizationJson(['success' => true, 'colleges' => $colleges, 'counts' => $counts]);
+        }
+
+        if ($action === 'prospectus_data') {
+            $prospectuses = $pdo->query('SELECT p.id, p.program_id, p.major_id, p.title, p.curriculum_year, pr.name AS program_name, m.name AS major_name FROM prospectuses p INNER JOIN programs pr ON pr.id = p.program_id LEFT JOIN majors m ON m.id = p.major_id ORDER BY pr.name, p.curriculum_year, p.title')->fetchAll();
+            $courses = $pdo->query('SELECT pc.id, pc.prospectus_id, pc.course_id, pc.year_level, pc.semester, c.code, c.name, c.units FROM prospectus_courses pc INNER JOIN courses c ON c.id = pc.course_id ORDER BY pc.prospectus_id, pc.year_level, pc.semester, c.code')->fetchAll();
+            $programs = $pdo->query('SELECT id, name FROM programs WHERE status = \'active\' ORDER BY name')->fetchAll();
+            $majors = $pdo->query('SELECT id, program_id, name FROM majors WHERE status = \'active\' ORDER BY name')->fetchAll();
+            $availableCourses = $pdo->query('SELECT id, program_id, major_id, code, name, units FROM courses WHERE status = \'active\' ORDER BY code, name')->fetchAll();
+            organizationJson(['success' => true, 'prospectuses' => $prospectuses, 'courses' => $courses, 'programs' => $programs, 'majors' => $majors, 'availableCourses' => $availableCourses]);
+        }
+
+        if ($action === 'save_prospectus') {
+            $id = (int)($_POST['id'] ?? 0);
+            $programId = (int)($_POST['program_id'] ?? 0);
+            $majorId = (int)($_POST['major_id'] ?? 0) ?: null;
+            $title = trim((string)($_POST['title'] ?? ''));
+            $curriculumYear = trim((string)($_POST['curriculum_year'] ?? ''));
+            if (!$programId || $title === '' || $curriculumYear === '') organizationJson(['success' => false, 'message' => 'Program, prospectus title, and curriculum year are required.'], 422);
+            $programCheck = $pdo->prepare('SELECT id FROM programs WHERE id = :id LIMIT 1');
+            $programCheck->execute([':id' => $programId]);
+            if (!$programCheck->fetchColumn()) organizationJson(['success' => false, 'message' => 'The selected program does not exist.'], 422);
+            if ($majorId !== null) {
+                $majorCheck = $pdo->prepare('SELECT id FROM majors WHERE id = :id AND program_id = :program_id LIMIT 1');
+                $majorCheck->execute([':id' => $majorId, ':program_id' => $programId]);
+                if (!$majorCheck->fetchColumn()) organizationJson(['success' => false, 'message' => 'The selected major does not belong to that program.'], 422);
+            }
+            if ($id > 0) {
+                $stmt = $pdo->prepare('UPDATE prospectuses SET program_id = :program_id, major_id = :major_id, title = :title, curriculum_year = :curriculum_year WHERE id = :id');
+                $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            } else {
+                $stmt = $pdo->prepare('INSERT INTO prospectuses (program_id, major_id, title, curriculum_year) VALUES (:program_id, :major_id, :title, :curriculum_year)');
+            }
+            $stmt->bindValue(':program_id', $programId, PDO::PARAM_INT);
+            $stmt->bindValue(':major_id', $majorId, $majorId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+            $stmt->bindValue(':title', $title);
+            $stmt->bindValue(':curriculum_year', $curriculumYear);
+            $stmt->execute();
+            organizationJson(['success' => true, 'message' => $id > 0 ? 'Prospectus updated successfully.' : 'Prospectus added successfully.']);
+        }
+
+        if ($action === 'link_prospectus_course') {
+            $prospectusId = (int)($_POST['prospectus_id'] ?? 0);
+            $courseId = (int)($_POST['course_id'] ?? 0);
+            $yearLevel = max(1, min(8, (int)($_POST['year_level'] ?? 0)));
+            $semester = max(1, min(3, (int)($_POST['semester'] ?? 0)));
+            if (!$prospectusId || !$courseId || !$yearLevel || !$semester) organizationJson(['success' => false, 'message' => 'Prospectus, course, year level, and semester are required.'], 422);
+            $stmt = $pdo->prepare('SELECT p.id FROM prospectuses p INNER JOIN courses c ON c.program_id = p.program_id WHERE p.id = :prospectus_id AND c.id = :course_id AND (p.major_id IS NULL OR c.major_id = p.major_id) LIMIT 1');
+            $stmt->execute([':prospectus_id' => $prospectusId, ':course_id' => $courseId]);
+            if (!$stmt->fetchColumn()) organizationJson(['success' => false, 'message' => 'That course is not available for the selected prospectus program or major.'], 422);
+            $stmt = $pdo->prepare('INSERT INTO prospectus_courses (prospectus_id, course_id, year_level, semester) VALUES (:prospectus_id, :course_id, :year_level, :semester)');
+            $stmt->execute([':prospectus_id' => $prospectusId, ':course_id' => $courseId, ':year_level' => $yearLevel, ':semester' => $semester]);
+            organizationJson(['success' => true, 'message' => 'Course added to the prospectus.']);
+        }
+
+        if ($action === 'unlink_prospectus_course') {
+            $stmt = $pdo->prepare('DELETE FROM prospectus_courses WHERE id = :id');
+            $stmt->execute([':id' => (int)($_POST['id'] ?? 0)]);
+            organizationJson(['success' => true, 'message' => 'Course removed from the prospectus.']);
+        }
+
+        if ($action === 'delete_prospectus_record') {
+            $passwordStmt = $pdo->prepare('SELECT password FROM users WHERE id = :id AND is_active = 1 LIMIT 1');
+            $passwordStmt->execute([':id' => (int)$_SESSION['user_id']]);
+            if (!password_verify((string)($_POST['current_password'] ?? ''), (string)$passwordStmt->fetchColumn())) organizationJson(['success' => false, 'message' => 'The current password is incorrect. Nothing was deleted.'], 403);
+            $stmt = $pdo->prepare('DELETE FROM prospectuses WHERE id = :id');
+            $stmt->execute([':id' => (int)($_POST['id'] ?? 0)]);
+            organizationJson(['success' => true, 'message' => 'Prospectus deleted successfully.']);
         }
 
         if ($action === 'upload_prospectus') {
@@ -287,9 +363,23 @@ if ($action !== null) {
                 </form>
             </section>
         </div>
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div><p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Curriculum planning</p><h3 class="mt-1 text-xl font-bold text-slate-900">Prospectus Management</h3><p class="mt-1 text-sm text-slate-500">Create prospectus records and organize existing courses by year level and semester.</p></div>
+                <button type="button" id="addProspectusBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700"><i data-lucide="plus" class="h-4 w-4"></i>Add Prospectus</button>
+            </div>
+            <div class="mb-4 flex flex-col gap-2 sm:flex-row"><input id="prospectusSearch" type="search" placeholder="Search prospectuses" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><span id="prospectusStatus" class="self-center text-xs text-slate-500" aria-live="polite">Loading prospectuses...</span></div>
+            <div class="overflow-x-auto"><table class="w-full min-w-[850px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Prospectus</th><th class="px-3 py-3">Program / Major</th><th class="px-3 py-3">Subjects</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="prospectusRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
+        </section>
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Selected prospectus</p><h3 id="curriculumTitle" class="mt-1 text-xl font-bold text-slate-900">Choose a prospectus to view its subjects</h3><p id="curriculumMeta" class="mt-1 text-sm text-slate-500">Each linked course is assigned to a year level and semester.</p></div><button type="button" id="addCurriculumCourseBtn" class="hidden inline-flex items-center justify-center gap-2 rounded-lg border border-rose-300 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-50"><i data-lucide="link" class="h-4 w-4"></i>Link Course</button></div>
+            <div id="curriculumGroups" class="space-y-5"><p class="py-8 text-center text-sm italic text-slate-400">No prospectus selected.</p></div>
+        </section>
     </div>
 </div>
 <div id="organizationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="organizationForm" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 id="organizationModalTitle" class="text-xl font-bold">Add College</h3><button type="button" id="closeOrganizationModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" id="organizationAction" name="action"><input type="hidden" id="organizationId" name="id"><input type="hidden" id="organizationParent" name="parent_id"><input type="hidden" id="organizationMajor" name="major_id"><p id="organizationContextHint" class="mt-4 hidden rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700"></p><label id="parentSelectLabel" class="mt-5 hidden text-sm font-medium">Parent organization<select id="parentSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label id="majorSelectLabel" class="mt-3 hidden text-sm font-medium">Major<select id="majorSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">No major</option></select></label><div id="courseFields" class="mt-5 hidden grid gap-4 sm:grid-cols-2"><label class="text-sm font-medium">Course code<input name="code" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label class="text-sm font-medium">Year level<input name="year_level" type="number" min="1" max="8" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label></div><label id="organizationCodeLabel" class="mt-5 block text-sm font-medium">Program / Subject code<input name="organization_code" id="organizationCode" maxlength="30" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label id="organizationStatusLabel" class="mt-3 block text-sm font-medium">Status<select name="status" id="organizationRecordStatus" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="active">Active</option><option value="archived">Archived</option></select></label><label class="mt-3 block text-sm font-medium">Name<input id="organizationName" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><button class="mt-5 w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Save</button></form></div>
+<div id="prospectusModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="prospectusRecordForm" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-wide text-rose-600">Prospectus record</p><h3 id="prospectusModalTitle" class="text-xl font-bold text-slate-900">Add Prospectus</h3></div><button type="button" id="closeProspectusModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" name="id" id="prospectusRecordId"><label class="mt-5 block text-sm font-medium">Program<select name="program_id" id="prospectusRecordProgram" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label class="mt-3 block text-sm font-medium">Major <span class="font-normal text-slate-400">(optional)</span><select name="major_id" id="prospectusRecordMajor" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All majors / general curriculum</option></select></label><div class="mt-3 grid gap-3 sm:grid-cols-2"><label class="text-sm font-medium">Prospectus title<input name="title" id="prospectusRecordTitle" required maxlength="255" placeholder="BS Information Technology" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label><label class="text-sm font-medium">Curriculum year<input name="curriculum_year" id="prospectusRecordYear" required maxlength="30" placeholder="2026-2027" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label></div><button type="submit" class="mt-6 w-full rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700">Save Prospectus</button></form></div>
+<div id="courseLinkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="courseLinkForm" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 class="text-xl font-bold text-slate-900">Link Course to Prospectus</h3><button type="button" id="closeCourseLinkModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><label class="mt-5 block text-sm font-medium">Existing course<select name="course_id" id="linkCourseSelect" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><div class="mt-3 grid gap-3 sm:grid-cols-2"><label class="text-sm font-medium">Year level<select name="year_level" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="1">1st Year</option><option value="2">2nd Year</option><option value="3">3rd Year</option><option value="4">4th Year</option></select></label><label class="text-sm font-medium">Semester<select name="semester" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="1">1st Semester</option><option value="2">2nd Semester</option><option value="3">Summer</option></select></label></div><button type="submit" class="mt-6 w-full rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700">Add Course Link</button></form></div>
 <div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3"></div>
 <script>
 (() => {
@@ -298,6 +388,10 @@ if ($action !== null) {
     const form = document.getElementById('organizationForm');
     const prospectusList = document.getElementById('prospectusList');
     const prospectusForm = document.getElementById('prospectusForm');
+    const prospectusRecordForm = document.getElementById('prospectusRecordForm');
+    const courseLinkForm = document.getElementById('courseLinkForm');
+    let prospectusData = { prospectuses: [], courses: [], programs: [], majors: [], availableCourses: [] };
+    let selectedProspectusId = 0;
     const organizationStatus = document.getElementById('organizationStatus');
     const retryOrganizationBtn = document.getElementById('retryOrganizationBtn');
     const applyInputOutline = container => container.querySelectorAll('input:not([type="hidden"])').forEach(input => input.classList.add('border-2', 'border-slate-300', 'outline-none', 'focus:border-rose-600', 'focus:ring-2', 'focus:ring-rose-100'));
@@ -344,6 +438,40 @@ if ($action !== null) {
         setTimeout(dismiss, duration);
     }
   let organizationData = { colleges: [] };
+  function closeDialog(dialog) { dialog?.classList.add('hidden'); dialog?.classList.remove('flex'); }
+  function openDialog(dialog) { dialog?.classList.remove('hidden'); dialog?.classList.add('flex'); }
+  function loadProspectusData() {
+      return fetch('pages/organization.php?action=prospectus_data', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(response => response.json()).then(result => {
+          if (!result.success) throw new Error(result.message);
+          prospectusData = result;
+          renderProspectusRecords();
+          renderCurriculum();
+      });
+  }
+  function renderProspectusRecords() {
+      const search = document.getElementById('prospectusSearch').value.trim().toLowerCase();
+      const links = prospectusData.courses || [];
+      const rows = prospectusData.prospectuses.filter(item => `${item.title} ${item.program_name} ${item.major_name || ''} ${item.curriculum_year}`.toLowerCase().includes(search));
+      document.getElementById('prospectusRecordsBody').innerHTML = rows.length ? rows.map(item => {
+          const count = links.filter(link => Number(link.prospectus_id) === Number(item.id)).length;
+          return `<tr class="hover:bg-slate-50 ${Number(item.id) === selectedProspectusId ? 'bg-rose-50' : ''}"><td class="px-3 py-3"><button type="button" data-select-prospectus="${item.id}" class="text-left font-semibold text-rose-700 hover:underline">${esc(item.title)}</button><p class="text-xs text-slate-500">Curriculum ${esc(item.curriculum_year)}</p></td><td class="px-3 py-3 text-slate-600">${esc(item.program_name)}<span class="block text-xs text-slate-400">${esc(item.major_name || 'General curriculum')}</span></td><td class="px-3 py-3 text-slate-600">${count} course${count === 1 ? '' : 's'}</td><td class="px-3 py-3 text-right"><button type="button" data-edit-prospectus="${item.id}" class="mr-3 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-delete-prospectus-record="${item.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
+      }).join('') : '<tr><td colspan="4" class="px-3 py-8 text-center text-sm italic text-slate-400">No prospectuses match your search.</td></tr>';
+      document.getElementById('prospectusStatus').textContent = `${rows.length} prospectus${rows.length === 1 ? '' : 'es'}`;
+  }
+  function renderCurriculum() {
+      const item = prospectusData.prospectuses.find(record => Number(record.id) === selectedProspectusId);
+      const button = document.getElementById('addCurriculumCourseBtn');
+      button.classList.toggle('hidden', !item);
+      if (!item) { document.getElementById('curriculumTitle').textContent = 'Choose a prospectus to view its subjects'; document.getElementById('curriculumGroups').innerHTML = '<p class="py-8 text-center text-sm italic text-slate-400">No prospectus selected.</p>'; return; }
+      document.getElementById('curriculumTitle').textContent = item.title;
+      document.getElementById('curriculumMeta').textContent = `${item.program_name} / ${item.major_name || 'General curriculum'} · Curriculum ${item.curriculum_year}`;
+      const links = prospectusData.courses.filter(link => Number(link.prospectus_id) === selectedProspectusId);
+      const groups = {};
+      links.forEach(link => { const key = `${link.year_level}-${link.semester}`; (groups[key] ||= []).push(link); });
+      document.getElementById('curriculumGroups').innerHTML = Object.keys(groups).sort().map(key => { const [year, semester] = key.split('-'); return `<div><h4 class="mb-2 border-b border-rose-100 pb-2 text-sm font-bold text-slate-800">${year}${year === '1' ? 'st' : year === '2' ? 'nd' : year === '3' ? 'rd' : 'th'} Year · ${semester === '1' ? '1st' : semester === '2' ? '2nd' : 'Summer'} ${semester === '3' ? '' : 'Semester'}</h4><div class="divide-y divide-slate-100 rounded-lg border border-slate-200">${groups[key].map(link => `<div class="flex items-center justify-between gap-3 px-3 py-2"><span><b class="mr-2 rounded bg-rose-50 px-1.5 py-0.5 text-xs text-rose-700">${esc(link.code)}</b>${esc(link.name)}<span class="ml-2 text-xs text-slate-400">${link.units ?? '-'} units</span></span><button type="button" data-unlink-course="${link.id}" class="text-xs font-semibold text-red-600 hover:underline">Remove</button></div>`).join('')}</div></div>`; }).join('') || '<p class="py-8 text-center text-sm italic text-slate-400">No courses linked yet. Use Link Course to add subjects.</p>';
+  }
+  function fillProspectusPrograms(selected = '') { document.getElementById('prospectusRecordProgram').innerHTML = '<option value="">Select a program</option>' + prospectusData.programs.map(item => `<option value="${item.id}" ${Number(item.id) === Number(selected) ? 'selected' : ''}>${esc(item.name)}</option>`).join(''); }
+  function fillProspectusMajors(programId, selected = '') { document.getElementById('prospectusRecordMajor').innerHTML = '<option value="">All majors / general curriculum</option>' + prospectusData.majors.filter(item => Number(item.program_id) === Number(programId)).map(item => `<option value="${item.id}" ${Number(item.id) === Number(selected) ? 'selected' : ''}>${esc(item.name)}</option>`).join(''); }
   const parentOptions = (type, selected) => {
       const options = [];
       organizationData.colleges.forEach(college => {
@@ -809,6 +937,24 @@ if ($action !== null) {
                         .catch(error => { removeButton.disabled = false; toast(`Prospectus could not be removed. ${error.message}`, true); });
                 };
     retryOrganizationBtn.onclick = load;
+        document.getElementById('prospectusSearch').oninput = renderProspectusRecords;
+        document.getElementById('prospectusRecordProgram').onchange = event => fillProspectusMajors(event.target.value);
+        document.getElementById('addProspectusBtn').onclick = () => { prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = ''; fillProspectusPrograms(); fillProspectusMajors(''); document.getElementById('prospectusModalTitle').textContent = 'Add Prospectus'; openDialog(document.getElementById('prospectusModal')); };
+        document.getElementById('closeProspectusModal').onclick = () => closeDialog(document.getElementById('prospectusModal'));
+        document.getElementById('closeCourseLinkModal').onclick = () => closeDialog(document.getElementById('courseLinkModal'));
+        document.getElementById('prospectusRecordsBody').onclick = event => {
+                const select = event.target.closest('[data-select-prospectus]');
+                const edit = event.target.closest('[data-edit-prospectus]');
+                const del = event.target.closest('[data-delete-prospectus-record]');
+                if (select) { selectedProspectusId = Number(select.dataset.selectProspectus); renderProspectusRecords(); renderCurriculum(); }
+                if (edit) { const item = prospectusData.prospectuses.find(record => Number(record.id) === Number(edit.dataset.editProspectus)); if (!item) return; prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = item.id; fillProspectusPrograms(item.program_id); fillProspectusMajors(item.program_id, item.major_id); document.getElementById('prospectusRecordTitle').value = item.title; document.getElementById('prospectusRecordYear').value = item.curriculum_year; document.getElementById('prospectusModalTitle').textContent = 'Edit Prospectus'; openDialog(document.getElementById('prospectusModal')); }
+                if (del) { const password = window.prompt('Enter your current password to permanently delete this prospectus.'); if (password === null) return; fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_record', id: del.dataset.deleteProspectusRecord, current_password: password }) }).then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); if (selectedProspectusId === Number(del.dataset.deleteProspectusRecord)) selectedProspectusId = 0; toast(result.message); loadProspectusData(); }).catch(error => toast(error.message, true)); }
+        };
+        document.getElementById('addCurriculumCourseBtn').onclick = () => { const item = prospectusData.prospectuses.find(record => Number(record.id) === selectedProspectusId); if (!item) return; const linked = new Set(prospectusData.courses.filter(link => Number(link.prospectus_id) === selectedProspectusId).map(link => Number(link.course_id))); const available = prospectusData.availableCourses.filter(course => Number(course.program_id) === Number(item.program_id) && (!item.major_id || Number(course.major_id) === Number(item.major_id)) && !linked.has(Number(course.id))); document.getElementById('linkCourseSelect').innerHTML = available.map(course => `<option value="${course.id}">${esc(course.code)} - ${esc(course.name)}${course.units ? ` (${course.units} units)` : ''}</option>`).join('') || '<option value="">No available courses</option>'; openDialog(document.getElementById('courseLinkModal')); };
+        prospectusRecordForm.onsubmit = event => { event.preventDefault(); const data = new FormData(prospectusRecordForm); data.append('action', 'save_prospectus'); fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data }).then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); closeDialog(document.getElementById('prospectusModal')); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)); };
+        courseLinkForm.onsubmit = event => { event.preventDefault(); const data = new FormData(courseLinkForm); data.append('action', 'link_prospectus_course'); data.append('prospectus_id', selectedProspectusId); fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data }).then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); closeDialog(document.getElementById('courseLinkModal')); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)); };
+        document.getElementById('curriculumGroups').onclick = event => { const button = event.target.closest('[data-unlink-course]'); if (!button || !window.confirm('Remove this course from the prospectus?')) return; fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'unlink_prospectus_course', id: button.dataset.unlinkCourse }) }).then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)); };
+        loadProspectusData().catch(error => { document.getElementById('prospectusStatus').textContent = error.message; toast(`Prospectuses could not be loaded. ${error.message}`, true); });
   load();
 })();
 </script>

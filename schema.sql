@@ -75,6 +75,34 @@ CREATE TABLE IF NOT EXISTS program_prospectuses (
     CONSTRAINT fk_prospectus_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Prospectus records and their ordered curriculum course links.
+CREATE TABLE IF NOT EXISTS prospectuses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    program_id INT NOT NULL,
+    major_id INT DEFAULT NULL,
+    title VARCHAR(255) NOT NULL,
+    curriculum_year VARCHAR(30) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_prospectuses_program (program_id),
+    INDEX idx_prospectuses_major (major_id),
+    CONSTRAINT fk_prospectuses_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_prospectuses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS prospectus_courses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    prospectus_id INT NOT NULL,
+    course_id INT NOT NULL,
+    year_level TINYINT UNSIGNED NOT NULL,
+    semester TINYINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_prospectus_course (prospectus_id, course_id),
+    INDEX idx_prospectus_courses_term (prospectus_id, year_level, semester),
+    CONSTRAINT fk_prospectus_courses_prospectus FOREIGN KEY (prospectus_id) REFERENCES prospectuses(id) ON DELETE CASCADE,
+    CONSTRAINT fk_prospectus_courses_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
