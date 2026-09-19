@@ -10,17 +10,22 @@ if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQU
 requireLogin();
 
 if ($pdo) {
-    foreach ([
-        "CREATE TABLE IF NOT EXISTS prospectuses (id INT AUTO_INCREMENT PRIMARY KEY, program_id INT NOT NULL, major_id INT DEFAULT NULL, title VARCHAR(255) NOT NULL, curriculum_year VARCHAR(30) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_prospectuses_program (program_id), INDEX idx_prospectuses_major (major_id), CONSTRAINT fk_prospectuses_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE, CONSTRAINT fk_prospectuses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE) ENGINE=InnoDB",
-        "CREATE TABLE IF NOT EXISTS prospectus_courses (id INT AUTO_INCREMENT PRIMARY KEY, prospectus_id INT NOT NULL, course_id INT NOT NULL, year_level TINYINT UNSIGNED NOT NULL, semester TINYINT UNSIGNED NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_prospectus_course (prospectus_id, course_id), INDEX idx_prospectus_courses_term (prospectus_id, year_level, semester), CONSTRAINT fk_prospectus_courses_prospectus FOREIGN KEY (prospectus_id) REFERENCES prospectuses(id) ON DELETE CASCADE, CONSTRAINT fk_prospectus_courses_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE) ENGINE=InnoDB",
-    ] as $upgrade) {
-        try { $pdo->exec($upgrade); } catch (PDOException $ignored) { }
-    }
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS prospectuses (id INT AUTO_INCREMENT PRIMARY KEY, program_id INT NOT NULL, major_id INT DEFAULT NULL, curriculum_year VARCHAR(30) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_prospectuses_program (program_id), INDEX idx_prospectuses_major (major_id), CONSTRAINT fk_prospectuses_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE, CONSTRAINT fk_prospectuses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE) ENGINE=InnoDB");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS prospectus_documents (id INT AUTO_INCREMENT PRIMARY KEY, prospectus_id INT NOT NULL, file_name VARCHAR(255) NOT NULL, file_path VARCHAR(255) NOT NULL, uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY uq_prospectus_document (prospectus_id), CONSTRAINT fk_prospectus_documents_prospectus FOREIGN KEY (prospectus_id) REFERENCES prospectuses(id) ON DELETE CASCADE) ENGINE=InnoDB");
+        $titleColumn = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'prospectuses' AND COLUMN_NAME = 'title'")->fetchColumn();
+        if ((int)$titleColumn > 0) $pdo->exec('ALTER TABLE prospectuses DROP COLUMN title');
+        $pdo->exec('DROP TABLE IF EXISTS prospectus_courses, program_prospectuses');
+        foreach (['colleges', 'programs', 'majors'] as $organizationTable) {
+            $codeColumn = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{$organizationTable}' AND COLUMN_NAME = 'code'")->fetchColumn();
+            if ((int)$codeColumn > 0) $pdo->exec("ALTER TABLE {$organizationTable} DROP COLUMN code");
+        }
+    } catch (PDOException $ignored) { }
 }
 
 function organizationJson(array $payload, int $status = 200): never {
     http_response_code($status);
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=UTF-8');
     echo json_encode($payload);
     exit;
 }
@@ -44,10 +49,10 @@ if ($action !== null) {
                 $parentSelect = $query['parentColumn'] ? ', ' . $query['parentColumn'] : '';
                 $descriptionSelect = $query['table'] === 'courses' ? ', description' : '';
                 $statusSelect = $query['table'] === 'courses' ? ", 'active' AS status" : ', status';
-                $rows = $pdo->query("SELECT id, name, code{$descriptionSelect}, created_at{$parentSelect}{$statusSelect} FROM {$query['table']} ORDER BY name")->fetchAll();
+                $rows = $pdo->query("SELECT id, name{$descriptionSelect}, created_at{$parentSelect}{$statusSelect} FROM {$query['table']} ORDER BY name")->fetchAll();
                 foreach ($rows as $row) {
                     $records[] = [
-                        'id' => (int)$row['id'], 'name' => $row['name'], 'code' => $row['code'] ?? '',
+                        'id' => (int)$row['id'], 'name' => $row['name'], 'code' => '',
                         'type' => $query['type'], 'entity' => rtrim($query['table'], 's'), 'parentId' => $query['parentColumn'] ? (int)$row[$query['parentColumn']] : null,
                         'status' => $row['status'] ?? 'active', 'description' => $row['description'] ?? '', 'createdAt' => $row['created_at'],
                     ];
@@ -57,19 +62,16 @@ if ($action !== null) {
         }
 
         if ($action === 'list') {
-            $colleges = $pdo->query('SELECT id, name, code, status FROM colleges ORDER BY name')->fetchAll();
+            $colleges = $pdo->query('SELECT id, name, status FROM colleges ORDER BY name')->fetchAll();
             foreach ($colleges as &$college) {
-                    $stmt = $pdo->prepare('SELECT id, name, code, status FROM programs WHERE college_id = :id ORDER BY name');
+                    $stmt = $pdo->prepare('SELECT id, name, status FROM programs WHERE college_id = :id ORDER BY name');
                     $stmt->execute([':id' => $college['id']]);
                     $college['programs'] = $stmt->fetchAll();
                     foreach ($college['programs'] as &$program) {
-                        $stmt = $pdo->prepare('SELECT id, name, code, status FROM majors WHERE program_id = :id ORDER BY name');
+                        $stmt = $pdo->prepare('SELECT id, name, status FROM majors WHERE program_id = :id ORDER BY name');
                         $stmt->execute([':id' => $program['id']]);
                         $program['majors'] = $stmt->fetchAll();
                         $program['courses'] = [];
-                        $stmt = $pdo->prepare('SELECT file_name, file_path FROM program_prospectuses WHERE program_id = :id LIMIT 1');
-                        $stmt->execute([':id' => $program['id']]);
-                        $program['prospectus'] = $stmt->fetch() ?: null;
                         }
                         $college['departments'] = [['id' => 0, 'name' => '', 'programs' => $college['programs']]];
                     }
@@ -82,21 +84,19 @@ if ($action !== null) {
         }
 
         if ($action === 'prospectus_data') {
-            $prospectuses = $pdo->query('SELECT p.id, p.program_id, p.major_id, p.title, p.curriculum_year, pr.name AS program_name, m.name AS major_name FROM prospectuses p INNER JOIN programs pr ON pr.id = p.program_id LEFT JOIN majors m ON m.id = p.major_id ORDER BY pr.name, p.curriculum_year, p.title')->fetchAll();
-            $courses = $pdo->query('SELECT pc.id, pc.prospectus_id, pc.course_id, pc.year_level, pc.semester, c.code, c.name, c.units FROM prospectus_courses pc INNER JOIN courses c ON c.id = pc.course_id ORDER BY pc.prospectus_id, pc.year_level, pc.semester, c.code')->fetchAll();
+            $prospectuses = $pdo->query('SELECT p.id, p.program_id, p.major_id, p.curriculum_year, pr.name AS program_name, m.name AS major_name, pd.file_name AS pdf_file_name, pd.file_path AS pdf_file_path, (pd.id IS NOT NULL) AS has_specific_pdf FROM prospectuses p INNER JOIN programs pr ON pr.id = p.program_id LEFT JOIN majors m ON m.id = p.major_id LEFT JOIN prospectus_documents pd ON pd.prospectus_id = p.id ORDER BY pr.name, p.curriculum_year')->fetchAll();
             $programs = $pdo->query('SELECT id, name FROM programs WHERE status = \'active\' ORDER BY name')->fetchAll();
             $majors = $pdo->query('SELECT id, program_id, name FROM majors WHERE status = \'active\' ORDER BY name')->fetchAll();
-            $availableCourses = $pdo->query('SELECT id, program_id, major_id, code, name, units FROM courses WHERE status = \'active\' ORDER BY code, name')->fetchAll();
-            organizationJson(['success' => true, 'prospectuses' => $prospectuses, 'courses' => $courses, 'programs' => $programs, 'majors' => $majors, 'availableCourses' => $availableCourses]);
+            $availableCourses = $pdo->query('SELECT id, program_id, major_id, code, name, units, year_level FROM courses WHERE status = \'active\' ORDER BY year_level, code, name')->fetchAll();
+            organizationJson(['success' => true, 'prospectuses' => $prospectuses, 'programs' => $programs, 'majors' => $majors, 'availableCourses' => $availableCourses]);
         }
 
         if ($action === 'save_prospectus') {
             $id = (int)($_POST['id'] ?? 0);
             $programId = (int)($_POST['program_id'] ?? 0);
             $majorId = (int)($_POST['major_id'] ?? 0) ?: null;
-            $title = trim((string)($_POST['title'] ?? ''));
             $curriculumYear = trim((string)($_POST['curriculum_year'] ?? ''));
-            if (!$programId || $title === '' || $curriculumYear === '') organizationJson(['success' => false, 'message' => 'Program, prospectus title, and curriculum year are required.'], 422);
+            if (!$programId || $curriculumYear === '') organizationJson(['success' => false, 'message' => 'Program and curriculum year are required.'], 422);
             $programCheck = $pdo->prepare('SELECT id FROM programs WHERE id = :id LIMIT 1');
             $programCheck->execute([':id' => $programId]);
             if (!$programCheck->fetchColumn()) organizationJson(['success' => false, 'message' => 'The selected program does not exist.'], 422);
@@ -106,37 +106,17 @@ if ($action !== null) {
                 if (!$majorCheck->fetchColumn()) organizationJson(['success' => false, 'message' => 'The selected major does not belong to that program.'], 422);
             }
             if ($id > 0) {
-                $stmt = $pdo->prepare('UPDATE prospectuses SET program_id = :program_id, major_id = :major_id, title = :title, curriculum_year = :curriculum_year WHERE id = :id');
+                $stmt = $pdo->prepare('UPDATE prospectuses SET program_id = :program_id, major_id = :major_id, curriculum_year = :curriculum_year WHERE id = :id');
                 $stmt->bindValue(':id', $id, PDO::PARAM_INT);
             } else {
-                $stmt = $pdo->prepare('INSERT INTO prospectuses (program_id, major_id, title, curriculum_year) VALUES (:program_id, :major_id, :title, :curriculum_year)');
+                $stmt = $pdo->prepare('INSERT INTO prospectuses (program_id, major_id, curriculum_year) VALUES (:program_id, :major_id, :curriculum_year)');
             }
             $stmt->bindValue(':program_id', $programId, PDO::PARAM_INT);
             $stmt->bindValue(':major_id', $majorId, $majorId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
-            $stmt->bindValue(':title', $title);
             $stmt->bindValue(':curriculum_year', $curriculumYear);
             $stmt->execute();
-            organizationJson(['success' => true, 'message' => $id > 0 ? 'Prospectus updated successfully.' : 'Prospectus added successfully.']);
-        }
-
-        if ($action === 'link_prospectus_course') {
-            $prospectusId = (int)($_POST['prospectus_id'] ?? 0);
-            $courseId = (int)($_POST['course_id'] ?? 0);
-            $yearLevel = max(1, min(8, (int)($_POST['year_level'] ?? 0)));
-            $semester = max(1, min(3, (int)($_POST['semester'] ?? 0)));
-            if (!$prospectusId || !$courseId || !$yearLevel || !$semester) organizationJson(['success' => false, 'message' => 'Prospectus, course, year level, and semester are required.'], 422);
-            $stmt = $pdo->prepare('SELECT p.id FROM prospectuses p INNER JOIN courses c ON c.program_id = p.program_id WHERE p.id = :prospectus_id AND c.id = :course_id AND (p.major_id IS NULL OR c.major_id = p.major_id) LIMIT 1');
-            $stmt->execute([':prospectus_id' => $prospectusId, ':course_id' => $courseId]);
-            if (!$stmt->fetchColumn()) organizationJson(['success' => false, 'message' => 'That course is not available for the selected prospectus program or major.'], 422);
-            $stmt = $pdo->prepare('INSERT INTO prospectus_courses (prospectus_id, course_id, year_level, semester) VALUES (:prospectus_id, :course_id, :year_level, :semester)');
-            $stmt->execute([':prospectus_id' => $prospectusId, ':course_id' => $courseId, ':year_level' => $yearLevel, ':semester' => $semester]);
-            organizationJson(['success' => true, 'message' => 'Course added to the prospectus.']);
-        }
-
-        if ($action === 'unlink_prospectus_course') {
-            $stmt = $pdo->prepare('DELETE FROM prospectus_courses WHERE id = :id');
-            $stmt->execute([':id' => (int)($_POST['id'] ?? 0)]);
-            organizationJson(['success' => true, 'message' => 'Course removed from the prospectus.']);
+            $savedId = $id > 0 ? $id : (int)$pdo->lastInsertId();
+            organizationJson(['success' => true, 'id' => $savedId, 'message' => $id > 0 ? 'Prospectus updated successfully.' : 'Prospectus created successfully.']);
         }
 
         if ($action === 'delete_prospectus_record') {
@@ -149,20 +129,23 @@ if ($action !== null) {
         }
 
         if ($action === 'upload_prospectus') {
-            $programId = (int)($_POST['program_id'] ?? 0);
+            $prospectusId = (int)($_POST['prospectus_id'] ?? 0);
             $file = $_FILES['prospectus'] ?? null;
-            if (!$programId || !$file || $file['error'] !== UPLOAD_ERR_OK || $file['size'] > 10 * 1024 * 1024 || strtolower(pathinfo($file['name'], PATHINFO_EXTENSION)) !== 'pdf') {
+            if (!$prospectusId || !$file || $file['error'] !== UPLOAD_ERR_OK || $file['size'] > 10 * 1024 * 1024 || strtolower(pathinfo($file['name'], PATHINFO_EXTENSION)) !== 'pdf') {
                 organizationJson(['success' => false, 'message' => 'Please select a PDF prospectus no larger than 10 MB.'], 422);
             }
+            $prospectusStmt = $pdo->prepare('SELECT id FROM prospectuses WHERE id = :id LIMIT 1');
+            $prospectusStmt->execute([':id' => $prospectusId]);
+            if (!$prospectusStmt->fetchColumn()) organizationJson(['success' => false, 'message' => 'The selected prospectus does not exist.'], 404);
             $directory = __DIR__ . '/../uploads/prospectuses';
             if (!is_dir($directory) && !mkdir($directory, 0755, true)) organizationJson(['success' => false, 'message' => 'Upload directory is unavailable.'], 500);
             $storedName = bin2hex(random_bytes(12)) . '.pdf';
             if (!move_uploaded_file($file['tmp_name'], $directory . '/' . $storedName)) organizationJson(['success' => false, 'message' => 'The prospectus could not be uploaded.'], 500);
-            $oldStmt = $pdo->prepare('SELECT file_path FROM program_prospectuses WHERE program_id = :program_id LIMIT 1');
-            $oldStmt->execute([':program_id' => $programId]);
+            $oldStmt = $pdo->prepare('SELECT file_path FROM prospectus_documents WHERE prospectus_id = :prospectus_id LIMIT 1');
+            $oldStmt->execute([':prospectus_id' => $prospectusId]);
             $oldPath = $oldStmt->fetchColumn();
-            $stmt = $pdo->prepare('INSERT INTO program_prospectuses (program_id, file_name, file_path) VALUES (:program_id, :file_name, :file_path) ON DUPLICATE KEY UPDATE file_name = VALUES(file_name), file_path = VALUES(file_path), uploaded_at = CURRENT_TIMESTAMP');
-            $stmt->execute([':program_id' => $programId, ':file_name' => basename($file['name']), ':file_path' => 'uploads/prospectuses/' . $storedName]);
+            $stmt = $pdo->prepare('INSERT INTO prospectus_documents (prospectus_id, file_name, file_path) VALUES (:prospectus_id, :file_name, :file_path) ON DUPLICATE KEY UPDATE file_name = VALUES(file_name), file_path = VALUES(file_path), uploaded_at = CURRENT_TIMESTAMP');
+            $stmt->execute([':prospectus_id' => $prospectusId, ':file_name' => basename($file['name']), ':file_path' => 'uploads/prospectuses/' . $storedName]);
             if ($oldPath) {
                 $oldFile = __DIR__ . '/../' . ltrim((string)$oldPath, '/\\');
                 if (is_file($oldFile)) unlink($oldFile);
@@ -170,18 +153,17 @@ if ($action !== null) {
             organizationJson(['success' => true, 'message' => 'Prospectus uploaded successfully.']);
         }
 
-        if ($action === 'delete_prospectus') {
-            $programId = (int)($_POST['program_id'] ?? 0);
-            if (!$programId) organizationJson(['success' => false, 'message' => 'A program is required.'], 422);
-            $stmt = $pdo->prepare('SELECT file_path FROM program_prospectuses WHERE program_id = :program_id LIMIT 1');
-            $stmt->execute([':program_id' => $programId]);
+        if ($action === 'delete_prospectus_document') {
+            $prospectusId = (int)($_POST['prospectus_id'] ?? 0);
+            $stmt = $pdo->prepare('SELECT file_path FROM prospectus_documents WHERE prospectus_id = :prospectus_id LIMIT 1');
+            $stmt->execute([':prospectus_id' => $prospectusId]);
             $filePath = $stmt->fetchColumn();
-            if (!$filePath) organizationJson(['success' => false, 'message' => 'No prospectus was found for this program.'], 404);
-            $stmt = $pdo->prepare('DELETE FROM program_prospectuses WHERE program_id = :program_id');
-            $stmt->execute([':program_id' => $programId]);
+            if (!$filePath) organizationJson(['success' => false, 'message' => 'No prospectus PDF is attached to this record.'], 404);
+            $stmt = $pdo->prepare('DELETE FROM prospectus_documents WHERE prospectus_id = :prospectus_id');
+            $stmt->execute([':prospectus_id' => $prospectusId]);
             $file = __DIR__ . '/../' . ltrim((string)$filePath, '/\\');
             if (is_file($file)) unlink($file);
-            organizationJson(['success' => true, 'message' => 'Prospectus removed successfully.']);
+            organizationJson(['success' => true, 'message' => 'Prospectus PDF removed successfully.']);
         }
 
         if ($action === 'create_hierarchy') {
@@ -285,9 +267,6 @@ if ($action !== null) {
                     $courseStmt = $pdo->prepare('SELECT COUNT(*) FROM courses WHERE program_id = :id');
                     $courseStmt->execute([':id' => $id]);
                     $dependencyCount += (int)$courseStmt->fetchColumn();
-                    $prospectusStmt = $pdo->prepare('SELECT COUNT(*) FROM program_prospectuses WHERE program_id = :id');
-                    $prospectusStmt->execute([':id' => $id]);
-                    $dependencyCount += (int)$prospectusStmt->fetchColumn();
                 }
                 if ($dependencyCount > 0) {
                     organizationJson(['success' => false, 'message' => 'This organization is still used by related records. Archive it instead or remove its dependent records first.'], 409);
@@ -296,17 +275,15 @@ if ($action !== null) {
                 $stmt->execute([':id' => $id]);
             } else {
                 $name = trim((string)($_POST['name'] ?? ''));
-                $code = strtoupper(trim((string)($_POST['code'] ?? '')));
                 $status = ($_POST['status'] ?? 'active') === 'archived' ? 'archived' : 'active';
                 if ($name === '') organizationJson(['success' => false, 'message' => 'A name is required.'], 422);
                 if ($operation === 'add') {
-                    $sql = "INSERT INTO {$config['table']} (" . ($config['parent'] ? $config['parent'] . ', ' : '') . "name, code, status) VALUES (" . ($config['parent'] ? ':parent_id, ' : '') . ':name, :code, :status)';
+                    $sql = "INSERT INTO {$config['table']} (" . ($config['parent'] ? $config['parent'] . ', ' : '') . "name, status) VALUES (" . ($config['parent'] ? ':parent_id, ' : '') . ':name, :status)';
                 } else {
-                    $sql = "UPDATE {$config['table']} SET " . ($config['parent'] ? $config['parent'] . ' = :parent_id, ' : '') . "name = :name, code = :code, status = :status WHERE id = :id";
+                    $sql = "UPDATE {$config['table']} SET " . ($config['parent'] ? $config['parent'] . ' = :parent_id, ' : '') . "name = :name, status = :status WHERE id = :id";
                 }
                 $stmt = $pdo->prepare($sql);
                 $stmt->bindValue(':name', $name);
-                $stmt->bindValue(':code', $code !== '' ? $code : null, $code !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
                 $stmt->bindValue(':status', $status);
                 if ($config['parent']) $stmt->bindValue(':parent_id', (int)($_POST['parent_id'] ?? 0), PDO::PARAM_INT);
                 if ($operation === 'edit') $stmt->bindValue(':id', $id, PDO::PARAM_INT);
@@ -353,43 +330,49 @@ if ($action !== null) {
                 </div>
             </details>
             </section>
-            <section class="col-span-12 flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-4">
-                <div class="mb-5 flex items-center gap-2"><i data-lucide="file-text" class="h-5 w-5 text-rose-600"></i><h3 class="font-bold text-slate-900">Course Prospectus</h3></div>
-                <div id="prospectusList" class="max-h-[420px] flex-1 space-y-3 overflow-y-auto pr-1"></div>
-                <form id="prospectusForm" class="mt-4 min-w-0 space-y-2">
-                    <select name="program_id" id="prospectusProgram" required class="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Select a program</option></select>
-                    <input type="file" name="prospectus" accept="application/pdf,.pdf" required class="block h-auto w-full min-w-0 max-w-full rounded-xl border-2 border-dashed border-rose-300 bg-rose-50 p-3 text-xs text-slate-700">
-                    <button type="submit" class="w-full rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700">Upload / Replace PDF</button>
-                </form>
-            </section>
         </div>
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div><p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Curriculum planning</p><h3 class="mt-1 text-xl font-bold text-slate-900">Prospectus Management</h3><p class="mt-1 text-sm text-slate-500">Create prospectus records and organize existing courses by year level and semester.</p></div>
-                <button type="button" id="addProspectusBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700"><i data-lucide="plus" class="h-4 w-4"></i>Add Prospectus</button>
+                <div><p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Curriculum planning</p><h3 class="mt-1 text-xl font-bold text-slate-900">Prospectus Management</h3><p class="mt-1 text-sm text-slate-500">Upload a prospectus, then review the courses already assigned to its program or major.</p></div>
+                <button type="button" id="addProspectusBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700"><i data-lucide="upload" class="h-4 w-4"></i>Upload Prospectus</button>
             </div>
             <div class="mb-4 flex flex-col gap-2 sm:flex-row"><input id="prospectusSearch" type="search" placeholder="Search prospectuses" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><span id="prospectusStatus" class="self-center text-xs text-slate-500" aria-live="polite">Loading prospectuses...</span></div>
-            <div class="overflow-x-auto"><table class="w-full min-w-[850px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Prospectus</th><th class="px-3 py-3">Program / Major</th><th class="px-3 py-3">Subjects</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="prospectusRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
-        </section>
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Selected prospectus</p><h3 id="curriculumTitle" class="mt-1 text-xl font-bold text-slate-900">Choose a prospectus to view its subjects</h3><p id="curriculumMeta" class="mt-1 text-sm text-slate-500">Each linked course is assigned to a year level and semester.</p></div><button type="button" id="addCurriculumCourseBtn" class="hidden inline-flex items-center justify-center gap-2 rounded-lg border border-rose-300 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-50"><i data-lucide="link" class="h-4 w-4"></i>Link Course</button></div>
-            <div id="curriculumGroups" class="space-y-5"><p class="py-8 text-center text-sm italic text-slate-400">No prospectus selected.</p></div>
+            <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.5fr)]">
+                <div class="min-w-0 overflow-hidden rounded-xl border border-slate-200">
+                    <div class="max-h-[560px] overflow-y-auto"><table class="w-full min-w-[720px] text-left text-sm"><thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-4 py-3">Program</th><th class="px-4 py-3">Major</th><th class="px-4 py-3">Curriculum</th><th class="px-4 py-3">PDF</th><th class="px-4 py-3 text-right">Actions</th></tr></thead><tbody id="prospectusRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
+                </div>
+                <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                    <div class="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="min-w-0"><h3 id="curriculumTitle" class="text-xl font-bold text-slate-900"></h3><p id="curriculumMeta" class="mt-1 text-sm text-slate-500"></p></div>
+                        <div id="prospectusDetailActions" class="hidden shrink-0 flex flex-wrap gap-2"><a id="prospectusPdfLink" href="#" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-rose-300 hover:text-rose-700"><i data-lucide="external-link" class="h-3.5 w-3.5"></i>View PDF</a><button type="button" id="deleteProspectusPdfBtn" class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i>Remove PDF</button></div>
+                    </div>
+                    <div id="prospectusPdfPanel" class="hidden border-b border-slate-200 py-4"><div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div class="flex items-center gap-2"><i data-lucide="file-text" class="h-5 w-5 text-rose-600"></i><div><p class="text-sm font-semibold text-slate-800">PDF prospectus</p><p id="prospectusPdfStatus" class="text-xs text-slate-500"></p></div></div><form id="prospectusForm" class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center"><input type="hidden" name="prospectus_id" id="prospectusUploadId"><input type="file" name="prospectus" accept="application/pdf,.pdf" required class="block min-w-0 max-w-full rounded-lg border-2 border-dashed border-rose-300 bg-rose-50 p-2 text-xs text-slate-700"><button type="submit" class="shrink-0 rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white hover:bg-rose-700">Upload / Replace</button></form></div></div>
+                    <div id="curriculumGroups" class="space-y-5"></div>
+                </div>
+            </div>
         </section>
     </div>
 </div>
 <div id="organizationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="organizationForm" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 id="organizationModalTitle" class="text-xl font-bold">Add College</h3><button type="button" id="closeOrganizationModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" id="organizationAction" name="action"><input type="hidden" id="organizationId" name="id"><input type="hidden" id="organizationParent" name="parent_id"><input type="hidden" id="organizationMajor" name="major_id"><p id="organizationContextHint" class="mt-4 hidden rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700"></p><label id="parentSelectLabel" class="mt-5 hidden text-sm font-medium">Parent organization<select id="parentSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label id="majorSelectLabel" class="mt-3 hidden text-sm font-medium">Major<select id="majorSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">No major</option></select></label><div id="courseFields" class="mt-5 hidden grid gap-4 sm:grid-cols-2"><label class="text-sm font-medium">Course code<input name="code" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label class="text-sm font-medium">Year level<input name="year_level" type="number" min="1" max="8" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label></div><label id="organizationCodeLabel" class="mt-5 block text-sm font-medium">Program / Subject code<input name="organization_code" id="organizationCode" maxlength="30" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label id="organizationStatusLabel" class="mt-3 block text-sm font-medium">Status<select name="status" id="organizationRecordStatus" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="active">Active</option><option value="archived">Archived</option></select></label><label class="mt-3 block text-sm font-medium">Name<input id="organizationName" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><button class="mt-5 w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Save</button></form></div>
-<div id="prospectusModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="prospectusRecordForm" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-wide text-rose-600">Prospectus record</p><h3 id="prospectusModalTitle" class="text-xl font-bold text-slate-900">Add Prospectus</h3></div><button type="button" id="closeProspectusModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" name="id" id="prospectusRecordId"><label class="mt-5 block text-sm font-medium">Program<select name="program_id" id="prospectusRecordProgram" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label class="mt-3 block text-sm font-medium">Major <span class="font-normal text-slate-400">(optional)</span><select name="major_id" id="prospectusRecordMajor" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All majors / general curriculum</option></select></label><div class="mt-3 grid gap-3 sm:grid-cols-2"><label class="text-sm font-medium">Prospectus title<input name="title" id="prospectusRecordTitle" required maxlength="255" placeholder="BS Information Technology" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label><label class="text-sm font-medium">Curriculum year<input name="curriculum_year" id="prospectusRecordYear" required maxlength="30" placeholder="2026-2027" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label></div><button type="submit" class="mt-6 w-full rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700">Save Prospectus</button></form></div>
-<div id="courseLinkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="courseLinkForm" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 class="text-xl font-bold text-slate-900">Link Course to Prospectus</h3><button type="button" id="closeCourseLinkModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><label class="mt-5 block text-sm font-medium">Existing course<select name="course_id" id="linkCourseSelect" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><div class="mt-3 grid gap-3 sm:grid-cols-2"><label class="text-sm font-medium">Year level<select name="year_level" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="1">1st Year</option><option value="2">2nd Year</option><option value="3">3rd Year</option><option value="4">4th Year</option></select></label><label class="text-sm font-medium">Semester<select name="semester" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="1">1st Semester</option><option value="2">2nd Semester</option><option value="3">Summer</option></select></label></div><button type="submit" class="mt-6 w-full rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700">Add Course Link</button></form></div>
+<div id="prospectusModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="prospectusRecordForm" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-wide text-rose-600">Prospectus upload</p><h3 id="prospectusModalTitle" class="text-xl font-bold text-slate-900">Upload Prospectus</h3></div><button type="button" id="closeProspectusModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" name="id" id="prospectusRecordId"><label class="mt-5 block text-sm font-medium">Program<select name="program_id" id="prospectusRecordProgram" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label class="mt-3 block text-sm font-medium">Major <span class="font-normal text-slate-400">(optional)</span><select name="major_id" id="prospectusRecordMajor" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All majors / general curriculum</option></select></label><div class="mt-3 grid gap-3 sm:grid-cols-2"><label class="text-sm font-medium">Prospectus title<input name="title" id="prospectusRecordTitle" required maxlength="255" placeholder="BS Information Technology" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label><label class="text-sm font-medium">Curriculum year<input name="curriculum_year" id="prospectusRecordYear" required maxlength="30" placeholder="2026-2027" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label></div><label class="mt-3 block text-sm font-medium">PDF prospectus<input type="file" name="prospectus" id="prospectusRecordFile" accept="application/pdf,.pdf" class="mt-1 block w-full rounded-lg border-2 border-dashed border-rose-300 bg-rose-50 p-3 text-xs text-slate-700"></label><button type="submit" class="mt-6 w-full rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700">Upload Prospectus</button></form></div>
 <div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3"></div>
 <script>
 (() => {
     const tree = document.getElementById('organizationTree');
     const modal = document.getElementById('organizationModal');
     const form = document.getElementById('organizationForm');
-    const prospectusList = document.getElementById('prospectusList');
     const prospectusForm = document.getElementById('prospectusForm');
     const prospectusRecordForm = document.getElementById('prospectusRecordForm');
-    const courseLinkForm = document.getElementById('courseLinkForm');
+    const prospectusRecordsBody = document.getElementById('prospectusRecordsBody');
+    const retiredTitleField = document.getElementById('prospectusRecordTitle');
+    retiredTitleField?.closest('label')?.remove();
+    if (!document.getElementById('prospectusRecordTitle')) {
+        const titleCompatibilityField = document.createElement('input');
+        titleCompatibilityField.type = 'hidden';
+        titleCompatibilityField.id = 'prospectusRecordTitle';
+        titleCompatibilityField.name = 'retired_title';
+        prospectusRecordForm.append(titleCompatibilityField);
+    }
     let prospectusData = { prospectuses: [], courses: [], programs: [], majors: [], availableCourses: [] };
     let selectedProspectusId = 0;
     const organizationStatus = document.getElementById('organizationStatus');
@@ -444,33 +427,67 @@ if ($action !== null) {
       return fetch('pages/organization.php?action=prospectus_data', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(response => response.json()).then(result => {
           if (!result.success) throw new Error(result.message);
           prospectusData = result;
+          if (!selectedProspectusId && prospectusData.prospectuses.length) selectedProspectusId = Number(prospectusData.prospectuses[0].id);
           renderProspectusRecords();
           renderCurriculum();
       });
   }
+    function renderProspectusRecordsWithoutTitle() {
+      const search = document.getElementById('prospectusSearch').value.trim().toLowerCase();
+      const rows = prospectusData.prospectuses.filter(item => `${item.program_name} ${item.major_name || ''} ${item.curriculum_year}`.toLowerCase().includes(search));
+      document.getElementById('prospectusRecordsBody').innerHTML = rows.map(item => {
+          const pdfActions = item.pdf_file_path ? `<a href="${esc(item.pdf_file_path)}" target="_blank" rel="noopener" class="text-xs font-semibold text-rose-600 hover:underline">View PDF</a>` : '<span class="text-xs text-slate-400">No PDF</span>';
+          return `<tr class="border-b border-slate-100"><td class="px-4 py-3 font-semibold text-slate-900">${esc(item.program_name)}</td><td class="px-4 py-3 text-slate-600">${esc(item.major_name || 'General curriculum')}</td><td class="px-4 py-3 text-slate-600">${esc(item.curriculum_year)}</td><td class="px-4 py-3">${pdfActions}</td><td class="px-4 py-3 text-right"><button type="button" data-row-replace="${item.id}" class="mr-3 text-xs font-semibold text-rose-600 hover:underline">Replace PDF</button><input type="file" accept="application/pdf,.pdf" data-row-file="${item.id}" class="hidden"><button type="button" data-delete-prospectus-record="${item.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
+      }).join('');
+    lucide.createIcons();
+      document.getElementById('prospectusStatus').textContent = `${rows.length} prospectus${rows.length === 1 ? '' : 'es'}`;
+  }
   function renderProspectusRecords() {
       const search = document.getElementById('prospectusSearch').value.trim().toLowerCase();
-      const links = prospectusData.courses || [];
       const rows = prospectusData.prospectuses.filter(item => `${item.title} ${item.program_name} ${item.major_name || ''} ${item.curriculum_year}`.toLowerCase().includes(search));
       document.getElementById('prospectusRecordsBody').innerHTML = rows.length ? rows.map(item => {
-          const count = links.filter(link => Number(link.prospectus_id) === Number(item.id)).length;
-          return `<tr class="hover:bg-slate-50 ${Number(item.id) === selectedProspectusId ? 'bg-rose-50' : ''}"><td class="px-3 py-3"><button type="button" data-select-prospectus="${item.id}" class="text-left font-semibold text-rose-700 hover:underline">${esc(item.title)}</button><p class="text-xs text-slate-500">Curriculum ${esc(item.curriculum_year)}</p></td><td class="px-3 py-3 text-slate-600">${esc(item.program_name)}<span class="block text-xs text-slate-400">${esc(item.major_name || 'General curriculum')}</span></td><td class="px-3 py-3 text-slate-600">${count} course${count === 1 ? '' : 's'}</td><td class="px-3 py-3 text-right"><button type="button" data-edit-prospectus="${item.id}" class="mr-3 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-delete-prospectus-record="${item.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
-      }).join('') : '<tr><td colspan="4" class="px-3 py-8 text-center text-sm italic text-slate-400">No prospectuses match your search.</td></tr>';
+          const count = prospectusData.availableCourses.filter(course => Number(course.program_id) === Number(item.program_id) && (!item.major_id || Number(course.major_id) === Number(item.major_id))).length;
+          return `<tr class="hover:bg-slate-50 ${Number(item.id) === selectedProspectusId ? 'bg-rose-50' : ''}"><td class="px-4 py-3"><button type="button" data-select-prospectus="${item.id}" class="w-full text-left"><span class="block truncate font-semibold text-slate-900">${esc(item.program_name)} / ${esc(item.major_name || 'General curriculum')}</span><span class="mt-1 block text-xs text-slate-500">${esc(item.title)} · ${esc(item.curriculum_year)}</span><span class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400"><span>${count} course${count === 1 ? '' : 's'}</span><span class="${item.pdf_file_path ? 'text-emerald-600' : 'text-amber-600'}">${item.pdf_file_path ? (Number(item.has_specific_pdf) ? 'PDF attached' : 'Program PDF inherited') : 'No PDF'}</span></span></button></td><td class="px-4 py-3 text-right align-top"><button type="button" data-edit-prospectus="${item.id}" class="text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-delete-prospectus-record="${item.id}" class="ml-3 text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
+      }).join('') : '';
       document.getElementById('prospectusStatus').textContent = `${rows.length} prospectus${rows.length === 1 ? '' : 'es'}`;
   }
   function renderCurriculum() {
       const item = prospectusData.prospectuses.find(record => Number(record.id) === selectedProspectusId);
-      const button = document.getElementById('addCurriculumCourseBtn');
-      button.classList.toggle('hidden', !item);
-      if (!item) { document.getElementById('curriculumTitle').textContent = 'Choose a prospectus to view its subjects'; document.getElementById('curriculumGroups').innerHTML = '<p class="py-8 text-center text-sm italic text-slate-400">No prospectus selected.</p>'; return; }
-      document.getElementById('curriculumTitle').textContent = item.title;
-      document.getElementById('curriculumMeta').textContent = `${item.program_name} / ${item.major_name || 'General curriculum'} · Curriculum ${item.curriculum_year}`;
-      const links = prospectusData.courses.filter(link => Number(link.prospectus_id) === selectedProspectusId);
+    const detailActions = document.getElementById('prospectusDetailActions');
+    const pdfPanel = document.getElementById('prospectusPdfPanel');
+    const deletePdfButton = document.getElementById('deleteProspectusPdfBtn');
+    detailActions.classList.toggle('hidden', !item);
+    pdfPanel.classList.toggle('hidden', !item);
+    if (!item) { document.getElementById('curriculumTitle').textContent = ''; document.getElementById('curriculumMeta').textContent = ''; document.getElementById('curriculumGroups').innerHTML = ''; return; }
+    document.getElementById('curriculumTitle').textContent = `${item.program_name} / ${item.major_name || 'General curriculum'}`;
+    document.getElementById('curriculumMeta').textContent = `${item.title} · ${item.curriculum_year}`;
+    document.getElementById('prospectusUploadId').value = item.id;
+    document.getElementById('prospectusPdfStatus').textContent = item.pdf_file_name ? item.pdf_file_name : 'No PDF attached yet. Upload the official document for this curriculum.';
+    document.getElementById('prospectusPdfLink').href = item.pdf_file_path || '#';
+    deletePdfButton.classList.toggle('hidden', !Number(item.has_specific_pdf));
       const groups = {};
-      links.forEach(link => { const key = `${link.year_level}-${link.semester}`; (groups[key] ||= []).push(link); });
-      document.getElementById('curriculumGroups').innerHTML = Object.keys(groups).sort().map(key => { const [year, semester] = key.split('-'); return `<div><h4 class="mb-2 border-b border-rose-100 pb-2 text-sm font-bold text-slate-800">${year}${year === '1' ? 'st' : year === '2' ? 'nd' : year === '3' ? 'rd' : 'th'} Year · ${semester === '1' ? '1st' : semester === '2' ? '2nd' : 'Summer'} ${semester === '3' ? '' : 'Semester'}</h4><div class="divide-y divide-slate-100 rounded-lg border border-slate-200">${groups[key].map(link => `<div class="flex items-center justify-between gap-3 px-3 py-2"><span><b class="mr-2 rounded bg-rose-50 px-1.5 py-0.5 text-xs text-rose-700">${esc(link.code)}</b>${esc(link.name)}<span class="ml-2 text-xs text-slate-400">${link.units ?? '-'} units</span></span><button type="button" data-unlink-course="${link.id}" class="text-xs font-semibold text-red-600 hover:underline">Remove</button></div>`).join('')}</div></div>`; }).join('') || '<p class="py-8 text-center text-sm italic text-slate-400">No courses linked yet. Use Link Course to add subjects.</p>';
+      prospectusData.availableCourses.filter(course => Number(course.program_id) === Number(item.program_id) && (!item.major_id || Number(course.major_id) === Number(item.major_id))).forEach(course => { const key = course.year_level || 'Unassigned'; (groups[key] ||= []).push(course); });
+    document.getElementById('curriculumGroups').innerHTML = Object.keys(groups).sort((a, b) => (Number(a) || 99) - (Number(b) || 99)).map(year => { const label = year === 'Unassigned' ? year : `${year}${year === '1' ? 'st' : year === '2' ? 'nd' : year === '3' ? 'rd' : 'th'} Year`; return `<div><h4 class="mb-2 border-b border-rose-100 pb-2 text-sm font-bold text-slate-800">${label}</h4><div class="divide-y divide-slate-100 rounded-lg border border-slate-200">${groups[year].map(course => `<div class="flex items-center gap-3 px-3 py-2"><span class="min-w-0 flex-1"><b class="mr-2 rounded bg-rose-50 px-1.5 py-0.5 text-xs text-rose-700">${esc(course.code)}</b>${esc(course.name)}</span><span class="shrink-0 text-xs text-slate-400">${course.units ?? '-'} units</span></div>`).join('')}</div></div>`; }).join('');
   }
-  function fillProspectusPrograms(selected = '') { document.getElementById('prospectusRecordProgram').innerHTML = '<option value="">Select a program</option>' + prospectusData.programs.map(item => `<option value="${item.id}" ${Number(item.id) === Number(selected) ? 'selected' : ''}>${esc(item.name)}</option>`).join(''); }
+    function renderCurriculumWithoutTitle() {
+            const item = prospectusData.prospectuses.find(record => Number(record.id) === selectedProspectusId);
+            const detailActions = document.getElementById('prospectusDetailActions');
+            const pdfPanel = document.getElementById('prospectusPdfPanel');
+            const deletePdfButton = document.getElementById('deleteProspectusPdfBtn');
+            detailActions.classList.toggle('hidden', !item);
+            pdfPanel.classList.toggle('hidden', !item);
+            if (!item) { document.getElementById('curriculumTitle').textContent = ''; document.getElementById('curriculumMeta').textContent = ''; document.getElementById('curriculumGroups').innerHTML = ''; return; }
+            document.getElementById('curriculumTitle').textContent = `${item.program_name} / ${item.major_name || 'General curriculum'}`;
+            document.getElementById('curriculumMeta').textContent = `Curriculum ${item.curriculum_year}`;
+            document.getElementById('prospectusUploadId').value = item.id;
+            document.getElementById('prospectusPdfStatus').textContent = item.pdf_file_name || '';
+            document.getElementById('prospectusPdfLink').href = item.pdf_file_path || '#';
+            deletePdfButton.classList.toggle('hidden', !Number(item.has_specific_pdf));
+            const groups = {};
+            prospectusData.availableCourses.filter(course => Number(course.program_id) === Number(item.program_id) && (!item.major_id || Number(course.major_id) === Number(item.major_id))).forEach(course => { const key = course.year_level || 'Unassigned'; (groups[key] ||= []).push(course); });
+            document.getElementById('curriculumGroups').innerHTML = Object.keys(groups).sort((a, b) => (Number(a) || 99) - (Number(b) || 99)).map(year => { const label = year === 'Unassigned' ? year : `${year}${year === '1' ? 'st' : year === '2' ? 'nd' : year === '3' ? 'rd' : 'th'} Year`; return `<div><h4 class="mb-2 border-b border-rose-100 pb-2 text-sm font-bold text-slate-800">${label}</h4><div class="divide-y divide-slate-100 rounded-lg border border-slate-200">${groups[year].map(course => `<div class="flex items-center gap-3 px-3 py-2"><span class="min-w-0 flex-1"><b class="mr-2 rounded bg-rose-50 px-1.5 py-0.5 text-xs text-rose-700">${esc(course.code)}</b>${esc(course.name)}</span><span class="shrink-0 text-xs text-slate-400">${course.units ?? '-'} units</span></div>`).join('')}</div></div>`; }).join('');
+    }
+    function fillProspectusPrograms(selected = '') { document.getElementById('prospectusRecordProgram').innerHTML = '<option value="">Select a program</option>' + prospectusData.programs.map(item => `<option value="${item.id}" ${Number(item.id) === Number(selected) ? 'selected' : ''}>${esc(item.name)}</option>`).join(''); }
   function fillProspectusMajors(programId, selected = '') { document.getElementById('prospectusRecordMajor').innerHTML = '<option value="">All majors / general curriculum</option>' + prospectusData.majors.filter(item => Number(item.program_id) === Number(programId)).map(item => `<option value="${item.id}" ${Number(item.id) === Number(selected) ? 'selected' : ''}>${esc(item.name)}</option>`).join(''); }
   const parentOptions = (type, selected) => {
       const options = [];
@@ -772,9 +789,6 @@ if ($action !== null) {
         organizationData = data;
         const expandedColleges = new Set([...tree.querySelectorAll('.college-body:not(.max-h-0)')].map(body => body.id.replace('college-', '')));
     Object.entries(data.counts).forEach(([key, value]) => { const el = document.querySelector(`[data-count="${key}"]`); if (el) el.textContent = value; });
-    const programs = data.colleges.flatMap(college => college.programs || []);
-    document.getElementById('prospectusProgram').innerHTML = '<option value="">Select a program</option>' + programs.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
-    prospectusList.innerHTML = programs.filter(p => p.prospectus).map(p => `<div class="min-w-0 rounded-xl border border-slate-200 p-3"><div class="flex min-w-0 items-start justify-between gap-2"><div class="min-w-0"><p class="truncate font-semibold">${esc(p.name)}</p><p class="truncate text-xs text-slate-500">${esc(p.prospectus.file_name)}</p></div><div class="flex shrink-0 gap-3"><a href="${esc(p.prospectus.file_path)}" target="_blank" rel="noopener" class="text-xs font-semibold text-rose-600">View PDF</a><button type="button" data-prospectus-delete="${p.id}" data-program-name="${esc(p.name)}" class="text-xs font-semibold text-red-600 hover:underline">Remove</button></div></div></div>`).join('') || '<p class="text-sm italic text-slate-400">No prospectuses uploaded yet.</p>';
     tree.innerHTML = data.colleges.length ? data.colleges.map(c => `<article class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="flex items-center justify-between gap-2"><div class="flex items-center gap-2"><i data-lucide="building-2" class="h-4 w-4 text-rose-600"></i><strong>${esc(c.name)}</strong><span class="text-xs text-slate-400">${c.departments.length} departments</span></div><div class="flex gap-3">${add('add_department','Add department',c.id)}${controls('college',c)}</div></div><div class="mt-3 space-y-2 border-l-2 border-rose-200 pl-4">${c.departments.map(d => `<div class="rounded-xl bg-white p-3"><div class="flex items-center justify-between gap-2"><strong class="text-slate-700">${esc(d.name)}</strong><div class="flex gap-3">${add('add_program','Add program',d.id)}${controls('department',d,c.id)}</div></div><div class="mt-2 space-y-2 pl-3">${d.programs.map(p => `<div class="rounded-lg border-l-2 border-slate-200 pl-3"><div class="flex items-center justify-between gap-2 text-sm"><strong>${esc(p.name)}</strong><div class="flex gap-3">${add('add_major','Add major',p.id)}${controls('program',p,d.id)}</div></div><div class="mt-2 space-y-1 pl-3">${p.majors.map(m => `<div class="flex items-center justify-between rounded bg-rose-50 px-2 py-1 text-xs"><span><i data-lucide="layers" class="mr-1 inline h-3 w-3 text-rose-600"></i>${esc(m.name)}</span><div class="flex gap-2">${add('add_course','Add course',p.id,m.id)}${controls('major',m,p.id)}</div></div>`).join('') || '<p class="text-xs italic text-slate-400">No majors yet</p>'}${p.courses.map(course => `<div class="flex items-center justify-between text-xs text-slate-500"><span><b class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-rose-700">${esc(course.code)}</b>${esc(course.name)}</span>${controls('course',course,p.id)}</div>`).join('')}</div></div>`).join('')}</div></div>`).join('') || '<p class="text-sm italic text-slate-400">No departments yet</p>'}</div></article>`).join('') : '<div class="rounded-xl border border-dashed p-8 text-center text-sm text-slate-500">No colleges yet. Add the first college to build the hierarchy.</div>';
     tree.innerHTML = data.colleges.length
         ? data.colleges.map(renderDirectCollege).join('')
@@ -918,42 +932,99 @@ if ($action !== null) {
                 if (!result.success) throw new Error(result.message);
                 prospectusForm.reset();
                 toast(result.message);
-                load();
+                return loadProspectusData();
             })
                         .catch(error => toast(`Prospectus could not be uploaded. ${error.message}`, true))
                         .finally(() => setBusy(uploadButton, false));
     };
-                prospectusList.onclick = event => {
-                    const removeButton = event.target.closest('[data-prospectus-delete]');
-                    if (!removeButton || !window.confirm(`Remove the prospectus for "${removeButton.dataset.programName}"?`)) return;
-                    removeButton.disabled = true;
-                    fetch('pages/organization.php', {
-                        method: 'POST',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: new URLSearchParams({ action: 'delete_prospectus', program_id: removeButton.dataset.prospectusDelete }),
-                    })
-                        .then(response => response.json())
-                        .then(result => { if (!result.success) throw new Error(result.message); toast(result.message); load(); })
-                        .catch(error => { removeButton.disabled = false; toast(`Prospectus could not be removed. ${error.message}`, true); });
-                };
+    renderProspectusRecords = renderProspectusRecordsWithoutTitle;
+    renderCurriculum = renderCurriculumWithoutTitle;
+    const prospectusGrid = prospectusRecordsBody.closest('.grid');
+    if (prospectusGrid) prospectusGrid.style.display = 'block';
+    if (prospectusGrid?.children[1]) prospectusGrid.children[1].style.display = 'none';
+    if (prospectusGrid?.children[0]) prospectusGrid.children[0].classList.add('w-full');
     retryOrganizationBtn.onclick = load;
         document.getElementById('prospectusSearch').oninput = renderProspectusRecords;
         document.getElementById('prospectusRecordProgram').onchange = event => fillProspectusMajors(event.target.value);
-        document.getElementById('addProspectusBtn').onclick = () => { prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = ''; fillProspectusPrograms(); fillProspectusMajors(''); document.getElementById('prospectusModalTitle').textContent = 'Add Prospectus'; openDialog(document.getElementById('prospectusModal')); };
+        document.getElementById('addProspectusBtn').onclick = () => { prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = ''; document.getElementById('prospectusRecordFile').required = true; fillProspectusPrograms(); fillProspectusMajors(''); document.getElementById('prospectusModalTitle').textContent = 'Upload Prospectus'; openDialog(document.getElementById('prospectusModal')); };
         document.getElementById('closeProspectusModal').onclick = () => closeDialog(document.getElementById('prospectusModal'));
-        document.getElementById('closeCourseLinkModal').onclick = () => closeDialog(document.getElementById('courseLinkModal'));
+        document.getElementById('deleteProspectusPdfBtn').onclick = () => {
+            if (!selectedProspectusId || !window.confirm('Remove the PDF attached to this prospectus?')) return;
+            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_document', prospectus_id: selectedProspectusId }) })
+                .then(response => response.json())
+                .then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); })
+                .catch(error => toast(error.message, true));
+        };
         document.getElementById('prospectusRecordsBody').onclick = event => {
                 const select = event.target.closest('[data-select-prospectus]');
                 const edit = event.target.closest('[data-edit-prospectus]');
                 const del = event.target.closest('[data-delete-prospectus-record]');
                 if (select) { selectedProspectusId = Number(select.dataset.selectProspectus); renderProspectusRecords(); renderCurriculum(); }
-                if (edit) { const item = prospectusData.prospectuses.find(record => Number(record.id) === Number(edit.dataset.editProspectus)); if (!item) return; prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = item.id; fillProspectusPrograms(item.program_id); fillProspectusMajors(item.program_id, item.major_id); document.getElementById('prospectusRecordTitle').value = item.title; document.getElementById('prospectusRecordYear').value = item.curriculum_year; document.getElementById('prospectusModalTitle').textContent = 'Edit Prospectus'; openDialog(document.getElementById('prospectusModal')); }
+                if (edit) { const item = prospectusData.prospectuses.find(record => Number(record.id) === Number(edit.dataset.editProspectus)); if (!item) return; prospectusRecordForm.reset(); document.getElementById('prospectusRecordFile').required = false; document.getElementById('prospectusRecordId').value = item.id; fillProspectusPrograms(item.program_id); fillProspectusMajors(item.program_id, item.major_id); document.getElementById('prospectusRecordTitle').value = item.title; document.getElementById('prospectusRecordYear').value = item.curriculum_year; document.getElementById('prospectusModalTitle').textContent = 'Edit Prospectus'; openDialog(document.getElementById('prospectusModal')); }
                 if (del) { const password = window.prompt('Enter your current password to permanently delete this prospectus.'); if (password === null) return; fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_record', id: del.dataset.deleteProspectusRecord, current_password: password }) }).then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); if (selectedProspectusId === Number(del.dataset.deleteProspectusRecord)) selectedProspectusId = 0; toast(result.message); loadProspectusData(); }).catch(error => toast(error.message, true)); }
         };
-        document.getElementById('addCurriculumCourseBtn').onclick = () => { const item = prospectusData.prospectuses.find(record => Number(record.id) === selectedProspectusId); if (!item) return; const linked = new Set(prospectusData.courses.filter(link => Number(link.prospectus_id) === selectedProspectusId).map(link => Number(link.course_id))); const available = prospectusData.availableCourses.filter(course => Number(course.program_id) === Number(item.program_id) && (!item.major_id || Number(course.major_id) === Number(item.major_id)) && !linked.has(Number(course.id))); document.getElementById('linkCourseSelect').innerHTML = available.map(course => `<option value="${course.id}">${esc(course.code)} - ${esc(course.name)}${course.units ? ` (${course.units} units)` : ''}</option>`).join('') || '<option value="">No available courses</option>'; openDialog(document.getElementById('courseLinkModal')); };
-        prospectusRecordForm.onsubmit = event => { event.preventDefault(); const data = new FormData(prospectusRecordForm); data.append('action', 'save_prospectus'); fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data }).then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); closeDialog(document.getElementById('prospectusModal')); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)); };
-        courseLinkForm.onsubmit = event => { event.preventDefault(); const data = new FormData(courseLinkForm); data.append('action', 'link_prospectus_course'); data.append('prospectus_id', selectedProspectusId); fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data }).then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); closeDialog(document.getElementById('courseLinkModal')); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)); };
-        document.getElementById('curriculumGroups').onclick = event => { const button = event.target.closest('[data-unlink-course]'); if (!button || !window.confirm('Remove this course from the prospectus?')) return; fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'unlink_prospectus_course', id: button.dataset.unlinkCourse }) }).then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)); };
+        const uploadProspectusFile = (prospectusId, file, button) => {
+            if (!file) return;
+            const data = new FormData();
+            data.append('action', 'upload_prospectus');
+            data.append('prospectus_id', prospectusId);
+            data.append('prospectus', file);
+            setBusy(button, true, 'Uploading...');
+            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data })
+                .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)).finally(() => setBusy(button, false));
+        };
+        prospectusRecordsBody.addEventListener('click', event => {
+            const replaceButton = event.target.closest('[data-row-replace]');
+            if (replaceButton) {
+                replaceButton.closest('tr')?.querySelector(`[data-row-file="${replaceButton.dataset.rowReplace}"]`)?.click();
+                return;
+            }
+            const removeButton = event.target.closest('[data-delete-prospectus-pdf]');
+            if (!removeButton || !window.confirm('Remove this prospectus PDF?')) return;
+            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_document', prospectus_id: removeButton.dataset.deleteProspectusPdf }) })
+                .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true));
+        });
+            prospectusRecordsBody.addEventListener('change', event => {
+                const fileInput = event.target.closest('input[data-row-file]');
+                if (!fileInput) return;
+                uploadProspectusFile(fileInput.dataset.rowFile, fileInput.files[0], fileInput.closest('tr')?.querySelector('[data-row-replace]'));
+            });
+        prospectusRecordsBody.addEventListener('submit', event => {
+            const uploadForm = event.target.closest('[data-row-upload]');
+            if (!uploadForm) return;
+            event.preventDefault();
+            const file = uploadForm.querySelector('[data-row-file]').files[0];
+            if (!file) return;
+            const data = new FormData();
+            data.append('action', 'upload_prospectus');
+            data.append('prospectus_id', uploadForm.dataset.rowUpload);
+            data.append('prospectus', file);
+            const button = uploadForm.querySelector('button[type="submit"]');
+            setBusy(button, true, 'Uploading...');
+            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data })
+                .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)).finally(() => setBusy(button, false));
+        });
+        prospectusRecordForm.onsubmit = event => {
+            event.preventDefault();
+            if (!prospectusRecordForm.reportValidity()) return;
+            const data = new FormData(prospectusRecordForm);
+            const file = document.getElementById('prospectusRecordFile').files[0];
+            data.append('action', 'save_prospectus');
+            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data })
+                .then(response => response.json())
+                .then(result => {
+                    if (!result.success) throw new Error(result.message);
+                    selectedProspectusId = Number(result.id);
+                    if (!file) return result;
+                    const upload = new FormData();
+                    upload.append('action', 'upload_prospectus');
+                    upload.append('prospectus_id', result.id);
+                    upload.append('prospectus', file);
+                    return fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: upload }).then(response => response.json()).then(uploadResult => { if (!uploadResult.success) throw new Error(uploadResult.message); return uploadResult; });
+                })
+                .then(result => { closeDialog(document.getElementById('prospectusModal')); toast(result.message); return loadProspectusData(); })
+                .catch(error => toast(error.message, true));
+        };
         loadProspectusData().catch(error => { document.getElementById('prospectusStatus').textContent = error.message; toast(`Prospectuses could not be loaded. ${error.message}`, true); });
   load();
 })();

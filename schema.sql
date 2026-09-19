@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS colleges (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL UNIQUE,
-    code VARCHAR(30) DEFAULT NULL,
     status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -30,7 +29,6 @@ CREATE TABLE IF NOT EXISTS programs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     college_id INT NOT NULL,
     name VARCHAR(180) NOT NULL,
-    code VARCHAR(30) DEFAULT NULL,
     status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_program_college_name (college_id, name),
@@ -41,7 +39,6 @@ CREATE TABLE IF NOT EXISTS majors (
     id INT AUTO_INCREMENT PRIMARY KEY,
     program_id INT NOT NULL,
     name VARCHAR(180) NOT NULL,
-    code VARCHAR(30) DEFAULT NULL,
     status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_major_program_name (program_id, name),
@@ -66,21 +63,11 @@ CREATE TABLE IF NOT EXISTS courses (
     CONSTRAINT fk_courses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS program_prospectuses (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    program_id INT NOT NULL UNIQUE,
-    file_name VARCHAR(255) NOT NULL,
-    file_path VARCHAR(255) NOT NULL,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_prospectus_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
-
--- Prospectus records and their ordered curriculum course links.
+-- Prospectus records assigned to a program or optional major.
 CREATE TABLE IF NOT EXISTS prospectuses (
     id INT AUTO_INCREMENT PRIMARY KEY,
     program_id INT NOT NULL,
     major_id INT DEFAULT NULL,
-    title VARCHAR(255) NOT NULL,
     curriculum_year VARCHAR(30) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -90,18 +77,32 @@ CREATE TABLE IF NOT EXISTS prospectuses (
     CONSTRAINT fk_prospectuses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS prospectus_courses (
+CREATE TABLE IF NOT EXISTS prospectus_documents (
     id INT AUTO_INCREMENT PRIMARY KEY,
     prospectus_id INT NOT NULL,
-    course_id INT NOT NULL,
-    year_level TINYINT UNSIGNED NOT NULL,
-    semester TINYINT UNSIGNED NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_prospectus_course (prospectus_id, course_id),
-    INDEX idx_prospectus_courses_term (prospectus_id, year_level, semester),
-    CONSTRAINT fk_prospectus_courses_prospectus FOREIGN KEY (prospectus_id) REFERENCES prospectuses(id) ON DELETE CASCADE,
-    CONSTRAINT fk_prospectus_courses_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_prospectus_document (prospectus_id),
+    CONSTRAINT fk_prospectus_documents_prospectus FOREIGN KEY (prospectus_id) REFERENCES prospectuses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- Remove the retired prospectus title from older installations.
+SET @prospectus_title_exists = (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'prospectuses'
+      AND COLUMN_NAME = 'title'
+);
+SET @drop_prospectus_title = IF(
+    @prospectus_title_exists > 0,
+    'ALTER TABLE prospectuses DROP COLUMN title',
+    'SELECT 1'
+);
+PREPARE drop_prospectus_title FROM @drop_prospectus_title;
+EXECUTE drop_prospectus_title;
+DEALLOCATE PREPARE drop_prospectus_title;
 
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -290,22 +291,20 @@ PREPARE drop_departments_table FROM @drop_departments_table;
 EXECUTE drop_departments_table;
 DEALLOCATE PREPARE drop_departments_table;
 
--- Upgrade existing organization records with searchable metadata.
-SET @organization_metadata = (
-    SELECT GROUP_CONCAT(sql_part SEPARATOR ' ')
-    FROM (
-        SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'colleges' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE colleges ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '') AS sql_part
-        UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE programs ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
-        UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE majors ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
-    ) metadata_parts
-);
--- Run individual upgrades below because MySQL prepared statements accept one ALTER at a time.
-SET @organization_table = 'colleges';
-SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE colleges ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
-SET @organization_table = 'programs';
-SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE programs ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
-SET @organization_table = 'majors';
-SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE majors ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
+-- Remove retired tables and organization code columns from older installations.
+DROP TABLE IF EXISTS prospectus_courses, program_prospectuses;
+SET @drop_college_code = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'colleges' AND COLUMN_NAME = 'code') > 0, 'ALTER TABLE colleges DROP COLUMN code', 'SELECT 1');
+PREPARE drop_college_code_stmt FROM @drop_college_code;
+EXECUTE drop_college_code_stmt;
+DEALLOCATE PREPARE drop_college_code_stmt;
+SET @drop_program_code = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'code') > 0, 'ALTER TABLE programs DROP COLUMN code', 'SELECT 1');
+PREPARE drop_program_code_stmt FROM @drop_program_code;
+EXECUTE drop_program_code_stmt;
+DEALLOCATE PREPARE drop_program_code_stmt;
+SET @drop_major_code = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors' AND COLUMN_NAME = 'code') > 0, 'ALTER TABLE majors DROP COLUMN code', 'SELECT 1');
+PREPARE drop_major_code_stmt FROM @drop_major_code;
+EXECUTE drop_major_code_stmt;
+DEALLOCATE PREPARE drop_major_code_stmt;
 
 -- Table: login_attempts (used for rate limiting / brute-force protection)
 CREATE TABLE IF NOT EXISTS login_attempts (
