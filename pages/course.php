@@ -25,8 +25,7 @@ if (!$pdo) {
 try {
     foreach ([
         "ALTER TABLE courses MODIFY COLUMN program_id INT DEFAULT NULL",
-        "ALTER TABLE courses ADD COLUMN units TINYINT UNSIGNED DEFAULT NULL AFTER description",
-        "ALTER TABLE courses ADD COLUMN type VARCHAR(30) NOT NULL DEFAULT 'Major' AFTER units",
+        "ALTER TABLE courses ADD COLUMN type VARCHAR(30) NOT NULL DEFAULT 'Major' AFTER description",
         "ALTER TABLE courses ADD COLUMN status ENUM('active', 'inactive') NOT NULL DEFAULT 'active' AFTER type",
     ] as $upgrade) {
         try {
@@ -79,7 +78,7 @@ if ($action !== null) {
                     $params[':program_id'] = $programId;
                 }
 
-                $sql = 'SELECT c.id, c.code, c.name, c.description, c.units, c.type, c.status, c.year_level, c.program_id, c.major_id, p.name AS program_name, col.id AS college_id, col.name AS college_name, m.name AS major_name FROM courses c LEFT JOIN programs p ON p.id = c.program_id LEFT JOIN colleges col ON col.id = p.college_id LEFT JOIN majors m ON m.id = c.major_id';
+                $sql = 'SELECT c.id, c.code, c.name, c.description, c.type, c.status, c.year_level, c.program_id, c.major_id, p.name AS program_name, col.id AS college_id, col.name AS college_name, m.name AS major_name FROM courses c LEFT JOIN programs p ON p.id = c.program_id LEFT JOIN colleges col ON col.id = p.college_id LEFT JOIN majors m ON m.id = c.major_id';
                 if ($where) {
                     $sql .= ' WHERE ' . implode(' AND ', $where);
                 }
@@ -94,7 +93,6 @@ if ($action !== null) {
                         'code' => $course['code'],
                         'name' => $course['name'],
                         'description' => $course['description'] ?? '',
-                        'units' => $course['units'] !== null ? (int) $course['units'] : null,
                         'type' => $course['type'],
                         'status' => $course['status'],
                         'yearLevel' => $course['year_level'] !== null ? (int) $course['year_level'] : null,
@@ -156,7 +154,6 @@ if ($action !== null) {
                 $name = trim((string) ($_POST['name'] ?? ''));
                 $programId = (int) ($_POST['program_id'] ?? 0) ?: null;
                 $majorId = (int) ($_POST['major_id'] ?? 0) ?: null;
-                $units = ($_POST['units'] ?? '') !== '' ? max(0, min(255, (int) $_POST['units'])) : null;
                 $yearLevel = ($_POST['year_level'] ?? '') !== '' ? max(1, min(8, (int) $_POST['year_level'])) : null;
                 $type = trim((string) ($_POST['type'] ?? 'Major'));
                 $status = ($_POST['status'] ?? 'active') === 'inactive' ? 'inactive' : 'active';
@@ -189,10 +186,10 @@ if ($action !== null) {
                 }
 
                 if ($id > 0) {
-                    $stmt = $pdo->prepare('UPDATE courses SET program_id = :program_id, major_id = :major_id, code = :code, name = :name, description = :description, units = :units, type = :type, status = :status, year_level = :year_level WHERE id = :id');
+                    $stmt = $pdo->prepare('UPDATE courses SET program_id = :program_id, major_id = :major_id, code = :code, name = :name, description = :description, type = :type, status = :status, year_level = :year_level WHERE id = :id');
                     $stmt->bindValue(':id', $id, PDO::PARAM_INT);
                 } else {
-                    $stmt = $pdo->prepare('INSERT INTO courses (program_id, major_id, code, name, description, units, type, status, year_level) VALUES (:program_id, :major_id, :code, :name, :description, :units, :type, :status, :year_level)');
+                    $stmt = $pdo->prepare('INSERT INTO courses (program_id, major_id, code, name, description, type, status, year_level) VALUES (:program_id, :major_id, :code, :name, :description, :type, :status, :year_level)');
                 }
 
                 $stmt->bindValue(':program_id', $programId, $programId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
@@ -200,7 +197,6 @@ if ($action !== null) {
                 $stmt->bindValue(':code', $code);
                 $stmt->bindValue(':name', $name);
                 $stmt->bindValue(':description', $description !== '' ? $description : null, $description !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
-                $stmt->bindValue(':units', $units, $units === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
                 $stmt->bindValue(':type', $type !== '' ? $type : 'Major');
                 $stmt->bindValue(':status', $status);
                 $stmt->bindValue(':year_level', $yearLevel, $yearLevel === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
@@ -276,7 +272,8 @@ if ($action !== null) {
             <table class="w-full min-w-[1050px] text-left text-sm">
                 <thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
-                        <th class="px-3 py-3">Course</th>
+                        <th class="px-3 py-3">Course code</th>
+                        <th class="px-3 py-3">Course name</th>
                         <th class="px-3 py-3">Details</th>
                         <th class="px-3 py-3">Academic link</th>
                         <th class="px-3 py-3">Status</th>
@@ -312,11 +309,6 @@ if ($action !== null) {
             <label class="text-sm font-semibold text-slate-700">
                 Course name
                 <input name="name" id="courseName" maxlength="180" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
-            </label>
-
-            <label class="text-sm font-semibold text-slate-700">
-                Units
-                <input name="units" id="courseUnits" type="number" min="0" max="255" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
             </label>
 
             <label class="text-sm font-semibold text-slate-700">
@@ -494,7 +486,6 @@ if ($action !== null) {
         $('courseId').value = course?.id || '';
         $('courseCode').value = course?.code || '';
         $('courseName').value = course?.name || '';
-        $('courseUnits').value = course?.units ?? '';
         $('courseType').value = course?.type || 'Major';
         $('courseYear').value = course?.yearLevel ?? '';
         $('courseDescription').value = course?.description || '';
@@ -539,10 +530,6 @@ if ($action !== null) {
                     <p class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800">${esc(course.description || 'No description provided.')}</p>
 
                     <dl class="mt-6 divide-y divide-slate-100 rounded-xl border border-slate-200">
-                        <div class="flex justify-between gap-4 px-4 py-3">
-                            <dt class="text-sm text-slate-500">Units</dt>
-                            <dd class="text-right text-sm font-medium text-slate-800">${course.units ?? 'Not set'}</dd>
-                        </div>
                         <div class="flex justify-between gap-4 px-4 py-3">
                             <dt class="text-sm text-slate-500">Type</dt>
                             <dd class="text-right text-sm font-medium text-slate-800">${esc(course.type)}</dd>
@@ -671,11 +658,11 @@ if ($action !== null) {
                 <tr class="align-top hover:bg-slate-50">
                     <td class="px-3 py-4">
                         <div class="font-bold text-slate-900">${esc(course.code)}</div>
-                        <div class="mt-1 text-slate-600">${esc(course.name)}</div>
                     </td>
                     <td class="px-3 py-4 text-slate-600">
-                        <span>${course.units !== null ? `${course.units} unit${course.units === 1 ? '' : 's'}` : 'Units not set'}</span>
-                        <span class="mx-1 text-slate-300">|</span>
+                        <div class="font-medium text-slate-800">${esc(course.name)}</div>
+                    </td>
+                    <td class="px-3 py-4 text-slate-600">
                         <span>${esc(course.type)}</span>
                         ${course.yearLevel ? `<div class="mt-1 text-xs text-slate-500">Year ${course.yearLevel}</div>` : ''}
                     </td>

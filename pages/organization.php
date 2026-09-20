@@ -9,20 +9,6 @@ if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQU
 }
 requireLogin();
 
-if ($pdo) {
-    try {
-        $pdo->exec("CREATE TABLE IF NOT EXISTS prospectuses (id INT AUTO_INCREMENT PRIMARY KEY, program_id INT NOT NULL, major_id INT DEFAULT NULL, curriculum_year VARCHAR(30) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_prospectuses_program (program_id), INDEX idx_prospectuses_major (major_id), CONSTRAINT fk_prospectuses_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE, CONSTRAINT fk_prospectuses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE) ENGINE=InnoDB");
-        $pdo->exec("CREATE TABLE IF NOT EXISTS prospectus_documents (id INT AUTO_INCREMENT PRIMARY KEY, prospectus_id INT NOT NULL, file_name VARCHAR(255) NOT NULL, file_path VARCHAR(255) NOT NULL, uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY uq_prospectus_document (prospectus_id), CONSTRAINT fk_prospectus_documents_prospectus FOREIGN KEY (prospectus_id) REFERENCES prospectuses(id) ON DELETE CASCADE) ENGINE=InnoDB");
-        $titleColumn = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'prospectuses' AND COLUMN_NAME = 'title'")->fetchColumn();
-        if ((int)$titleColumn > 0) $pdo->exec('ALTER TABLE prospectuses DROP COLUMN title');
-        $pdo->exec('DROP TABLE IF EXISTS prospectus_courses, program_prospectuses');
-        foreach (['colleges', 'programs', 'majors'] as $organizationTable) {
-            $codeColumn = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{$organizationTable}' AND COLUMN_NAME = 'code'")->fetchColumn();
-            if ((int)$codeColumn > 0) $pdo->exec("ALTER TABLE {$organizationTable} DROP COLUMN code");
-        }
-    } catch (PDOException $ignored) { }
-}
-
 function organizationJson(array $payload, int $status = 200): never {
     http_response_code($status);
     header('Content-Type: application/json; charset=UTF-8');
@@ -63,19 +49,60 @@ if ($action !== null) {
 
         if ($action === 'list') {
             $colleges = $pdo->query('SELECT id, name, status FROM colleges ORDER BY name')->fetchAll();
+            $programs = $pdo->query('SELECT id, college_id, name, status FROM programs ORDER BY name')->fetchAll();
+            $majors = $pdo->query('SELECT id, program_id, name, status FROM majors ORDER BY name')->fetchAll();
+            $courses = $pdo->query('SELECT id, program_id, major_id, code, name, description, year_level, status FROM courses ORDER BY code, name')->fetchAll();
+
+            $collegeMap = [];
+            $programMap = [];
+
             foreach ($colleges as &$college) {
-                    $stmt = $pdo->prepare('SELECT id, name, status FROM programs WHERE college_id = :id ORDER BY name');
-                    $stmt->execute([':id' => $college['id']]);
-                    $college['programs'] = $stmt->fetchAll();
-                    foreach ($college['programs'] as &$program) {
-                        $stmt = $pdo->prepare('SELECT id, name, status FROM majors WHERE program_id = :id ORDER BY name');
-                        $stmt->execute([':id' => $program['id']]);
-                        $program['majors'] = $stmt->fetchAll();
-                        $program['courses'] = [];
+                $college['programs'] = [];
+                $college['departments'] = [['id' => 0, 'name' => 'Academic programs', 'programs' => []]];
+                $collegeMap[(int) $college['id']] = &$college;
+            }
+            unset($college);
+
+            foreach ($programs as &$program) {
+                $program['majors'] = [];
+                $program['courses'] = [];
+                $programMap[(int) $program['id']] = &$program;
+
+                $collegeId = (int) $program['college_id'];
+                if (isset($collegeMap[$collegeId])) {
+                    $collegeMap[$collegeId]['programs'][] = &$program;
+                }
+            }
+            unset($program);
+
+            foreach ($majors as &$major) {
+                $programId = (int) $major['program_id'];
+                if (isset($programMap[$programId])) {
+                    $programMap[$programId]['majors'][] = &$major;
+                }
+            }
+            unset($major);
+
+            foreach ($courses as &$course) {
+                $programId = (int) $course['program_id'];
+                if (isset($programMap[$programId])) {
+                    if ($course['major_id'] !== null) {
+                        $majorId = (int) $course['major_id'];
+                        $majorKey = array_search($majorId, array_map(static fn ($major) => (int) $major['id'], $programMap[$programId]['majors']), true);
+                        if ($majorKey !== false) {
+                            $programMap[$programId]['majors'][$majorKey]['courseCount'] = ($programMap[$programId]['majors'][$majorKey]['courseCount'] ?? 0) + 1;
                         }
-                        $college['departments'] = [['id' => 0, 'name' => '', 'programs' => $college['programs']]];
                     }
-            unset($college, $program);
+                    $programMap[$programId]['courses'][] = &$course;
+                }
+            }
+            unset($course);
+
+            foreach ($colleges as &$college) {
+                $college['departments'][0]['programs'] = $college['programs'];
+            }
+            unset($college);
+
             $counts = [];
             foreach (['colleges', 'programs', 'majors'] as $table) {
                 $counts[$table] = (int)$pdo->query("SELECT COUNT(*) FROM {$table}")->fetchColumn();
