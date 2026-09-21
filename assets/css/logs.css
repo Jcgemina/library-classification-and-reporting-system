@@ -1,0 +1,58 @@
+.logs-stage {
+  position: relative;
+}
+
+.log-panel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.log-panel.is-active {
+  position: relative;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.log-table-shell {
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.log-filter-form {
+  margin: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.log-results-card {
+  margin: 0 1rem 1rem;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.log-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: linear-gradient(to top, #ffffff, #f8fafc);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .log-panel {
+    transition: none;
+  }
+}
