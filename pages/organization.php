@@ -24,34 +24,32 @@ if ($action !== null) {
     }
 
     try {
-        if ($action === 'records') {
+        if ($action === 'list') {
+            $colleges = $pdo->query('SELECT id, name, status, created_at FROM colleges ORDER BY name')->fetchAll();
+            $programs = $pdo->query('SELECT id, college_id, name, status, created_at FROM programs ORDER BY name')->fetchAll();
+            $majors = $pdo->query('SELECT id, program_id, name, status, created_at FROM majors ORDER BY name')->fetchAll();
+            $courses = $pdo->query('SELECT id, program_id, major_id, code, name, description, year_level, status FROM courses ORDER BY code, name')->fetchAll();
+
             $records = [];
-            $queries = [
-                ['table' => 'colleges', 'type' => 'University / College', 'parentColumn' => null],
-                ['table' => 'programs', 'type' => 'Program', 'parentColumn' => 'college_id'],
-                ['table' => 'majors', 'type' => 'Major', 'parentColumn' => 'program_id'],
-            ];
-            foreach ($queries as $query) {
-                $parentSelect = $query['parentColumn'] ? ', ' . $query['parentColumn'] : '';
-                $descriptionSelect = $query['table'] === 'courses' ? ', description' : '';
-                $statusSelect = $query['table'] === 'courses' ? ", 'active' AS status" : ', status';
-                $rows = $pdo->query("SELECT id, name{$descriptionSelect}, created_at{$parentSelect}{$statusSelect} FROM {$query['table']} ORDER BY name")->fetchAll();
+            foreach ([
+                [$colleges, 'University / College', 'college', null],
+                [$programs, 'Program', 'program', 'college_id'],
+                [$majors, 'Major', 'major', 'program_id'],
+            ] as [$rows, $type, $entity, $parentColumn]) {
                 foreach ($rows as $row) {
                     $records[] = [
-                        'id' => (int)$row['id'], 'name' => $row['name'], 'code' => '',
-                        'type' => $query['type'], 'entity' => rtrim($query['table'], 's'), 'parentId' => $query['parentColumn'] ? (int)$row[$query['parentColumn']] : null,
-                        'status' => $row['status'] ?? 'active', 'description' => $row['description'] ?? '', 'createdAt' => $row['created_at'],
+                        'id' => (int)$row['id'],
+                        'name' => $row['name'],
+                        'code' => '',
+                        'type' => $type,
+                        'entity' => $entity,
+                        'parentId' => $parentColumn ? (int)$row[$parentColumn] : null,
+                        'status' => $row['status'] ?? 'active',
+                        'description' => '',
+                        'createdAt' => $row['created_at'],
                     ];
                 }
             }
-            organizationJson(['success' => true, 'records' => $records]);
-        }
-
-        if ($action === 'list') {
-            $colleges = $pdo->query('SELECT id, name, status FROM colleges ORDER BY name')->fetchAll();
-            $programs = $pdo->query('SELECT id, college_id, name, status FROM programs ORDER BY name')->fetchAll();
-            $majors = $pdo->query('SELECT id, program_id, name, status FROM majors ORDER BY name')->fetchAll();
-            $courses = $pdo->query('SELECT id, program_id, major_id, code, name, description, year_level, status FROM courses ORDER BY code, name')->fetchAll();
 
             $collegeMap = [];
             $programMap = [];
@@ -103,11 +101,12 @@ if ($action !== null) {
             }
             unset($college);
 
-            $counts = [];
-            foreach (['colleges', 'programs', 'majors'] as $table) {
-                $counts[$table] = (int)$pdo->query("SELECT COUNT(*) FROM {$table}")->fetchColumn();
-            }
-            organizationJson(['success' => true, 'colleges' => $colleges, 'counts' => $counts]);
+            $counts = [
+                'colleges' => count($colleges),
+                'programs' => count($programs),
+                'majors' => count($majors),
+            ];
+            organizationJson(['success' => true, 'colleges' => $colleges, 'counts' => $counts, 'records' => $records]);
         }
 
         if ($action === 'prospectus_data') {
@@ -343,10 +342,13 @@ if ($action !== null) {
                 </div>
                 <div id="organizationTree" class="space-y-2"></div>
         </section>
-        <div class="grid grid-cols-12 items-start gap-6">
+        <div class="grid grid-cols-6 items-start gap-6">
             <details class="col-span-12 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-8">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                    <div><h3 class="text-xl font-bold text-slate-900">Secondary records view</h3><p class="text-sm text-slate-500">Optional: search and filter records after the hierarchy is in place.</p></div>
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900">Secondary records view</h3>
+                        <p class="text-sm text-slate-500">Optional: search and filter records after the hierarchy is in place.</p>
+                    </div>
                     <i data-lucide="chevron-down" class="h-5 w-5 shrink-0 text-slate-500 transition-transform"></i>
                 </summary>
                 <div class="mt-5">
@@ -843,20 +845,29 @@ if ($action !== null) {
                         return `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3 text-right"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-slate-600 hover:underline">${record.status === 'archived' ? 'Restore' : 'Archive'}</button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
                     }).join('') : '<tr><td colspan="4" class="px-3 py-8 text-center text-sm italic text-slate-400">No organization records match your search.</td></tr>';
     }
-    function loadRecords() {
-            fetch('pages/organization.php?action=records', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); organizationRecords = result.records || []; renderRecords(); }).catch(error => toast(`Records could not be loaded. ${error.message}`, true));
-    }
-    function load() {
-        fetch('pages/organization.php?action=list', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(response => response.json())
-            .then(result => {
-                if (!result.success) throw new Error(result.message);
-                render(result);
-                setOrganizationStatus(defaultHierarchyStatus);
-                loadRecords();
-            })
-            .catch(error => { setOrganizationStatus('Organization could not be loaded', true); toast(`Organization could not be loaded. ${error.message}`, true); });
+function load() {
+    fetch(
+        'pages/organization.php?action=list',
+        { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+    ).then(response => response.json())
+        .then(result => {
+            if (!result.success) throw new Error(result.message);
+            render(result);
+            organizationRecords = result.records || [];
+            renderRecords();
+            setOrganizationStatus(defaultHierarchyStatus);
+        })
+        .catch(error => {
+            setOrganizationStatus(
+                'Organization could not be loaded',
+                true
+            );
+
+            toast(
+                `Organization could not be loaded. ${error.message}`,
+                true
+            );
+        });
     }
     document.getElementById('addCollegeBtn').onclick = openHierarchyForm;
     tree.onclick = event => {
