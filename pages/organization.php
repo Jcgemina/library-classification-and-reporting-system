@@ -19,8 +19,8 @@ function organizationJson(array $payload, int $status = 200): never {
 $action = $_GET['action'] ?? $_POST['action'] ?? null;
 if ($action !== null) {
     if (!$pdo) organizationJson(['success' => false, 'message' => 'Database unavailable.'], 503);
-    if ($action !== 'list' && strtolower((string)($_SESSION['role'] ?? '')) !== 'admin') {
-        organizationJson(['success' => false, 'message' => 'Admin access required.'], 403);
+    if (!in_array(strtolower((string)($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)) {
+        organizationJson(['success' => false, 'message' => 'Academic access required.'], 403);
     }
 
     try {

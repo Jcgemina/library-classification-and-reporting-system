@@ -228,7 +228,7 @@
                 </div>
 
                 <label class="mt-5 block text-sm font-semibold text-slate-700">
-                    Administrator password
+                    Current password
                     <input type="password" data-course-delete-password autocomplete="current-password" class="mt-2 w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200" placeholder="Enter your password">
                 </label>
 
@@ -250,7 +250,7 @@
         modal.querySelector('[data-course-delete-confirm]').onclick = async () => {
             const password = modal.querySelector('[data-course-delete-password]').value;
             if (!password) {
-                toast('Enter the administrator password to continue.', true);
+                toast('Enter your current password to continue.', true);
                 return;
             }
 
