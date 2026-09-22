@@ -24,9 +24,9 @@ if (!$pdo) {
 
 $action = $_GET['action'] ?? $_POST['action'] ?? null;
 if ($action !== null) {
-    $isAdmin = strtolower((string) ($_SESSION['role'] ?? '')) === 'admin';
-    if ($action !== 'list' && !$isAdmin) {
-        courseJson(['success' => false, 'message' => 'Admin access required.'], 403);
+    $canManageCourses = in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true);
+    if (!$canManageCourses) {
+        courseJson(['success' => false, 'message' => 'Course access required.'], 403);
     }
 
     try {
@@ -203,7 +203,7 @@ if ($action !== null) {
 }
 ?>
 
-<div class="space-y-6" data-course-page data-course-admin="<?php echo strtolower((string) ($_SESSION['role'] ?? '')) === 'admin' ? 'true' : 'false'; ?>">
+<div class="space-y-6" data-course-page data-course-admin="<?php echo in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true) ? 'true' : 'false'; ?>">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
             <p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Academic catalog</p>
@@ -211,7 +211,7 @@ if ($action !== null) {
             <p class="mt-1 text-sm text-slate-500">Maintain course records and their links to colleges, programs, and majors.</p>
         </div>
 
-        <?php if (strtolower((string) ($_SESSION['role'] ?? '')) === 'admin'): ?>
+        <?php if (in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)): ?>
             <button type="button" id="addCourseBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700">
                 <i data-lucide="plus" class="h-4 w-4"></i>
                 Add Course
