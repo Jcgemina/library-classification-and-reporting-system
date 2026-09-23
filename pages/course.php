@@ -119,13 +119,6 @@ if ($action !== null) {
 
                 courseJson(['success' => true, 'message' => 'Course deleted successfully.']);
 
-            case 'unlink':
-                $id = (int) ($_POST['id'] ?? 0);
-                $stmt = $pdo->prepare('UPDATE courses SET program_id = NULL, major_id = NULL WHERE id = :id');
-                $stmt->execute([':id' => $id]);
-
-                courseJson(['success' => true, 'message' => 'Course academic link removed.']);
-
             case 'toggle_status':
                 $id = (int) ($_POST['id'] ?? 0);
                 $stmt = $pdo->prepare("UPDATE courses SET status = CASE WHEN status = 'active' THEN 'inactive' ELSE 'active' END WHERE id = :id");

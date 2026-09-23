@@ -125,6 +125,15 @@
     return initials + lastName;
   }
 
+  function getPasswordError(password) {
+    if (password.length < 8) return 'Password must be at least 8 characters.';
+    if (password.length > 128) return 'Password must not exceed 128 characters.';
+    if (!/[A-Za-z]/.test(password)) return 'Password must contain at least one letter.';
+    if (!/[0-9]/.test(password)) return 'Password must contain at least one number.';
+    if (!/[^A-Za-z0-9]/.test(password)) return 'Password must contain at least one special character.';
+    return null;
+  }
+
   function renderPagination(totalPages) {
     const pagination = document.getElementById('librarianPagination');
     if (!pagination || totalPages <= 1) {
@@ -811,12 +820,22 @@
     payload.set('fullName', capitalizeFullName(String(formData.get('fullName') || '')));
     payload.set('email', String(formData.get('email') || '').trim());
     payload.set('username', String(formData.get('username') || '').trim());
-    payload.set('password', String(formData.get('password') || '').trim());
+    const password = String(formData.get('password') || '');
+    payload.set('password', password);
     payload.set('role', String(formData.get('role') || ''));
 
     if (!payload.get('role')) {
       showToast('Please select a role.', 'error');
       return;
+    }
+
+    if (password !== '') {
+      const passwordError = getPasswordError(password);
+      if (passwordError) {
+        showToast(passwordError, 'error');
+        document.getElementById('password').focus();
+        return;
+      }
     }
 
     const editingId = document.getElementById('librarianId').value;

@@ -310,7 +310,6 @@
                             ${admin ? `
                                 <button type="button" data-edit="${course.id}" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-rose-400 hover:text-rose-700">Edit</button>
                                 <button type="button" data-toggle="${course.id}" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700">${course.status === 'active' ? 'Deactivate' : 'Activate'}</button>
-                                <button type="button" data-unlink="${course.id}" class="rounded-md border border-amber-300 px-2.5 py-1.5 text-xs font-semibold text-amber-700">Unlink</button>
                                 <button type="button" data-delete="${course.id}" class="rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600">Delete</button>
                             ` : ''}
                         </div>
@@ -418,7 +417,7 @@
             return;
         }
 
-        const id = Number(button.dataset.edit || button.dataset.toggle || button.dataset.unlink || button.dataset.delete || button.dataset.view || button.dataset.detailsDelete || 0);
+        const id = Number(button.dataset.edit || button.dataset.toggle || button.dataset.delete || button.dataset.view || button.dataset.detailsDelete || 0);
         const course = state.courses.find((item) => item.id === id);
 
         try {
@@ -440,16 +439,6 @@
                 const data = await request('', {
                     method: 'POST',
                     body: new URLSearchParams({ action: 'toggle_status', id })
-                });
-                toast(data.message);
-                await loadCourses();
-                return;
-            }
-
-            if (button.dataset.unlink && confirm('Remove this course from its program and major? The course record will remain.')) {
-                const data = await request('', {
-                    method: 'POST',
-                    body: new URLSearchParams({ action: 'unlink', id })
                 });
                 toast(data.message);
                 await loadCourses();
