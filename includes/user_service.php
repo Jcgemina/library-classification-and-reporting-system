@@ -131,6 +131,10 @@ function saveUserRecord(PDO $pdo, ?int $id, string $fullName, string $email, str
         userJson(['success' => false, 'message' => 'Please select a valid role.'], 422);
     }
 
+    if ($password !== '' && ($passwordError = validatePasswordStrength($password)) !== null) {
+        userJson(['success' => false, 'message' => $passwordError], 422);
+    }
+
     $duplicateUser = findDuplicateUser($pdo, $id, $username, $fullName);
     if ($duplicateUser) {
         $message = strcasecmp((string) $duplicateUser['username'], $username) === 0
