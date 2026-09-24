@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS colleges (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL UNIQUE,
-    code VARCHAR(30) DEFAULT NULL,
     status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -30,7 +29,6 @@ CREATE TABLE IF NOT EXISTS programs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     college_id INT NOT NULL,
     name VARCHAR(180) NOT NULL,
-    code VARCHAR(30) DEFAULT NULL,
     status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_program_college_name (college_id, name),
@@ -41,7 +39,6 @@ CREATE TABLE IF NOT EXISTS majors (
     id INT AUTO_INCREMENT PRIMARY KEY,
     program_id INT NOT NULL,
     name VARCHAR(180) NOT NULL,
-    code VARCHAR(30) DEFAULT NULL,
     status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_major_program_name (program_id, name),
@@ -50,11 +47,14 @@ CREATE TABLE IF NOT EXISTS majors (
 
 CREATE TABLE IF NOT EXISTS courses (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    program_id INT NOT NULL,
+    program_id INT DEFAULT NULL,
     major_id INT DEFAULT NULL,
     code VARCHAR(30) NOT NULL,
     name VARCHAR(180) NOT NULL,
     description VARCHAR(500) DEFAULT NULL,
+    units TINYINT UNSIGNED DEFAULT NULL,
+    type VARCHAR(30) NOT NULL DEFAULT 'Major',
+    status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
     year_level TINYINT UNSIGNED DEFAULT NULL,
     semester TINYINT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -63,14 +63,46 @@ CREATE TABLE IF NOT EXISTS courses (
     CONSTRAINT fk_courses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS program_prospectuses (
+-- Prospectus records assigned to a program or optional major.
+CREATE TABLE IF NOT EXISTS prospectuses (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    program_id INT NOT NULL UNIQUE,
+    program_id INT NOT NULL,
+    major_id INT DEFAULT NULL,
+    curriculum_year VARCHAR(30) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_prospectuses_program (program_id),
+    INDEX idx_prospectuses_major (major_id),
+    CONSTRAINT fk_prospectuses_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_prospectuses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS prospectus_documents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    prospectus_id INT NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     file_path VARCHAR(255) NOT NULL,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_prospectus_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_prospectus_document (prospectus_id),
+    CONSTRAINT fk_prospectus_documents_prospectus FOREIGN KEY (prospectus_id) REFERENCES prospectuses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- Remove the retired prospectus title from older installations.
+SET @prospectus_title_exists = (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'prospectuses'
+      AND COLUMN_NAME = 'title'
+);
+SET @drop_prospectus_title = IF(
+    @prospectus_title_exists > 0,
+    'ALTER TABLE prospectuses DROP COLUMN title',
+    'SELECT 1'
+);
+PREPARE drop_prospectus_title FROM @drop_prospectus_title;
+EXECUTE drop_prospectus_title;
+DEALLOCATE PREPARE drop_prospectus_title;
 
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -167,6 +199,35 @@ PREPARE add_course_description_column FROM @add_course_description_column;
 EXECUTE add_course_description_column;
 DEALLOCATE PREPARE add_course_description_column;
 
+SET @course_program_nullable = 'ALTER TABLE courses MODIFY COLUMN program_id INT DEFAULT NULL';
+PREPARE course_program_nullable_stmt FROM @course_program_nullable;
+EXECUTE course_program_nullable_stmt;
+DEALLOCATE PREPARE course_program_nullable_stmt;
+
+SET @course_units_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'units');
+SET @add_course_units_column = IF(@course_units_column_exists = 0,
+    'ALTER TABLE courses ADD COLUMN units TINYINT UNSIGNED DEFAULT NULL AFTER description',
+    'SELECT 1');
+PREPARE add_course_units_column FROM @add_course_units_column;
+EXECUTE add_course_units_column;
+DEALLOCATE PREPARE add_course_units_column;
+
+SET @course_type_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'type');
+SET @add_course_type_column = IF(@course_type_column_exists = 0,
+    'ALTER TABLE courses ADD COLUMN type VARCHAR(30) NOT NULL DEFAULT ''Major'' AFTER units',
+    'SELECT 1');
+PREPARE add_course_type_column FROM @add_course_type_column;
+EXECUTE add_course_type_column;
+DEALLOCATE PREPARE add_course_type_column;
+
+SET @course_status_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'status');
+SET @add_course_status_column = IF(@course_status_column_exists = 0,
+    'ALTER TABLE courses ADD COLUMN status ENUM(''active'', ''inactive'') NOT NULL DEFAULT ''active'' AFTER type',
+    'SELECT 1');
+PREPARE add_course_status_column FROM @add_course_status_column;
+EXECUTE add_course_status_column;
+DEALLOCATE PREPARE add_course_status_column;
+
 -- Replace the department layer with a direct college-to-program relationship.
 SET @program_college_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'college_id');
 SET @add_program_college = IF(@program_college_exists = 0,
@@ -230,22 +291,20 @@ PREPARE drop_departments_table FROM @drop_departments_table;
 EXECUTE drop_departments_table;
 DEALLOCATE PREPARE drop_departments_table;
 
--- Upgrade existing organization records with searchable metadata.
-SET @organization_metadata = (
-    SELECT GROUP_CONCAT(sql_part SEPARATOR ' ')
-    FROM (
-        SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'colleges' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE colleges ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '') AS sql_part
-        UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE programs ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
-        UNION ALL SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors' AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE majors ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active'';', '')
-    ) metadata_parts
-);
--- Run individual upgrades below because MySQL prepared statements accept one ALTER at a time.
-SET @organization_table = 'colleges';
-SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE colleges ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
-SET @organization_table = 'programs';
-SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE programs ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
-SET @organization_table = 'majors';
-SET @organization_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @organization_table AND COLUMN_NAME = 'code') = 0, 'ALTER TABLE majors ADD COLUMN code VARCHAR(30) DEFAULT NULL, ADD COLUMN status ENUM(''active'', ''archived'') NOT NULL DEFAULT ''active''', 'SELECT 1'); PREPARE organization_stmt FROM @organization_sql; EXECUTE organization_stmt; DEALLOCATE PREPARE organization_stmt;
+-- Remove retired tables and organization code columns from older installations.
+DROP TABLE IF EXISTS prospectus_courses, program_prospectuses;
+SET @drop_college_code = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'colleges' AND COLUMN_NAME = 'code') > 0, 'ALTER TABLE colleges DROP COLUMN code', 'SELECT 1');
+PREPARE drop_college_code_stmt FROM @drop_college_code;
+EXECUTE drop_college_code_stmt;
+DEALLOCATE PREPARE drop_college_code_stmt;
+SET @drop_program_code = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'code') > 0, 'ALTER TABLE programs DROP COLUMN code', 'SELECT 1');
+PREPARE drop_program_code_stmt FROM @drop_program_code;
+EXECUTE drop_program_code_stmt;
+DEALLOCATE PREPARE drop_program_code_stmt;
+SET @drop_major_code = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors' AND COLUMN_NAME = 'code') > 0, 'ALTER TABLE majors DROP COLUMN code', 'SELECT 1');
+PREPARE drop_major_code_stmt FROM @drop_major_code;
+EXECUTE drop_major_code_stmt;
+DEALLOCATE PREPARE drop_major_code_stmt;
 
 -- Table: login_attempts (used for rate limiting / brute-force protection)
 CREATE TABLE IF NOT EXISTS login_attempts (

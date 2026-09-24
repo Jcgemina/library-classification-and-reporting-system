@@ -5,6 +5,34 @@ if (is_file($composerAutoload)) require_once $composerAutoload;
 
 const MAX_ATTEMPTS = 5;
 const BASE_LOCKOUT_MINUTES = 5;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 128;
+
+function validatePasswordStrength(string $password): ?string {
+    $length = strlen($password);
+
+    if ($length < PASSWORD_MIN_LENGTH) {
+        return 'Password must be at least ' . PASSWORD_MIN_LENGTH . ' characters.';
+    }
+
+    if ($length > PASSWORD_MAX_LENGTH) {
+        return 'Password must not exceed ' . PASSWORD_MAX_LENGTH . ' characters.';
+    }
+
+    if (!preg_match('/[A-Za-z]/', $password)) {
+        return 'Password must contain at least one letter.';
+    }
+
+    if (!preg_match('/[0-9]/', $password)) {
+        return 'Password must contain at least one number.';
+    }
+
+    if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+        return 'Password must contain at least one special character.';
+    }
+
+    return null;
+}
 
 function getClientIp(): string {
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';

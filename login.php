@@ -17,6 +17,7 @@ $errorMessage = $flash['message'];
 $ip = getClientIp();
 $lockSeconds = $pdo ? isRateLimited($pdo, '', $ip) : 0;
 $isLocked = $lockSeconds > 0;
+$hasLoginMessage = $isLocked || $errorMessage;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -45,11 +46,12 @@ $isLocked = $lockSeconds > 0;
       <h2 class="text-xl font-bold text-slate-900 text-center">Welcome Back</h2>
       <p class="text-sm text-slate-500 text-center mt-1 mb-6">Please enter your credentials to continue.</p>
 
-      <?php if ($isLocked || $errorMessage): ?>
-        <div id="lockBanner" class="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+      <?php if ($hasLoginMessage): ?>
+        <div id="lockBanner" tabindex="-1" role="alert" aria-live="assertive" class="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
           <?php if ($isLocked): ?>
-            Too many failed attempts. Please try again in
+            Sign-in is temporarily paused after repeated failed attempts. Please try again in
             <span id="lockTimer" class="font-semibold"><?php echo htmlspecialchars(formatLockoutDuration($lockSeconds), ENT_QUOTES, 'UTF-8'); ?></span>.
+            <a href="forgot_password.php" class="ml-1 font-semibold text-red-800 underline underline-offset-2">Reset your password</a>
           <?php else: ?>
             <?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?>
             <?php if ($flash['attempts'] && $flash['attempts'] > 0): ?>
@@ -62,7 +64,7 @@ $isLocked = $lockSeconds > 0;
       <form action="auth.php" method="POST" class="space-y-4">
 
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">
+        <label for="username" class="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">
           USERNAME
         </label>
 
@@ -74,8 +76,11 @@ $isLocked = $lockSeconds > 0;
           <input
             type="text"
             name="username"
+            id="username"
             required
             autofocus
+            autocomplete="username"
+            <?php echo $hasLoginMessage ? 'aria-describedby="lockBanner"' : ''; ?>
             <?php echo $isLocked ? 'disabled' : ''; ?>
             class="w-full pl-11 pr-4 py-3
                   border-2 border-slate-300
@@ -98,7 +103,7 @@ $isLocked = $lockSeconds > 0;
       </div>
 
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">
+        <label for="password" class="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">
           PASSWORD
         </label>
 
@@ -112,6 +117,8 @@ $isLocked = $lockSeconds > 0;
             name="password"
             id="password"
             required
+            autocomplete="current-password"
+            <?php echo $hasLoginMessage ? 'aria-describedby="lockBanner"' : ''; ?>
             <?php echo $isLocked ? 'disabled' : ''; ?>
             class="w-full pl-11 pr-11 py-3
                   border-2 border-slate-300
@@ -133,6 +140,10 @@ $isLocked = $lockSeconds > 0;
 
           <button
             type="button"
+            id="passwordToggle"
+            aria-label="Show password"
+            aria-pressed="false"
+            aria-controls="password"
             onclick="togglePassword()"
             class="absolute inset-y-0 right-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors">
 
@@ -168,14 +179,14 @@ $isLocked = $lockSeconds > 0;
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 4.556-3.24 8.354-7.542 9.216a1 1 0 01-.914 0C8.24 20.354 5 16.556 5 12V6.75a1 1 0 01.55-.894l6.5-3.25a1 1 0 01.9 0l6.5 3.25A1 1 0 0121 6.75V12z" />
         </svg>
-        Encrypted Connection
+        Secure sign-in
       </span>
       <span>•</span>
       <span class="flex items-center gap-1">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
         </svg>
-        System Support
+        Need help? Contact your library administrator.
       </span>
     </div>
 
@@ -243,11 +254,23 @@ const UNLOCK_TIME_MS = SERVER_TIME_MS + (LOCK_SECONDS * 1000);
 
 function togglePassword() {
   const input = document.getElementById('password');
+  const toggle = document.getElementById('passwordToggle');
   const type = input.type === 'password' ? 'text' : 'password';
+  const isVisible = type === 'text';
+
   input.type = type;
+  toggle.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
+  toggle.setAttribute('aria-pressed', String(isVisible));
+  toggle.innerHTML = `<i data-lucide="${isVisible ? 'eye-off' : 'eye'}" id="eyeIcon" class="w-5 h-5"></i>`;
+  lucide.createIcons();
 }
 
 lucide.createIcons();
+
+const loginMessage = document.getElementById('lockBanner');
+if (loginMessage) {
+  loginMessage.focus();
+}
 </script>
 </body>
 </html>
