@@ -623,9 +623,19 @@ if ($action !== null) {
         hierarchyBuilder.addEventListener('click', event => {
             const action = event.target.closest('[data-builder-add]')?.dataset.builderAdd;
             const remove = event.target.closest('[data-builder-remove]');
-            if (remove) remove.closest('[data-builder-item]')?.remove();
-            if (action === 'program') addProgram(hierarchyBuilder);
-            if (action === 'major') addMajor(event.target.closest('[data-builder-item]'));
+            
+            if (remove) 
+                remove.closest('[data-builder-item]')?.remove();
+
+            if (action === 'program') 
+                addProgram(hierarchyBuilder);
+
+            if (action === 'major') 
+                addMajor(event.target.closest('[data-builder-item]'));
+            
+            if (action === 'course') 
+                addCourse(event.target.closest('[data-builder-item]'));
+
             applyInputOutline(hierarchyBuilder);
         });
         return hierarchyBuilder;
