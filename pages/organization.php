@@ -28,7 +28,6 @@ if ($action !== null) {
             $colleges = $pdo->query('SELECT id, name, status, created_at FROM colleges ORDER BY name')->fetchAll();
             $programs = $pdo->query('SELECT id, college_id, name, status, created_at FROM programs ORDER BY name')->fetchAll();
             $majors = $pdo->query('SELECT id, program_id, name, status, created_at FROM majors ORDER BY name')->fetchAll();
-            $courses = $pdo->query('SELECT id, program_id, major_id, code, name, description, year_level, status FROM courses ORDER BY code, name')->fetchAll();
 
             $records = [];
             foreach ([
@@ -38,12 +37,12 @@ if ($action !== null) {
             ] as [$rows, $type, $entity, $parentColumn]) {
                 foreach ($rows as $row) {
                     $records[] = [
-                        'id' => (int)$row['id'],
+                        'id' => (int) $row['id'],
                         'name' => $row['name'],
                         'code' => '',
                         'type' => $type,
                         'entity' => $entity,
-                        'parentId' => $parentColumn ? (int)$row[$parentColumn] : null,
+                        'parentId' => $parentColumn ? (int) $row[$parentColumn] : null,
                         'status' => $row['status'] ?? 'active',
                         'description' => '',
                         'createdAt' => $row['created_at'],
@@ -52,61 +51,46 @@ if ($action !== null) {
             }
 
             $collegeMap = [];
-            $programMap = [];
-
-            foreach ($colleges as &$college) {
+            foreach ($colleges as $college) {
                 $college['programs'] = [];
                 $college['departments'] = [['id' => 0, 'name' => 'Academic programs', 'programs' => []]];
-                $collegeMap[(int) $college['id']] = &$college;
+                $collegeMap[(int) $college['id']] = $college;
             }
-            unset($college);
 
-            foreach ($programs as &$program) {
+            $programMap = [];
+            foreach ($programs as $program) {
                 $program['majors'] = [];
-                $program['courses'] = [];
-                $programMap[(int) $program['id']] = &$program;
+                $programMap[(int) $program['id']] = $program;
 
                 $collegeId = (int) $program['college_id'];
                 if (isset($collegeMap[$collegeId])) {
-                    $collegeMap[$collegeId]['programs'][] = &$program;
+                    $collegeMap[$collegeId]['programs'][] = $program;
                 }
             }
-            unset($program);
 
-            foreach ($majors as &$major) {
+            foreach ($majors as $major) {
                 $programId = (int) $major['program_id'];
-                if (isset($programMap[$programId])) {
-                    $programMap[$programId]['majors'][] = &$major;
+                if (!isset($programMap[$programId])) {
+                    continue;
                 }
-            }
-            unset($major);
 
-            foreach ($courses as &$course) {
-                $programId = (int) $course['program_id'];
-                if (isset($programMap[$programId])) {
-                    if ($course['major_id'] !== null) {
-                        $majorId = (int) $course['major_id'];
-                        $majorKey = array_search($majorId, array_map(static fn ($major) => (int) $major['id'], $programMap[$programId]['majors']), true);
-                        if ($majorKey !== false) {
-                            $programMap[$programId]['majors'][$majorKey]['courseCount'] = ($programMap[$programId]['majors'][$majorKey]['courseCount'] ?? 0) + 1;
-                        }
-                    }
-                    $programMap[$programId]['courses'][] = &$course;
-                }
+                $programMap[$programId]['majors'][] = $major;
             }
-            unset($course);
 
-            foreach ($colleges as &$college) {
-                $college['departments'][0]['programs'] = $college['programs'];
+            foreach ($collegeMap as $collegeId => $college) {
+                $collegeMap[$collegeId]['programs'] = array_values(array_filter(
+                    $programMap,
+                    static fn(array $program): bool => (int) $program['college_id'] === (int) $collegeId
+                ));
+                $collegeMap[$collegeId]['departments'][0]['programs'] = $collegeMap[$collegeId]['programs'];
             }
-            unset($college);
 
             $counts = [
                 'colleges' => count($colleges),
                 'programs' => count($programs),
                 'majors' => count($majors),
             ];
-            organizationJson(['success' => true, 'colleges' => $colleges, 'counts' => $counts, 'records' => $records]);
+            organizationJson(['success' => true, 'colleges' => array_values($collegeMap), 'counts' => $counts, 'records' => $records]);
         }
 
         if ($action === 'prospectus_data') {
@@ -749,7 +733,6 @@ if ($action !== null) {
         const programItems = departmentItems.flatMap(department => department.programs || []);
         const majorCount = programItems.reduce((count, program) => count + (program.majors || []).length, 0);
         const courseCount = programItems.reduce((count, program) => count + (program.courses || []).length, 0);
-        const countLabel = (count, singular) => `${count} ${singular}${count === 1 ? '' : 's'}`;
         const departments = departmentItems.map(department => {
             const programs = department.programs.map(program => {
                 const majors = program.majors.map(major => {
@@ -815,33 +798,62 @@ if ($action !== null) {
     };
     const renderDirectCollege = college => {
         const programs = college.programs || [];
-        const programMarkup = programs.map(program => {
-            const majors = program.majors || [];
-            const courses = [];
-            const majorMarkup = majors.map(major => `<div class="mt-2"><div class="flex items-center gap-2 text-sm font-semibold text-slate-700"><i data-lucide="tag" class="h-3.5 w-3.5 text-rose-600"></i><span>${esc(major.name)}</span><span class="ml-auto">${controls('major', major, program.id)}${add('add_course', 'Add course', program.id, major.id)}</span></div><div class="mt-1 space-y-1 pl-4">${courses.filter(course => Number(course.major_id) === Number(major.id)).map(course => `<div class="flex items-center gap-2 text-xs text-slate-500"><b class="rounded bg-rose-100 px-1 py-0.5 text-[10px] text-rose-700">${esc(course.code)}</b><span title="${esc(course.description || '')}">${esc(course.name)}</span><span class="text-[10px] text-slate-400">Yr${course.year_level || '-'}</span><span class="ml-auto">${controls('course', course, program.id)}</span></div>`).join('') || '<p class="text-xs italic text-slate-400">No courses yet</p>'}</div></div>`).join('');
-            const unassignedCourses = courses.filter(course => !course.major_id).map(course => `<div class="flex items-center gap-2 text-xs text-slate-500"><b class="rounded bg-rose-100 px-1 py-0.5 text-[10px] text-rose-700">${esc(course.code)}</b><span title="${esc(course.description || '')}">${esc(course.name)}</span><span class="text-[10px] text-slate-400">Yr${course.year_level || '-'}</span><span class="ml-auto">${controls('course', course, program.id)}</span></div>`).join('');
-            return `<div class="border-l-2 border-rose-200 pl-4"><div class="flex items-center gap-2"><i data-lucide="book" class="h-3.5 w-3.5 text-rose-600"></i><strong class="text-sm text-slate-700">${esc(program.name)}</strong><span class="ml-auto flex flex-wrap gap-1">${controls('program', program, college.id)}${add('add_major', 'Add major', program.id)}${add('add_course', 'Add course', program.id)}</span></div><div class="mt-1 space-y-1 pl-4">${majorMarkup}${unassignedCourses}</div></div>`;
-        }).join('');
+        const programMarkup = programs.map(program => `<div class="border-l-2 border-rose-200 pl-4">
+            <div class="flex cursor-pointer items-center gap-2" data-program-toggle="${program.id}">
+                <i data-lucide="chevron-right" class="program-chevron h-4 w-4 shrink-0 text-rose-600 transition-transform"></i>
+                <i data-lucide="book" class="h-3.5 w-3.5 text-rose-600"></i>
+                <strong class="text-sm text-slate-700">${esc(program.name)}</strong>
+                <span class="ml-auto flex flex-wrap gap-1">${controls('program', program, college.id)}${add('add_major', 'Add major', program.id)}</span>
+            </div>
+            <div id="program-${program.id}" class="program-body max-h-0 overflow-hidden pl-7 opacity-0 transition-all duration-200 ease-in-out"></div>
+        </div>`).join('');
+
         return `<article class="college-row group overflow-hidden rounded-xl border border-transparent bg-slate-50 transition-all hover:border-rose-200"><div class="flex cursor-pointer items-center gap-3 p-4" data-college-toggle="${college.id}"><i data-lucide="chevron-right" class="college-chevron h-5 w-5 shrink-0 text-rose-600 transition-transform"></i><i data-lucide="building-2" class="h-5 w-5 shrink-0 text-rose-600"></i><div class="min-w-0 flex-1"><h4 class="truncate text-sm font-bold text-slate-800">${esc(college.name)}</h4><p class="text-[10px] uppercase tracking-wide text-slate-500">${countLabel(programs.length, 'Program')}</p></div><div class="flex flex-wrap items-center gap-1">${add('add_program', 'Add program', college.id)}${controls('college', college)}</div></div><div id="college-${college.id}" class="college-body max-h-0 overflow-hidden px-4 opacity-0 transition-all duration-300 ease-in-out"><div class="space-y-2 border-t border-slate-200 pb-4 pl-2 pt-2">${programMarkup || '<p class="text-xs italic text-slate-400">No programs yet</p>'}</div></div></article>`;
     };
-  function render(data) {
+
+    const renderProgramMajors = program => {
+        const majors = program.majors || [];
+        const majorMarkup = majors.map(major => `<div class="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-700"><i data-lucide="tag" class="h-3.5 w-3.5 text-rose-600"></i><span>${esc(major.name)}</span><span class="ml-auto">${controls('major', major, program.id)}</span></div>`).join('');
+        return majorMarkup || '<p class="py-2 text-xs italic text-slate-400">No majors yet</p>';
+    };
+
+    function render(data) {
         organizationData = data;
         const expandedColleges = new Set([...tree.querySelectorAll('.college-body:not(.max-h-0)')].map(body => body.id.replace('college-', '')));
-    Object.entries(data.counts).forEach(([key, value]) => { const el = document.querySelector(`[data-count="${key}"]`); if (el) el.textContent = value; });
-    tree.innerHTML = data.colleges.length ? data.colleges.map(c => `<article class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="flex items-center justify-between gap-2"><div class="flex items-center gap-2"><i data-lucide="building-2" class="h-4 w-4 text-rose-600"></i><strong>${esc(c.name)}</strong><span class="text-xs text-slate-400">${c.departments.length} departments</span></div><div class="flex gap-3">${add('add_department','Add department',c.id)}${controls('college',c)}</div></div><div class="mt-3 space-y-2 border-l-2 border-rose-200 pl-4">${c.departments.map(d => `<div class="rounded-xl bg-white p-3"><div class="flex items-center justify-between gap-2"><strong class="text-slate-700">${esc(d.name)}</strong><div class="flex gap-3">${add('add_program','Add program',d.id)}${controls('department',d,c.id)}</div></div><div class="mt-2 space-y-2 pl-3">${d.programs.map(p => `<div class="rounded-lg border-l-2 border-slate-200 pl-3"><div class="flex items-center justify-between gap-2 text-sm"><strong>${esc(p.name)}</strong><div class="flex gap-3">${add('add_major','Add major',p.id)}${controls('program',p,d.id)}</div></div><div class="mt-2 space-y-1 pl-3">${p.majors.map(m => `<div class="flex items-center justify-between rounded bg-rose-50 px-2 py-1 text-xs"><span><i data-lucide="layers" class="mr-1 inline h-3 w-3 text-rose-600"></i>${esc(m.name)}</span><div class="flex gap-2">${add('add_course','Add course',p.id,m.id)}${controls('major',m,p.id)}</div></div>`).join('') || '<p class="text-xs italic text-slate-400">No majors yet</p>'}${p.courses.map(course => `<div class="flex items-center justify-between text-xs text-slate-500"><span><b class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-rose-700">${esc(course.code)}</b>${esc(course.name)}</span>${controls('course',course,p.id)}</div>`).join('')}</div></div>`).join('')}</div></div>`).join('') || '<p class="text-sm italic text-slate-400">No departments yet</p>'}</div></article>`).join('') : '<div class="rounded-xl border border-dashed p-8 text-center text-sm text-slate-500">No colleges yet. Add the first college to build the hierarchy.</div>';
-    tree.innerHTML = data.colleges.length
-        ? data.colleges.map(renderDirectCollege).join('')
-        : '<div class="flex flex-col items-center justify-center gap-2 py-12 text-slate-500"><i data-lucide="building-2" class="h-10 w-10 text-slate-400"></i><p class="text-sm">No colleges yet. Click <strong>Add College</strong> to get started.</p></div>';
-    lucide.createIcons();
-    expandedColleges.forEach(collegeId => {
-        const body = document.getElementById(`college-${collegeId}`);
-        const toggle = tree.querySelector(`[data-college-toggle="${collegeId}"]`);
-        body?.classList.remove('max-h-0', 'opacity-0');
-        body?.classList.add('max-h-[2000px]', 'opacity-100');
-        toggle?.querySelector('.college-chevron')?.classList.add('rotate-90');
-    });
-    setOrganizationStatus('Organization updated');
-  }
+        const expandedPrograms = new Set([...tree.querySelectorAll('.program-body:not(.max-h-0)')].map(body => body.id.replace('program-', '')));
+
+        Object.entries(data.counts || {}).forEach(([key, value]) => {
+            const el = document.querySelector(`[data-count="${key}"]`);
+            if (el) el.textContent = value;
+        });
+
+        const colleges = Array.isArray(data.colleges) ? data.colleges : [];
+        tree.innerHTML = colleges.length
+            ? colleges.map(renderDirectCollege).join('')
+            : '<div class="flex flex-col items-center justify-center gap-2 py-12 text-slate-500"><i data-lucide="building-2" class="h-10 w-10 text-slate-400"></i><p class="text-sm">No colleges yet. Click <strong>Add College</strong> to get started.</p></div>';
+
+        lucide.createIcons();
+
+        expandedColleges.forEach(collegeId => {
+            const body = document.getElementById(`college-${collegeId}`);
+            const toggle = tree.querySelector(`[data-college-toggle="${collegeId}"]`);
+            body?.classList.remove('max-h-0', 'opacity-0');
+            body?.classList.add('max-h-[2000px]', 'opacity-100');
+            toggle?.querySelector('.college-chevron')?.classList.add('rotate-90');
+        });
+        expandedPrograms.forEach(programId => {
+            const program = data.colleges.flatMap(college => college.programs || []).find(item => String(item.id) === String(programId));
+            const body = document.getElementById(`program-${programId}`);
+            const toggle = tree.querySelector(`[data-program-toggle="${programId}"]`);
+            if (program && body) body.innerHTML = renderProgramMajors(program);
+            body?.classList.remove('max-h-0', 'opacity-0');
+            body?.classList.add('max-h-[1000px]', 'opacity-100');
+            toggle?.querySelector('.program-chevron')?.classList.add('rotate-90');
+        });
+        lucide.createIcons();
+
+        setOrganizationStatus('Organization updated');
+    }
     let organizationRecords = [];
     function renderRecords() {
             const search = document.getElementById('organizationSearch').value.trim().toLowerCase();
@@ -855,37 +867,65 @@ if ($action !== null) {
                         return `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3 text-right"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-slate-600 hover:underline">${record.status === 'archived' ? 'Restore' : 'Archive'}</button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
                     }).join('') : '<tr><td colspan="4" class="px-3 py-8 text-center text-sm italic text-slate-400">No organization records match your search.</td></tr>';
     }
-function load() {
-    fetch(
-        'pages/organization.php?action=list',
-        { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
-    ).then(response => response.json())
-        .then(result => {
-            if (!result.success) throw new Error(result.message);
-            render(result);
-            organizationRecords = result.records || [];
-            renderRecords();
-            setOrganizationStatus(defaultHierarchyStatus);
-        })
-        .catch(error => {
-            setOrganizationStatus(
-                'Organization could not be loaded',
-                true
-            );
+    let organizationLoadToken = 0;
+    function load() {
+        const requestToken = ++organizationLoadToken;
+        fetch(
+            'pages/organization.php?action=list',
+            { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+        ).then(response => response.json())
+            .then(result => {
+                if (requestToken !== organizationLoadToken) return;
+                if (!result.success) throw new Error(result.message);
+                render(result);
+                organizationRecords = result.records || [];
+                renderRecords();
+                setOrganizationStatus(defaultHierarchyStatus);
+            })
+            .catch(error => {
+                if (requestToken !== organizationLoadToken) return;
+                setOrganizationStatus(
+                    'Organization could not be loaded',
+                    true
+                );
 
-            toast(
-                `Organization could not be loaded. ${error.message}`,
-                true
-            );
-        });
+                toast(
+                    `Organization could not be loaded. ${error.message}`,
+                    true
+                );
+            });
     }
     document.getElementById('addCollegeBtn').onclick = openHierarchyForm;
     tree.onclick = event => {
+        const programToggle = event.target.closest('[data-program-toggle]');
         const toggle = event.target.closest('[data-college-toggle]');
         const addButton = event.target.closest('[data-add]');
         const edit = event.target.closest('[data-edit]');
         const del = event.target.closest('[data-delete]');
 
+        if (programToggle && !addButton && !edit && !del) {
+            const programId = programToggle.dataset.programToggle;
+            const body = document.getElementById(`program-${programId}`);
+            const chevron = programToggle.querySelector('.program-chevron');
+            if (body) {
+                const isOpening = body.classList.contains('max-h-0');
+                if (isOpening && !body.dataset.loaded) {
+                    const program = organizationData.colleges
+                        .flatMap(college => college.programs || [])
+                        .find(item => String(item.id) === String(programId));
+                    if (program) {
+                        body.innerHTML = renderProgramMajors(program);
+                        body.dataset.loaded = '1';
+                        lucide.createIcons();
+                    }
+                }
+                body.classList.toggle('max-h-0', !isOpening);
+                body.classList.toggle('max-h-[1000px]', isOpening);
+                body.classList.toggle('opacity-0', !isOpening);
+                body.classList.toggle('opacity-100', isOpening);
+            }
+            chevron?.classList.toggle('rotate-90');
+        }
         if (toggle && !addButton && !edit && !del) {
             const body = document.getElementById(`college-${toggle.dataset.collegeToggle}`);
             const chevron = toggle.querySelector('.college-chevron');
