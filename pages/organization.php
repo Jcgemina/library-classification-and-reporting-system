@@ -308,17 +308,56 @@ if ($action !== null) {
     }
 }
 ?>
-<div class="space-y-8">
+<div class="space-y-6">
   <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
     <div>
         <h2 class="text-3xl font-bold text-slate-900">Academic Structure</h2>
-        <p class="mt-1 text-sm text-slate-500">Use the hierarchy below to build and maintain the academic structure. Search is a secondary view for auditing records.</p>
+        <p class="mt-1 text-sm text-slate-500">Switch tabs below to manage institutional hierarchy, search secondary records, or review prospectus plans.</p>
     </div>
         <div class="flex flex-wrap gap-3">
             <?php foreach (['colleges','programs','majors'] as $count): ?><div class="flex flex-col items-center border-b-2 border-rose-<?= $count === 'colleges' ? '600' : '300' ?> px-4 pb-2"><span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500"><?= ucfirst($count) ?></span><span data-count="<?= $count ?>" class="mt-1 text-2xl font-bold text-slate-900">0</span></div><?php endforeach; ?>
         </div>
   </div>
-    <div class="space-y-6">
+
+  <!-- Tabbing Navigation UI -->
+  <div class="inline-flex rounded-lg border border-slate-200/80 bg-white p-1 shadow-sm">
+    <nav class="flex items-center gap-1" aria-label="Academics Tabs" id="academicsTabNav">
+      <!-- 1st Tab: Hierarchy -->
+      <button type="button" 
+              data-tab="hierarchy" 
+              class="academics-tab inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-rose-700"
+              aria-selected="true" 
+              aria-controls="hierarchyPanel">
+        <i data-lucide="network" class="h-3.5 w-3.5"></i>
+        <span>Hierarchy View</span>
+      </button>
+
+      <!-- 2nd Tab: Secondary View -->
+      <button type="button" 
+              data-tab="secondary" 
+              class="academics-tab inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900"
+              aria-selected="false" 
+              aria-controls="secondaryViewPanel">
+        <i data-lucide="table-properties" class="h-3.5 w-3.5"></i>
+        <span>Secondary View</span>
+      </button>
+
+      <!-- 3rd Tab: Prospectus -->
+      <button type="button" 
+              data-tab="prospectus" 
+              class="academics-tab inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900"
+              aria-selected="false" 
+              aria-controls="prospectusPanel">
+        <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
+        <span>Prospectus</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Tab Content Panels -->
+  <div>
+    <!-- Panel 1: Hierarchy View -->
+    <div id="hierarchyPanel" role="tabpanel" class="tab-panel space-y-6">
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2"><i data-lucide="building-2" class="h-5 w-5 text-rose-600"></i><div><h3 class="text-xl font-bold text-slate-900">Institutional Structure</h3><p class="text-sm text-slate-500">Start with a college, then add its programs and majors.</p></div></div>
@@ -326,45 +365,46 @@ if ($action !== null) {
                 </div>
                 <div id="organizationTree" class="space-y-2"></div>
         </section>
-        <div class="grid grid-cols-6 items-start gap-6">
-            <details class="col-span-12 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-8">
-                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                    <div>
-                        <h3 class="text-xl font-bold text-slate-900">Secondary records view</h3>
-                        <p class="text-sm text-slate-500">Optional: search and filter records after the hierarchy is in place.</p>
-                    </div>
-                    <i data-lucide="chevron-down" class="h-5 w-5 shrink-0 text-slate-500 transition-transform"></i>
-                </summary>
-                <div class="mt-5">
-                <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div class="flex flex-col gap-2 sm:flex-row"><input id="organizationSearch" type="search" placeholder="Search organizations" class="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><select id="organizationStatusFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select><select id="organizationTypeFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All types</option><option value="college">University / College</option><option value="department">Department</option><option value="program">Program</option><option value="major">Major</option></select></div>
-                </div>
-                <div class="overflow-x-auto"><table class="w-full min-w-[650px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Organization Name</th><th class="px-3 py-3">Type</th><th class="px-3 py-3">Status</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="organizationRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
-                </div>
-            </details>
-            </section>
-        </div>
+    </div>
+
+    <!-- Panel 2: Secondary View -->
+    <div id="secondaryViewPanel" role="tabpanel" class="tab-panel hidden space-y-6">
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div class="flex items-center gap-2"><i data-lucide="search" class="h-5 w-5 text-rose-600"></i><div><h3 class="text-xl font-bold text-slate-900">Secondary Records View</h3><p class="text-sm text-slate-500">Search and filter records after the hierarchy is in place.</p></div></div>
+                <div class="flex flex-col gap-2 sm:flex-row"><input id="organizationSearch" type="search" placeholder="Search organizations" class="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><select id="organizationStatusFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select><select id="organizationTypeFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">All types</option><option value="college">University / College</option><option value="department">Department</option><option value="program">Program</option><option value="major">Major</option></select></div>
+            </div>
+            <div class="overflow-x-auto"><table class="w-full min-w-[650px] text-left text-sm"><thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">Organization Name</th><th class="px-3 py-3">Type</th><th class="px-3 py-3">Status</th><th class="px-3 py-3 text-right">Actions</th></tr></thead><tbody id="organizationRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
+        </section>
+    </div>
+
+    <!-- Panel 3: Prospectus -->
+    <div id="prospectusPanel" role="tabpanel" class="tab-panel hidden space-y-6">
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div><p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Curriculum planning</p><h3 class="mt-1 text-xl font-bold text-slate-900">Prospectus Management</h3><p class="mt-1 text-sm text-slate-500">Upload a prospectus, then review the courses already assigned to its program or major.</p></div>
                 <button type="button" id="addProspectusBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700"><i data-lucide="upload" class="h-4 w-4"></i>Upload Prospectus</button>
             </div>
             <div class="mb-4 flex flex-col gap-2 sm:flex-row"><input id="prospectusSearch" type="search" placeholder="Search prospectuses" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"><span id="prospectusStatus" class="self-center text-xs text-slate-500" aria-live="polite">Loading prospectuses...</span></div>
-            <div class="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.5fr)]">
-                <div class="min-w-0 overflow-hidden rounded-xl border border-slate-200">
-                    <div class="max-h-[560px] overflow-y-auto"><table class="w-full min-w-[720px] text-left text-sm"><thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-4 py-3">Program</th><th class="px-4 py-3">Major</th><th class="px-4 py-3">Curriculum</th><th class="px-4 py-3">PDF</th><th class="px-4 py-3 text-right">Actions</th></tr></thead><tbody id="prospectusRecordsBody" class="divide-y divide-slate-100"></tbody></table></div>
-                </div>
-                <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
-                    <div class="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div class="min-w-0"><h3 id="curriculumTitle" class="text-xl font-bold text-slate-900"></h3><p id="curriculumMeta" class="mt-1 text-sm text-slate-500"></p></div>
-                        <div id="prospectusDetailActions" class="hidden shrink-0 flex flex-wrap gap-2"><a id="prospectusPdfLink" href="#" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-rose-300 hover:text-rose-700"><i data-lucide="external-link" class="h-3.5 w-3.5"></i>View PDF</a><button type="button" id="deleteProspectusPdfBtn" class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i>Remove PDF</button></div>
-                    </div>
-                    <div id="prospectusPdfPanel" class="hidden border-b border-slate-200 py-4"><div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div class="flex items-center gap-2"><i data-lucide="file-text" class="h-5 w-5 text-rose-600"></i><div><p class="text-sm font-semibold text-slate-800">PDF prospectus</p><p id="prospectusPdfStatus" class="text-xs text-slate-500"></p></div></div><form id="prospectusForm" class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center"><input type="hidden" name="prospectus_id" id="prospectusUploadId"><input type="file" name="prospectus" accept="application/pdf,.pdf" required class="block min-w-0 max-w-full rounded-lg border-2 border-dashed border-rose-300 bg-rose-50 p-2 text-xs text-slate-700"><button type="submit" class="shrink-0 rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white hover:bg-rose-700">Upload / Replace</button></form></div></div>
-                    <div id="curriculumGroups" class="space-y-5"></div>
+            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div class="max-h-[600px] overflow-x-auto overflow-y-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                            <tr>
+                                <th class="w-[35%] px-4 py-3.5 font-bold">Program</th>
+                                <th class="w-[25%] px-4 py-3.5 font-bold">Major</th>
+                                <th class="w-[15%] px-4 py-3.5 font-bold">Curriculum</th>
+                                <th class="w-[12%] px-4 py-3.5 font-bold">PDF</th>
+                                <th class="w-[13%] px-4 py-3.5 text-right font-bold">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prospectusRecordsBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
                 </div>
             </div>
         </section>
     </div>
+  </div>
 </div>
 <div id="organizationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="organizationForm" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 id="organizationModalTitle" class="text-xl font-bold">Add College</h3><button type="button" id="closeOrganizationModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" id="organizationAction" name="action"><input type="hidden" id="organizationId" name="id"><input type="hidden" id="organizationParent" name="parent_id"><input type="hidden" id="organizationMajor" name="major_id"><p id="organizationContextHint" class="mt-4 hidden rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700"></p><label id="parentSelectLabel" class="mt-5 hidden text-sm font-medium">Parent organization<select id="parentSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label id="majorSelectLabel" class="mt-3 hidden text-sm font-medium">Major<select id="majorSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">No major</option></select></label><div id="courseFields" class="mt-5 hidden grid gap-4 sm:grid-cols-2"><label class="text-sm font-medium">Course code<input name="code" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label class="text-sm font-medium">Year level<input name="year_level" type="number" min="1" max="8" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label></div><label id="organizationCodeLabel" class="mt-5 block text-sm font-medium">Program / Subject code<input name="organization_code" id="organizationCode" maxlength="30" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label id="organizationStatusLabel" class="mt-3 block text-sm font-medium">Status<select name="status" id="organizationRecordStatus" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="active">Active</option><option value="archived">Archived</option></select></label><label class="mt-3 block text-sm font-medium">Name<input id="organizationName" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><button class="mt-5 w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white">Save</button></form></div>
 <div id="prospectusModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="prospectusRecordForm" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-wide text-rose-600">Prospectus upload</p><h3 id="prospectusModalTitle" class="text-xl font-bold text-slate-900">Upload Prospectus</h3></div><button type="button" id="closeProspectusModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" name="id" id="prospectusRecordId"><label class="mt-5 block text-sm font-medium">Program<select name="program_id" id="prospectusRecordProgram" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label class="mt-3 block text-sm font-medium">Major <span class="font-normal text-slate-400">(optional)</span><select name="major_id" id="prospectusRecordMajor" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All majors / general curriculum</option></select></label><div class="mt-3 grid gap-3 sm:grid-cols-2"><label class="text-sm font-medium">Prospectus title<input name="title" id="prospectusRecordTitle" required maxlength="255" placeholder="BS Information Technology" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label><label class="text-sm font-medium">Curriculum year<input name="curriculum_year" id="prospectusRecordYear" required maxlength="30" placeholder="2026-2027" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label></div><label class="mt-3 block text-sm font-medium">PDF prospectus<input type="file" name="prospectus" id="prospectusRecordFile" accept="application/pdf,.pdf" class="mt-1 block w-full rounded-lg border-2 border-dashed border-rose-300 bg-rose-50 p-3 text-xs text-slate-700"></label><button type="submit" class="mt-6 w-full rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700">Upload Prospectus</button></form></div>
@@ -374,7 +414,6 @@ if ($action !== null) {
     const tree = document.getElementById('organizationTree');
     const modal = document.getElementById('organizationModal');
     const form = document.getElementById('organizationForm');
-    const prospectusForm = document.getElementById('prospectusForm');
     const prospectusRecordForm = document.getElementById('prospectusRecordForm');
     const prospectusRecordsBody = document.getElementById('prospectusRecordsBody');
     const retiredTitleField = document.getElementById('prospectusRecordTitle');
@@ -440,66 +479,20 @@ if ($action !== null) {
       return fetch('pages/organization.php?action=prospectus_data', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(response => response.json()).then(result => {
           if (!result.success) throw new Error(result.message);
           prospectusData = result;
-          if (!selectedProspectusId && prospectusData.prospectuses.length) selectedProspectusId = Number(prospectusData.prospectuses[0].id);
           renderProspectusRecords();
-          renderCurriculum();
       });
-  }
-    function renderProspectusRecordsWithoutTitle() {
-      const search = document.getElementById('prospectusSearch').value.trim().toLowerCase();
-      const rows = prospectusData.prospectuses.filter(item => `${item.program_name} ${item.major_name || ''} ${item.curriculum_year}`.toLowerCase().includes(search));
-      document.getElementById('prospectusRecordsBody').innerHTML = rows.map(item => {
-          const pdfActions = item.pdf_file_path ? `<a href="${esc(item.pdf_file_path)}" target="_blank" rel="noopener" class="text-xs font-semibold text-rose-600 hover:underline">View PDF</a>` : '<span class="text-xs text-slate-400">No PDF</span>';
-          return `<tr class="border-b border-slate-100"><td class="px-4 py-3 font-semibold text-slate-900">${esc(item.program_name)}</td><td class="px-4 py-3 text-slate-600">${esc(item.major_name || 'General curriculum')}</td><td class="px-4 py-3 text-slate-600">${esc(item.curriculum_year)}</td><td class="px-4 py-3">${pdfActions}</td><td class="px-4 py-3 text-right"><button type="button" data-row-replace="${item.id}" class="mr-3 text-xs font-semibold text-rose-600 hover:underline">Replace PDF</button><input type="file" accept="application/pdf,.pdf" data-row-file="${item.id}" class="hidden"><button type="button" data-delete-prospectus-record="${item.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
-      }).join('');
-    lucide.createIcons();
-      document.getElementById('prospectusStatus').textContent = `${rows.length} prospectus${rows.length === 1 ? '' : 'es'}`;
   }
   function renderProspectusRecords() {
       const search = document.getElementById('prospectusSearch').value.trim().toLowerCase();
-      const rows = prospectusData.prospectuses.filter(item => `${item.title} ${item.program_name} ${item.major_name || ''} ${item.curriculum_year}`.toLowerCase().includes(search));
+      const rows = prospectusData.prospectuses.filter(item => `${item.program_name} ${item.major_name || ''} ${item.curriculum_year}`.toLowerCase().includes(search));
       document.getElementById('prospectusRecordsBody').innerHTML = rows.length ? rows.map(item => {
-          const count = prospectusData.availableCourses.filter(course => Number(course.program_id) === Number(item.program_id) && (!item.major_id || Number(course.major_id) === Number(item.major_id))).length;
-          return `<tr class="hover:bg-slate-50 ${Number(item.id) === selectedProspectusId ? 'bg-rose-50' : ''}"><td class="px-4 py-3"><button type="button" data-select-prospectus="${item.id}" class="w-full text-left"><span class="block truncate font-semibold text-slate-900">${esc(item.program_name)} / ${esc(item.major_name || 'General curriculum')}</span><span class="mt-1 block text-xs text-slate-500">${esc(item.title)} · ${esc(item.curriculum_year)}</span><span class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400"><span>${count} course${count === 1 ? '' : 's'}</span><span class="${item.pdf_file_path ? 'text-emerald-600' : 'text-amber-600'}">${item.pdf_file_path ? (Number(item.has_specific_pdf) ? 'PDF attached' : 'Program PDF inherited') : 'No PDF'}</span></span></button></td><td class="px-4 py-3 text-right align-top"><button type="button" data-edit-prospectus="${item.id}" class="text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-delete-prospectus-record="${item.id}" class="ml-3 text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
-      }).join('') : '';
+          const pdfActions = item.pdf_file_path ? `<a href="${esc(item.pdf_file_path)}" target="_blank" rel="noopener" class="text-xs font-semibold text-rose-600 hover:underline">View PDF</a>` : '<span class="text-xs text-slate-400">No PDF</span>';
+          const displayName = `${item.program_name}${item.major_name ? ` (${item.major_name})` : ''} ${item.curriculum_year}`;
+          return `<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="px-4 py-3 font-semibold text-slate-900">${esc(item.program_name)}</td><td class="px-4 py-3 text-slate-600">${esc(item.major_name || 'General curriculum')}</td><td class="px-4 py-3 text-slate-600">${esc(item.curriculum_year)}</td><td class="px-4 py-3">${pdfActions}</td><td class="px-4 py-3 text-right"><button type="button" data-row-replace="${item.id}" class="mr-3 text-xs font-semibold text-rose-600 hover:underline">Replace PDF</button><input type="file" accept="application/pdf,.pdf" data-row-file="${item.id}" class="hidden"><button type="button" data-delete-prospectus-record="${item.id}" data-name="${esc(displayName)}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
+      }).join('') : '<tr><td colspan="5" class="px-4 py-8 text-center text-sm italic text-slate-400">No prospectus records match your search.</td></tr>';
+      lucide.createIcons();
       document.getElementById('prospectusStatus').textContent = `${rows.length} prospectus${rows.length === 1 ? '' : 'es'}`;
   }
-  function renderCurriculum() {
-      const item = prospectusData.prospectuses.find(record => Number(record.id) === selectedProspectusId);
-    const detailActions = document.getElementById('prospectusDetailActions');
-    const pdfPanel = document.getElementById('prospectusPdfPanel');
-    const deletePdfButton = document.getElementById('deleteProspectusPdfBtn');
-    detailActions.classList.toggle('hidden', !item);
-    pdfPanel.classList.toggle('hidden', !item);
-    if (!item) { document.getElementById('curriculumTitle').textContent = ''; document.getElementById('curriculumMeta').textContent = ''; document.getElementById('curriculumGroups').innerHTML = ''; return; }
-    document.getElementById('curriculumTitle').textContent = `${item.program_name} / ${item.major_name || 'General curriculum'}`;
-    document.getElementById('curriculumMeta').textContent = `${item.title} · ${item.curriculum_year}`;
-    document.getElementById('prospectusUploadId').value = item.id;
-    document.getElementById('prospectusPdfStatus').textContent = item.pdf_file_name ? item.pdf_file_name : 'No PDF attached yet. Upload the official document for this curriculum.';
-    document.getElementById('prospectusPdfLink').href = item.pdf_file_path || '#';
-    deletePdfButton.classList.toggle('hidden', !Number(item.has_specific_pdf));
-      const groups = {};
-      prospectusData.availableCourses.filter(course => Number(course.program_id) === Number(item.program_id) && (!item.major_id || Number(course.major_id) === Number(item.major_id))).forEach(course => { const key = course.year_level || 'Unassigned'; (groups[key] ||= []).push(course); });
-    document.getElementById('curriculumGroups').innerHTML = Object.keys(groups).sort((a, b) => (Number(a) || 99) - (Number(b) || 99)).map(year => { const label = year === 'Unassigned' ? year : `${year}${year === '1' ? 'st' : year === '2' ? 'nd' : year === '3' ? 'rd' : 'th'} Year`; return `<div><h4 class="mb-2 border-b border-rose-100 pb-2 text-sm font-bold text-slate-800">${label}</h4><div class="divide-y divide-slate-100 rounded-lg border border-slate-200">${groups[year].map(course => `<div class="flex items-center gap-3 px-3 py-2"><span class="min-w-0 flex-1"><b class="mr-2 rounded bg-rose-50 px-1.5 py-0.5 text-xs text-rose-700">${esc(course.code)}</b>${esc(course.name)}</span><span class="shrink-0 text-xs text-slate-400">${course.units ?? '-'} units</span></div>`).join('')}</div></div>`; }).join('');
-  }
-    function renderCurriculumWithoutTitle() {
-            const item = prospectusData.prospectuses.find(record => Number(record.id) === selectedProspectusId);
-            const detailActions = document.getElementById('prospectusDetailActions');
-            const pdfPanel = document.getElementById('prospectusPdfPanel');
-            const deletePdfButton = document.getElementById('deleteProspectusPdfBtn');
-            detailActions.classList.toggle('hidden', !item);
-            pdfPanel.classList.toggle('hidden', !item);
-            if (!item) { document.getElementById('curriculumTitle').textContent = ''; document.getElementById('curriculumMeta').textContent = ''; document.getElementById('curriculumGroups').innerHTML = ''; return; }
-            document.getElementById('curriculumTitle').textContent = `${item.program_name} / ${item.major_name || 'General curriculum'}`;
-            document.getElementById('curriculumMeta').textContent = `Curriculum ${item.curriculum_year}`;
-            document.getElementById('prospectusUploadId').value = item.id;
-            document.getElementById('prospectusPdfStatus').textContent = item.pdf_file_name || '';
-            document.getElementById('prospectusPdfLink').href = item.pdf_file_path || '#';
-            deletePdfButton.classList.toggle('hidden', !Number(item.has_specific_pdf));
-            const groups = {};
-            prospectusData.availableCourses.filter(course => Number(course.program_id) === Number(item.program_id) && (!item.major_id || Number(course.major_id) === Number(item.major_id))).forEach(course => { const key = course.year_level || 'Unassigned'; (groups[key] ||= []).push(course); });
-            document.getElementById('curriculumGroups').innerHTML = Object.keys(groups).sort((a, b) => (Number(a) || 99) - (Number(b) || 99)).map(year => { const label = year === 'Unassigned' ? year : `${year}${year === '1' ? 'st' : year === '2' ? 'nd' : year === '3' ? 'rd' : 'th'} Year`; return `<div><h4 class="mb-2 border-b border-rose-100 pb-2 text-sm font-bold text-slate-800">${label}</h4><div class="divide-y divide-slate-100 rounded-lg border border-slate-200">${groups[year].map(course => `<div class="flex items-center gap-3 px-3 py-2"><span class="min-w-0 flex-1"><b class="mr-2 rounded bg-rose-50 px-1.5 py-0.5 text-xs text-rose-700">${esc(course.code)}</b>${esc(course.name)}</span><span class="shrink-0 text-xs text-slate-400">${course.units ?? '-'} units</span></div>`).join('')}</div></div>`; }).join('');
-    }
     function fillProspectusPrograms(selected = '') { document.getElementById('prospectusRecordProgram').innerHTML = '<option value="">Select a program</option>' + prospectusData.programs.map(item => `<option value="${item.id}" ${Number(item.id) === Number(selected) ? 'selected' : ''}>${esc(item.name)}</option>`).join(''); }
   function fillProspectusMajors(programId, selected = '') { document.getElementById('prospectusRecordMajor').innerHTML = '<option value="">All majors / general curriculum</option>' + prospectusData.majors.filter(item => Number(item.program_id) === Number(programId)).map(item => `<option value="${item.id}" ${Number(item.id) === Number(selected) ? 'selected' : ''}>${esc(item.name)}</option>`).join(''); }
   const parentOptions = (type, selected) => {
@@ -712,13 +705,19 @@ if ($action !== null) {
             deleteDialog.querySelector('form').onsubmit = event => {
                 event.preventDefault();
                 const password = deleteDialog.querySelector('[data-delete-password]').value;
-                submit({ action: `delete_${deleteDialog.dataset.type}`, id: deleteDialog.dataset.id, current_password: password });
-                closeDeleteDialog();
+                const submitBtn = deleteDialog.querySelector('button[type="submit"]');
+                setBusy(submitBtn, true, 'Deleting...');
+                submit({ action: `delete_${deleteDialog.dataset.type}`, id: deleteDialog.dataset.id, current_password: password })
+                    .then(() => closeDeleteDialog())
+                    .catch(() => {})
+                    .finally(() => setBusy(submitBtn, false));
             };
         }
         deleteDialog.dataset.type = type;
         deleteDialog.dataset.id = id;
-        deleteDialog.querySelector('p').textContent = `Delete "${name}"? This permanently removes the organization if it has no related records.`;
+        deleteDialog.querySelector('p').textContent = type === 'prospectus_record'
+            ? `Delete prospectus for "${name}"? This permanently removes the prospectus record.`
+            : `Delete "${name}"? This permanently removes the organization if it has no related records.`;
         deleteDialog.querySelector('[data-delete-password]').value = '';
         deleteDialog.classList.remove('hidden');
         deleteDialog.classList.add('flex');
@@ -989,8 +988,15 @@ if ($action !== null) {
       setBusy(submitButton, true, 'Saving...');
       return fetch('pages/organization.php', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body: data instanceof FormData ? new URLSearchParams(data) : new URLSearchParams(data)})
           .then(r => r.json())
-          .then(result => { if (!result.success) throw new Error(result.message); closeOrganizationModal(); toast(result.message); load(); })
-          .catch(e => toast(e.message, true))
+          .then(result => {
+              if (!result.success) throw new Error(result.message);
+              closeOrganizationModal();
+              toast(result.message);
+              load();
+              loadProspectusData();
+              return result;
+          })
+          .catch(e => { toast(e.message, true); throw e; })
           .finally(() => setBusy(submitButton, false));
   };
     form.onsubmit = e => {
@@ -1002,55 +1008,11 @@ if ($action !== null) {
         }
         submit(new FormData(form));
     };
-    prospectusForm.onsubmit = event => {
-        event.preventDefault();
-        if (!prospectusForm.reportValidity()) return;
-        const data = new FormData(prospectusForm);
-        data.append('action', 'upload_prospectus');
-        const uploadButton = prospectusForm.querySelector('button[type="submit"]');
-        setBusy(uploadButton, true, 'Uploading...');
-
-        fetch('pages/organization.php', {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            body: data,
-        })
-            .then(response => response.json())
-            .then(result => {
-                if (!result.success) throw new Error(result.message);
-                prospectusForm.reset();
-                toast(result.message);
-                return loadProspectusData();
-            })
-                        .catch(error => toast(`Prospectus could not be uploaded. ${error.message}`, true))
-                        .finally(() => setBusy(uploadButton, false));
-    };
-    renderProspectusRecords = renderProspectusRecordsWithoutTitle;
-    renderCurriculum = renderCurriculumWithoutTitle;
-    const prospectusGrid = prospectusRecordsBody.closest('.grid');
-    if (prospectusGrid) prospectusGrid.style.display = 'block';
-    if (prospectusGrid?.children[1]) prospectusGrid.children[1].style.display = 'none';
-    if (prospectusGrid?.children[0]) prospectusGrid.children[0].classList.add('w-full');
     retryOrganizationBtn.onclick = load;
         document.getElementById('prospectusSearch').oninput = renderProspectusRecords;
         document.getElementById('prospectusRecordProgram').onchange = event => fillProspectusMajors(event.target.value);
         document.getElementById('addProspectusBtn').onclick = () => { prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = ''; document.getElementById('prospectusRecordFile').required = true; fillProspectusPrograms(); fillProspectusMajors(''); document.getElementById('prospectusModalTitle').textContent = 'Upload Prospectus'; openDialog(document.getElementById('prospectusModal')); };
         document.getElementById('closeProspectusModal').onclick = () => closeDialog(document.getElementById('prospectusModal'));
-        document.getElementById('deleteProspectusPdfBtn').onclick = () => {
-            if (!selectedProspectusId || !window.confirm('Remove the PDF attached to this prospectus?')) return;
-            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_document', prospectus_id: selectedProspectusId }) })
-                .then(response => response.json())
-                .then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); })
-                .catch(error => toast(error.message, true));
-        };
-        document.getElementById('prospectusRecordsBody').onclick = event => {
-                const select = event.target.closest('[data-select-prospectus]');
-                const edit = event.target.closest('[data-edit-prospectus]');
-                const del = event.target.closest('[data-delete-prospectus-record]');
-                if (select) { selectedProspectusId = Number(select.dataset.selectProspectus); renderProspectusRecords(); renderCurriculum(); }
-                if (edit) { const item = prospectusData.prospectuses.find(record => Number(record.id) === Number(edit.dataset.editProspectus)); if (!item) return; prospectusRecordForm.reset(); document.getElementById('prospectusRecordFile').required = false; document.getElementById('prospectusRecordId').value = item.id; fillProspectusPrograms(item.program_id); fillProspectusMajors(item.program_id, item.major_id); document.getElementById('prospectusRecordTitle').value = item.title; document.getElementById('prospectusRecordYear').value = item.curriculum_year; document.getElementById('prospectusModalTitle').textContent = 'Edit Prospectus'; openDialog(document.getElementById('prospectusModal')); }
-                if (del) { const password = window.prompt('Enter your current password to permanently delete this prospectus.'); if (password === null) return; fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_record', id: del.dataset.deleteProspectusRecord, current_password: password }) }).then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); if (selectedProspectusId === Number(del.dataset.deleteProspectusRecord)) selectedProspectusId = 0; toast(result.message); loadProspectusData(); }).catch(error => toast(error.message, true)); }
-        };
         const uploadProspectusFile = (prospectusId, file, button) => {
             if (!file) return;
             const data = new FormData();
@@ -1067,10 +1029,18 @@ if ($action !== null) {
                 replaceButton.closest('tr')?.querySelector(`[data-row-file="${replaceButton.dataset.rowReplace}"]`)?.click();
                 return;
             }
+            const deleteRecordButton = event.target.closest('[data-delete-prospectus-record]');
+            if (deleteRecordButton) {
+                const prospectusId = deleteRecordButton.dataset.deleteProspectusRecord;
+                const name = deleteRecordButton.dataset.name || 'this prospectus';
+                openDeleteDialog('prospectus_record', prospectusId, name);
+                return;
+            }
             const removeButton = event.target.closest('[data-delete-prospectus-pdf]');
-            if (!removeButton || !window.confirm('Remove this prospectus PDF?')) return;
-            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_document', prospectus_id: removeButton.dataset.deleteProspectusPdf }) })
-                .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true));
+            if (removeButton && window.confirm('Remove this prospectus PDF?')) {
+                fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_document', prospectus_id: removeButton.dataset.deleteProspectusPdf }) })
+                    .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true));
+            }
         });
             prospectusRecordsBody.addEventListener('change', event => {
                 const fileInput = event.target.closest('input[data-row-file]');
@@ -1114,6 +1084,53 @@ if ($action !== null) {
                 .catch(error => toast(error.message, true));
         };
         loadProspectusData().catch(error => { document.getElementById('prospectusStatus').textContent = error.message; toast(`Prospectuses could not be loaded. ${error.message}`, true); });
+
+    // Academics Tabbing UI logic
+    const tabNav = document.getElementById('academicsTabNav');
+    if (tabNav) {
+        const tabButtons = tabNav.querySelectorAll('.academics-tab');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+
+        function activateTab(tabName) {
+            tabButtons.forEach(btn => {
+                const isSelected = btn.dataset.tab === tabName;
+                btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                if (isSelected) {
+                    btn.className = 'academics-tab inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-rose-700';
+                } else {
+                    btn.className = 'academics-tab inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900';
+                }
+            });
+
+            tabPanels.forEach(panel => {
+                const isTarget = panel.id === `${tabName}Panel` || (tabName === 'secondary' && panel.id === 'secondaryViewPanel');
+                panel.classList.toggle('hidden', !isTarget);
+            });
+
+            try {
+                sessionStorage.setItem('academics_active_tab', tabName);
+            } catch (e) {}
+
+            lucide.createIcons();
+        }
+
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                activateTab(btn.dataset.tab);
+            });
+        });
+
+        let savedTab = '';
+        try {
+            savedTab = sessionStorage.getItem('academics_active_tab') || '';
+        } catch (e) {}
+
+        const hashTab = window.location.hash.replace('#', '');
+        const initialTab = ['hierarchy', 'secondary', 'prospectus'].includes(hashTab) ? hashTab : (['hierarchy', 'secondary', 'prospectus'].includes(savedTab) ? savedTab : 'hierarchy');
+        activateTab(initialTab);
+    }
+
   load();
 })();
 </script>
