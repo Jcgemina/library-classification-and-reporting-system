@@ -99,6 +99,20 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
 <nav class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-[0_6px_20px_rgba(15,23,42,0.20)]">
   <div class="relative w-full px-2 md:px-6 py-2 md:py-4 flex items-center justify-between gap-3">
 
+    <div class="flex min-w-0 items-center gap-1.5 md:gap-3">
+    <!-- Mobile menu button (left) -->
+    <button
+      type="button"
+      id="mobileMenuButton"
+      class="md:hidden flex items-center justify-center
+          w-9 h-9 rounded-lg text-slate-700 hover:bg-slate-100
+          transition-colors flex-shrink-0"
+      aria-label="Open navigation menu"
+      aria-expanded="false"
+    >
+      <i data-lucide="menu" class="w-5 h-5"></i>
+    </button>
+
     <!-- Logo section (left) -->
     <div class="flex items-center gap-1.5 md:gap-3 flex-shrink-0 min-w-0">
       <div class="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-white flex items-center justify-center shadow-sm flex-shrink-0 overflow-hidden">
@@ -109,6 +123,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
         <h1 class="text-xs sm:text-sm md:text-lg font-bold text-slate-900 whitespace-nowrap truncate">AppSys Library</h1>
         <p class="text-[7px] sm:text-[8px] md:text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 whitespace-nowrap truncate">Librarian Management Portal</p>
       </div>
+    </div>
     </div>
 
     <!-- Navigation track (center) - hidden on mobile -->
@@ -126,19 +141,6 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
         </a>
       <?php endforeach; ?>
     </div>
-
-    <!-- Mobile menu button (hamburger) -->
-    <button
-        type="button"
-        id="mobileMenuButton"
-        class="md:hidden flex items-center justify-center
-              w-9 h-9 rounded-lg text-slate-700 hover:bg-slate-100
-              transition-colors flex-shrink-0"
-        aria-label="Open navigation menu"
-        aria-expanded="false"
-    >
-        <i data-lucide="menu" class="w-5 h-5"></i>
-    </button>
 
     <!-- User menu (right) -->
     <div class="relative flex items-center justify-end flex-shrink-0">
@@ -170,6 +172,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     <?php foreach ($navItems as $item): ?>
       <?php $isActive = $item['page'] === $currentPage; ?>
       <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
+        data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium <?php echo $isActive ? 'bg-rose-500 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>">
         <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="w-4 h-4"></i>
         <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>

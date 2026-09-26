@@ -289,27 +289,25 @@
             </div>
           </div>
 
-          <div class="flex flex-col gap-1.5 md:flex-shrink-0">
+          <div class="w-full md:w-56 md:flex-shrink-0">
             <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Primary actions</p>
-            <div class="flex flex-wrap items-center gap-2">
-              <button type="button" data-action="view" data-id="${librarian.id}" aria-label="View ${esc(librarian.fullName)}" class="inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-200 hover:text-sky-700">
+            <div class="mt-1.5 grid grid-cols-2 gap-2">
+              <button type="button" data-action="view" data-id="${librarian.id}" aria-label="View ${esc(librarian.fullName)}" class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:border-sky-200 hover:text-sky-700">
                 <i data-lucide="eye" class="h-3.5 w-3.5"></i>
                 View
               </button>
 
-              <button type="button" data-action="edit" data-id="${librarian.id}" aria-label="Edit ${esc(librarian.fullName)}" class="inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700">
+              <button type="button" data-action="edit" data-id="${librarian.id}" aria-label="Edit ${esc(librarian.fullName)}" class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700">
                 <i data-lucide="pencil-line" class="h-3.5 w-3.5"></i>
                 Edit
               </button>
-            </div>
 
-            <div class="mt-1 flex flex-wrap items-center gap-2">
-              <button type="button" data-action="toggle-status" data-id="${librarian.id}" aria-label="${isActive ? 'Deactivate' : 'Activate'} ${esc(librarian.fullName)}" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-100">
+              <button type="button" data-action="toggle-status" data-id="${librarian.id}" aria-label="${isActive ? 'Deactivate' : 'Activate'} ${esc(librarian.fullName)}" class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
                 <i data-lucide="${isActive ? 'user-round-x' : 'user-round-check'}" class="h-3.5 w-3.5"></i>
                 ${isActive ? 'Disable' : 'Enable'}
               </button>
 
-              <button type="button" data-action="delete" data-id="${librarian.id}" aria-label="Delete ${esc(librarian.fullName)}" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-100 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
+              <button type="button" data-action="delete" data-id="${librarian.id}" aria-label="Delete ${esc(librarian.fullName)}" class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
                 <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                 Delete
               </button>

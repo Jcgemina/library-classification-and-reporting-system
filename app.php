@@ -83,10 +83,14 @@ $currentPage = $page;
 
         navLinks.forEach(link => {
             const isActive = link.dataset.page === activePage;
+            const isMobileLink = link.closest('#mobileMenu');
 
             link.classList.toggle('text-white', isActive);
             link.classList.toggle('text-slate-600', !isActive);
             link.classList.toggle('hover:text-slate-900', !isActive);
+          if (isMobileLink) {
+            link.classList.toggle('bg-rose-500', isActive);
+          }
 
             link.classList.remove('text-slate-900');
             link.classList.remove('shadow-sm');

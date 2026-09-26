@@ -16,22 +16,22 @@ requireLogin();
     <p class="mt-1 text-sm text-slate-500">Overview of library books, copyright status, and quarterly progress.</p>
   </div>
 
-  <div class="grid grid-cols-1 gap-4 xl:grid-cols-4">
+  <div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
     <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
-      <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div>
-      <div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">Total Titles</p><p class="mt-1 text-3xl font-bold leading-none text-slate-950">4</p></div>
+      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-slate-600">Total Titles</p></div>
+      <p class="text-3xl font-bold leading-none text-slate-950">4</p>
     </div>
     <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
-      <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-100 text-emerald-600"><i data-lucide="calendar-check" class="h-5 w-5"></i></div>
-      <div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">Within 5 Yrs</p><p class="mt-1 text-3xl font-bold leading-none text-emerald-600">1</p></div>
+      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-100 text-emerald-600"><i data-lucide="calendar-check" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-slate-600">Within 5 Yrs</p></div>
+      <p class="text-3xl font-bold leading-none text-emerald-600">1</p>
     </div>
     <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
-      <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-100 text-amber-600"><i data-lucide="calendar-clock" class="h-5 w-5"></i></div>
-      <div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">Within 10 Yrs</p><p class="mt-1 text-3xl font-bold leading-none text-amber-600">4</p></div>
+      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-100 text-amber-600"><i data-lucide="calendar-clock" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-slate-600">Within 10 Yrs</p></div>
+      <p class="text-3xl font-bold leading-none text-amber-600">4</p>
     </div>
     <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
-      <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="calendar-range" class="h-5 w-5"></i></div>
-      <div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">Within 20 Yrs</p><p class="mt-1 text-3xl font-bold leading-none text-rose-700">4</p></div>
+      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="calendar-range" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-slate-600">Within 20 Yrs</p></div>
+      <p class="text-3xl font-bold leading-none text-rose-700">4</p>
     </div>
   </div>
 

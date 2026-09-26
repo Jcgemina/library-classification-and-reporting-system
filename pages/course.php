@@ -63,8 +63,7 @@ if ($action !== null) {
                     $params[':program_id'] = $programId;
                 }
 
-                $sql = 'SELECT c.id, c.code, c.name, c.description, c.type, c.status, c.year_level, c.program_id, c.major_id, p.name AS program_name, col.id AS college_id, col.name AS college_name, m.name AS major_name FROM courses c LEFT JOIN programs p ON p.id = c.program_id LEFT JOIN colleges col ON col.id = p.college_id LEFT JOIN majors m ON m.id = c.major_id';
-                if ($where) {
+                $sql = 'SELECT c.id, c.code, c.name, c.description, c.status, c.program_id, c.major_id, p.name AS program_name, col.id AS college_id, col.name AS college_name, m.name AS major_name FROM courses c LEFT JOIN programs p ON p.id = c.program_id LEFT JOIN colleges col ON col.id = p.college_id LEFT JOIN majors m ON m.id = c.major_id';                if ($where) {
                     $sql .= ' WHERE ' . implode(' AND ', $where);
                 }
                 $sql .= ' ORDER BY c.code, c.name';
@@ -78,9 +77,7 @@ if ($action !== null) {
                         'code' => $course['code'],
                         'name' => $course['name'],
                         'description' => $course['description'] ?? '',
-                        'type' => $course['type'],
                         'status' => $course['status'],
-                        'yearLevel' => $course['year_level'] !== null ? (int) $course['year_level'] : null,
                         'programId' => $course['program_id'] !== null ? (int) $course['program_id'] : null,
                         'majorId' => $course['major_id'] !== null ? (int) $course['major_id'] : null,
                         'collegeId' => $course['college_id'] !== null ? (int) $course['college_id'] : null,
@@ -132,8 +129,6 @@ if ($action !== null) {
                 $name = trim((string) ($_POST['name'] ?? ''));
                 $programId = (int) ($_POST['program_id'] ?? 0) ?: null;
                 $majorId = (int) ($_POST['major_id'] ?? 0) ?: null;
-                $yearLevel = ($_POST['year_level'] ?? '') !== '' ? max(1, min(8, (int) $_POST['year_level'])) : null;
-                $type = trim((string) ($_POST['type'] ?? 'Major'));
                 $status = ($_POST['status'] ?? 'active') === 'inactive' ? 'inactive' : 'active';
                 $description = trim((string) ($_POST['description'] ?? ''));
 
@@ -164,10 +159,10 @@ if ($action !== null) {
                 }
 
                 if ($id > 0) {
-                    $stmt = $pdo->prepare('UPDATE courses SET program_id = :program_id, major_id = :major_id, code = :code, name = :name, description = :description, type = :type, status = :status, year_level = :year_level WHERE id = :id');
+                    $stmt = $pdo->prepare('UPDATE courses SET program_id = :program_id, major_id = :major_id, code = :code, name = :name, description = :description, status = :status WHERE id = :id');
                     $stmt->bindValue(':id', $id, PDO::PARAM_INT);
                 } else {
-                    $stmt = $pdo->prepare('INSERT INTO courses (program_id, major_id, code, name, description, type, status, year_level) VALUES (:program_id, :major_id, :code, :name, :description, :type, :status, :year_level)');
+                    $stmt = $pdo->prepare('INSERT INTO courses (program_id, major_id, code, name, description, status) VALUES (:program_id, :major_id, :code, :name, :description, :status)');
                 }
 
                 $stmt->bindValue(':program_id', $programId, $programId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
@@ -175,9 +170,7 @@ if ($action !== null) {
                 $stmt->bindValue(':code', $code);
                 $stmt->bindValue(':name', $name);
                 $stmt->bindValue(':description', $description !== '' ? $description : null, $description !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
-                $stmt->bindValue(':type', $type !== '' ? $type : 'Major');
                 $stmt->bindValue(':status', $status);
-                $stmt->bindValue(':year_level', $yearLevel, $yearLevel === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
                 $stmt->execute();
 
                 courseJson(['success' => true, 'message' => $id > 0 ? 'Course updated successfully.' : 'Course added successfully.']);
@@ -287,21 +280,6 @@ if ($action !== null) {
             <label class="text-sm font-semibold text-slate-700">
                 Course name
                 <input name="name" id="courseName" maxlength="180" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
-            </label>
-
-            <label class="text-sm font-semibold text-slate-700">
-                Type
-                <select name="type" id="courseType" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
-                    <option value="Major">Major</option>
-                    <option value="Minor">Minor</option>
-                    <option value="Elective">Elective</option>
-                    <option value="General Education">General Education</option>
-                </select>
-            </label>
-
-            <label class="text-sm font-semibold text-slate-700">
-                Year level
-                <input name="year_level" id="courseYear" type="number" min="1" max="8" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
             </label>
 
             <label class="text-sm font-semibold text-slate-700">
