@@ -349,6 +349,9 @@ CREATE TABLE IF NOT EXISTS security_logs (
     CONSTRAINT fk_security_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+Alter table courses drop column year_level;
+Alter table courses drop column `type`;
+
 -- To create a sample librarian account with a properly hashed password,
 -- run the included create_admin.php script from the command line (php create_admin.php).
 -- Do NOT insert a plaintext or hand-typed hash directly into this table.
