@@ -5,6 +5,7 @@ if (!isset($currentPage)) {
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $isValidatedUser = !empty($_SESSION['authenticated']) && !empty($_SESSION['user_id']);
+$isAdmin = $isValidatedUser && $userRole === 'admin';
 $navItems = [
     ['label' => 'Dashboard', 'page' => 'dashboard', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
     ['label' => 'Inventory', 'page' => 'inventory', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
@@ -72,6 +73,15 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     display: inline;
   }
 
+  .admin-sidebar {
+    transition: transform 0.24s ease;
+  }
+
+  #logoutConfirmDialog::backdrop {
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+  }
+
   @media (max-width: 1024px) {
     .nav-label {
       display: none;
@@ -96,6 +106,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
   }
 </style>
 
+<?php if (!$isAdmin): ?>
 <nav class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-[0_6px_20px_rgba(15,23,42,0.20)]">
   <div class="relative w-full px-2 md:px-6 py-2 md:py-4 flex items-center justify-between gap-3">
 
@@ -180,6 +191,78 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     <?php endforeach; ?>
   </div>
 </div>
+<?php else: ?>
+<div class="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:hidden">
+  <button
+    type="button"
+    id="adminSidebarToggle"
+    class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-300"
+    aria-label="Open navigation menu"
+    aria-expanded="false"
+    aria-controls="adminSidebar"
+  >
+    <i data-lucide="menu" class="h-5 w-5"></i>
+  </button>
+  <span class="text-sm font-semibold text-slate-900">AppSys Library</span>
+  <span class="w-9" aria-hidden="true"></span>
+</div>
+
+<div id="adminSidebarBackdrop" class="fixed inset-0 z-40 hidden bg-slate-950/40 md:hidden" aria-hidden="true"></div>
+<aside id="adminSidebar" class="admin-sidebar fixed inset-y-0 left-0 z-50 flex w-64 -translate-x-full flex-col border-r border-slate-200 bg-white shadow-xl md:translate-x-0 md:shadow-none" aria-label="Admin navigation">
+  <div class="flex h-[76px] items-center gap-3 border-b border-slate-200 px-5">
+    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
+      <img src="assets/images/library-system-logo.png" alt="" class="h-full w-full scale-[2.5] object-contain">
+    </div>
+    <div class="min-w-0 leading-tight">
+      <h1 class="truncate text-sm font-bold text-slate-900">AppSys Library</h1>
+      <p class="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">Admin Portal</p>
+    </div>
+  </div>
+
+  <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Main navigation">
+    <?php foreach ($navItems as $item): ?>
+      <?php $isActive = $item['page'] === $currentPage; ?>
+      <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
+        data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
+        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors <?php echo $isActive ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
+        <?php echo $isActive ? 'aria-current="page"' : ''; ?>>
+        <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="h-4 w-4 flex-shrink-0"></i>
+        <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+      </a>
+    <?php endforeach; ?>
+  </nav>
+
+  <div class="border-t border-slate-200 p-4">
+    <p class="truncate text-sm font-semibold text-slate-900"><?php echo htmlspecialchars($_SESSION['full_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
+    <div class="mt-2 flex items-center justify-between gap-3">
+      <span class="text-xs capitalize text-slate-500"><?php echo htmlspecialchars($_SESSION['role'] ?? 'admin', ENT_QUOTES, 'UTF-8'); ?></span>
+      <a href="logout.php" class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-300">
+        <i data-lucide="log-out" class="h-3.5 w-3.5"></i>
+        <span>Logout</span>
+      </a>
+    </div>
+  </div>
+</aside>
+<?php endif; ?>
+
+<dialog id="logoutConfirmDialog" class="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-left text-slate-900 shadow-2xl" aria-labelledby="logoutConfirmTitle" aria-describedby="logoutConfirmMessage">
+  <div class="flex items-start gap-4">
+    <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700">
+      <i data-lucide="log-out" class="h-5 w-5"></i>
+    </div>
+    <div class="min-w-0">
+      <h2 id="logoutConfirmTitle" class="text-lg font-bold text-slate-900">Log out of AppSys Library?</h2>
+      <p id="logoutConfirmMessage" class="mt-1 text-sm text-slate-600">You will need to sign in again to access the portal.</p>
+    </div>
+  </div>
+  <div class="mt-6 flex justify-end gap-3">
+    <button type="button" id="cancelLogoutButton" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300">Cancel</button>
+    <button type="button" id="confirmLogoutButton" class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300">
+      <i data-lucide="log-out" class="h-4 w-4"></i>
+      <span>Log out</span>
+    </button>
+  </div>
+</dialog>
 
 <script>
 document.getElementById('mobileMenuButton')?.addEventListener('click', function () {
@@ -210,5 +293,63 @@ document.querySelectorAll('#mobileMenu a').forEach(link => {
         icon.setAttribute('data-lucide', 'menu');
         lucide.createIcons();
     });
+});
+
+const adminSidebar = document.getElementById('adminSidebar');
+const adminSidebarToggle = document.getElementById('adminSidebarToggle');
+const adminSidebarBackdrop = document.getElementById('adminSidebarBackdrop');
+
+function setAdminSidebarOpen(isOpen) {
+  if (!adminSidebar || !adminSidebarToggle || !adminSidebarBackdrop) {
+    return;
+  }
+
+  adminSidebar.classList.toggle('-translate-x-full', !isOpen);
+  adminSidebarBackdrop.classList.toggle('hidden', !isOpen);
+  adminSidebarToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  adminSidebarToggle.setAttribute('aria-label', isOpen ? 'Close navigation menu' : 'Open navigation menu');
+  const icon = adminSidebarToggle.querySelector('[data-lucide]');
+  icon.setAttribute('data-lucide', isOpen ? 'x' : 'menu');
+  lucide.createIcons();
+}
+
+adminSidebarToggle?.addEventListener('click', function () {
+  setAdminSidebarOpen(this.getAttribute('aria-expanded') !== 'true');
+});
+adminSidebarBackdrop?.addEventListener('click', function () {
+  setAdminSidebarOpen(false);
+});
+document.querySelectorAll('#adminSidebar a[data-page]').forEach(link => {
+  link.addEventListener('click', function () {
+    setAdminSidebarOpen(false);
+  });
+});
+
+const logoutDialog = document.getElementById('logoutConfirmDialog');
+const cancelLogoutButton = document.getElementById('cancelLogoutButton');
+const confirmLogoutButton = document.getElementById('confirmLogoutButton');
+let logoutDestination = 'logout.php';
+let logoutTrigger = null;
+
+document.querySelectorAll('a[href="logout.php"]').forEach(link => {
+  link.addEventListener('click', function (event) {
+    event.preventDefault();
+    logoutDestination = this.href;
+    logoutTrigger = this;
+    logoutDialog.showModal();
+    cancelLogoutButton.focus();
+  });
+});
+
+cancelLogoutButton.addEventListener('click', () => logoutDialog.close());
+confirmLogoutButton.addEventListener('click', () => window.location.assign(logoutDestination));
+logoutDialog.addEventListener('click', event => {
+  if (event.target === logoutDialog) {
+    logoutDialog.close();
+  }
+});
+logoutDialog.addEventListener('close', () => {
+  logoutTrigger?.focus();
+  logoutTrigger = null;
 });
 </script>
