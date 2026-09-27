@@ -6,6 +6,8 @@ require_once __DIR__ . '/includes/functions.php';
 $token = trim((string)($_GET['token'] ?? $_POST['token'] ?? ''));
 $error = null;
 $success = null;
+$passwordValidationError = null;
+$confirmationValidationError = null;
 $userId = null;
 
 if ($pdo) $userId = getPasswordResetUserId($pdo, $token);
@@ -20,9 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$pdo || !$userId) {
         $error = 'This reset link is invalid or has expired.';
     } elseif (($passwordError = validatePasswordStrength($password)) !== null) {
-      $error = $passwordError;
+      $passwordValidationError = $passwordError;
     } elseif ($password !== $confirmation) {
-        $error = 'Passwords do not match.';
+        $confirmationValidationError = 'Passwords do not match.';
     } else {
         $pdo->beginTransaction();
         try {
@@ -67,8 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <i data-lucide="eye" id="passwordToggleIcon" class="h-5 w-5"></i>
             </button>
           </div>
-          <div id="passwordRequirements" class="mt-2 hidden rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600" aria-live="polite">
-            <p class="mb-2 font-semibold text-slate-700">Password must include:</p>
+          <div id="passwordRequirements" class="mt-2 <?= $passwordValidationError ? '' : 'hidden' ?> rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            <p id="passwordValidationStatus" class="mb-2 font-semibold <?= $passwordValidationError ? 'text-red-700' : 'text-slate-700' ?>" aria-live="polite"><?= htmlspecialchars($passwordValidationError ?? 'Password must include:', ENT_QUOTES, 'UTF-8') ?></p>
             <ul class="space-y-1">
               <li data-requirement="length" class="flex items-center gap-2"><span class="inline-block h-2 w-2 rounded-full bg-slate-300"></span><span>8-128 characters</span></li>
               <li data-requirement="letter" class="flex items-center gap-2"><span class="inline-block h-2 w-2 rounded-full bg-slate-300"></span><span>At least one letter</span></li>
@@ -86,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <i data-lucide="eye" id="confirmationToggleIcon" class="h-5 w-5"></i>
             </button>
           </div>
+          <p id="confirmationStatus" class="mt-2 hidden text-xs font-semibold <?= $confirmationValidationError ? 'text-red-700' : '' ?>" aria-live="polite"><?= htmlspecialchars($confirmationValidationError ?? '', ENT_QUOTES, 'UTF-8') ?></p>
         </div>
 
         <button class="w-full rounded-lg bg-rose-600 px-4 py-3 text-sm font-bold text-white hover:bg-rose-700">Update password</button>
@@ -116,19 +119,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     function updatePasswordRequirements() {
       const input = document.getElementById('password');
       const requirements = document.getElementById('passwordRequirements');
+      const status = document.getElementById('passwordValidationStatus');
       if (!input || !requirements) {
         return;
       }
 
       const value = input.value;
       const rules = [
-        { key: 'length', valid: value.length >= 8 && value.length <= 128 },
+        { key: 'length', valid: value.length >= Number(input.minLength) && value.length <= Number(input.maxLength) },
         { key: 'letter', valid: /[A-Za-z]/.test(value) },
         { key: 'number', valid: /[0-9]/.test(value) },
         { key: 'special', valid: /[^A-Za-z0-9]/.test(value) }
       ];
 
-      requirements.hidden = value.length === 0 && document.activeElement !== input;
+      requirements.classList.toggle('hidden', value.length === 0 && document.activeElement !== input && !<?= $passwordValidationError ? 'true' : 'false' ?>);
 
       rules.forEach(({ key, valid }) => {
         const item = requirements.querySelector('[data-requirement="' + key + '"]');
@@ -140,13 +144,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         dot.classList.toggle('bg-emerald-500', valid);
         dot.classList.toggle('bg-slate-300', !valid);
       });
+
+      const allValid = rules.every(({ valid }) => valid);
+      const firstInvalid = rules.find(({ valid }) => !valid);
+      const messages = {
+        length: `Use ${input.minLength}-${input.maxLength} characters.`,
+        letter: 'Add at least one letter.',
+        number: 'Add at least one number.',
+        special: 'Add at least one special character.'
+      };
+
+      if (value.length > 0) {
+        status.textContent = allValid ? 'Password is valid and meets all requirements.' : messages[firstInvalid.key];
+        status.classList.toggle('text-emerald-700', allValid);
+        status.classList.toggle('text-red-700', !allValid);
+        input.setAttribute('aria-invalid', allValid ? 'false' : 'true');
+      } else if (document.activeElement === input && !keepInitialPasswordError) {
+        status.textContent = 'Enter a password to check the requirements.';
+        status.classList.remove('text-emerald-700', 'text-red-700');
+        status.classList.add('text-slate-700');
+        input.removeAttribute('aria-invalid');
+      } else if (document.activeElement !== input) {
+        input.removeAttribute('aria-invalid');
+      }
+
+      updateConfirmationStatus();
+    }
+
+    function updateConfirmationStatus() {
+      const password = document.getElementById('password');
+      const confirmation = document.getElementById('password_confirmation');
+      const status = document.getElementById('confirmationStatus');
+      if (!password || !confirmation || !status) return;
+
+      const shouldShow = confirmation.value.length > 0 || document.activeElement === confirmation || Boolean(<?= $confirmationValidationError ? 'true' : 'false' ?>);
+      status.classList.toggle('hidden', !shouldShow);
+
+      if (!shouldShow) return;
+      if (keepInitialConfirmationError && confirmation.value.length === 0) return;
+      const matches = confirmation.value.length > 0 && confirmation.value === password.value;
+      status.textContent = matches ? 'Passwords match.' : (confirmation.value.length ? 'Passwords do not match yet.' : 'Re-enter your password to confirm.');
+      status.classList.toggle('text-emerald-700', matches);
+      status.classList.toggle('text-red-700', confirmation.value.length > 0 && !matches);
+      status.classList.toggle('text-slate-600', !confirmation.value.length);
+      confirmation.setAttribute('aria-invalid', confirmation.value.length ? String(!matches) : 'false');
     }
 
     const passwordInput = document.getElementById('password');
+    const confirmationInput = document.getElementById('password_confirmation');
+    let keepInitialPasswordError = Boolean(<?= json_encode($passwordValidationError) ?>);
+    let keepInitialConfirmationError = Boolean(<?= json_encode($confirmationValidationError) ?>);
     if (passwordInput) {
-      passwordInput.addEventListener('input', updatePasswordRequirements);
+      passwordInput.addEventListener('input', () => {
+        keepInitialPasswordError = false;
+        updatePasswordRequirements();
+      });
       passwordInput.addEventListener('focus', updatePasswordRequirements);
       passwordInput.addEventListener('blur', updatePasswordRequirements);
+    }
+    if (confirmationInput) {
+      confirmationInput.addEventListener('input', () => {
+        keepInitialConfirmationError = false;
+        updateConfirmationStatus();
+      });
+      confirmationInput.addEventListener('focus', updateConfirmationStatus);
+      confirmationInput.addEventListener('blur', updateConfirmationStatus);
     }
 
     lucide.createIcons();

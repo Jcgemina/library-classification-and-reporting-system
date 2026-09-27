@@ -49,7 +49,9 @@ $currentPage = $page;
     lucide.createIcons();
   </script>
 
-  <main id="pageContent" class="mx-auto w-full max-w-[1440px] min-w-0 overflow-x-hidden p-6"></main>
+  <div class="<?php echo $userRole === 'admin' ? 'md:ml-64' : ''; ?>">
+    <main id="pageContent" class="mx-auto w-full max-w-[1440px] min-w-0 overflow-x-hidden p-6"></main>
+  </div>
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
@@ -84,17 +86,16 @@ $currentPage = $page;
         navLinks.forEach(link => {
             const isActive = link.dataset.page === activePage;
             const isMobileLink = link.closest('#mobileMenu');
+            const isAdminSidebarLink = link.closest('#adminSidebar');
 
             link.classList.toggle('text-white', isActive);
             link.classList.toggle('text-slate-600', !isActive);
             link.classList.toggle('hover:text-slate-900', !isActive);
-          if (isMobileLink) {
-            link.classList.toggle('bg-rose-500', isActive);
-          }
+            link.classList.toggle('bg-rose-500', isActive && (isMobileLink || isAdminSidebarLink));
 
             link.classList.remove('text-slate-900');
-            link.classList.remove('shadow-sm');
-            link.classList.remove('hover:bg-slate-100');
+            link.classList.toggle('shadow-sm', isActive && Boolean(isAdminSidebarLink));
+            link.classList.toggle('hover:bg-slate-100', !isActive);
 
             if (isActive) {
                 link.setAttribute('aria-current', 'page');

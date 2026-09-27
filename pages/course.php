@@ -223,7 +223,7 @@ if ($action !== null) {
     <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div class="flex flex-1 flex-col gap-2 sm:flex-row">
-                <input id="courseSearch" type="search" placeholder="Search code, name, or description" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100">
+                <div class="relative w-full"><i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true"></i><input id="courseSearch" type="search" placeholder="Search code, name, or description" class="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"></div>
                 <select id="courseCollege" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
                     <option value="">All colleges</option>
                 </select>
