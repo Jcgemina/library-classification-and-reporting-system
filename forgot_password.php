@@ -53,9 +53,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p class="text-sm text-slate-500 text-center mt-1 mb-6">Enter your account email and we will send a secure reset link.</p>
             <?php if ($error): ?><div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
             <?php if ($message): ?><div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
-            <form method="post" class="space-y-4">
+            <form id="resetLinkForm" method="post" class="space-y-4">
                 <label class="block text-xs font-semibold tracking-wide text-slate-600">EMAIL ADDRESS<input type="email" name="email" required autocomplete="email" placeholder="Enter your account email" class="mt-1.5 w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-800 focus:ring-2 focus:ring-slate-200"></label>
-                <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300">Send reset link</button>
+                <button id="sendResetLinkButton" type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-wait disabled:opacity-80" aria-busy="false">
+                    <span id="sendResetLinkSpinner" class="hidden h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true"></span>
+                    <span id="sendResetLinkLabel" aria-live="polite">Send reset link</span>
+                </button>
             </form>
             <a href="login.php" class="mt-5 block text-center text-sm font-semibold text-rose-600 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-200">Back to login</a>
         </main>
@@ -64,5 +67,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <span>Encrypted Connection</span><span aria-hidden="true">•</span><span>System Support</span>
         </div>
     </div>
+    <script>
+        document.getElementById('resetLinkForm').addEventListener('submit', function () {
+            const button = document.getElementById('sendResetLinkButton');
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            document.getElementById('sendResetLinkSpinner').classList.remove('hidden');
+            document.getElementById('sendResetLinkLabel').textContent = 'Sending reset link...';
+        });
+    </script>
 </body>
 </html>
