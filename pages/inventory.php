@@ -109,6 +109,19 @@ if ($pdo instanceof PDO) {
     $archiveQuery = str_replace('WHERE b.deleted_at IS NULL', 'WHERE b.deleted_at IS NOT NULL', $bookQuery);
     $archiveQuery .= ' ORDER BY b.deleted_at DESC';
     $archivedBooks = $pdo->query($archiveQuery)->fetchAll();
+    $courseReferenceRows = $pdo->query('SELECT bc.book_id, c.code, c.name FROM book_courses bc INNER JOIN courses c ON c.id = bc.course_id ORDER BY c.code, c.name')->fetchAll();
+    $courseReferencesByBook = [];
+    foreach ($courseReferenceRows as $reference) {
+      $courseReferencesByBook[(int)$reference['book_id']][] = ['code' => $reference['code'], 'name' => $reference['name']];
+    }
+    foreach ($activeBooks as $bookIndex => $book) {
+      $activeBooks[$bookIndex]['course_references'] = $courseReferencesByBook[(int)$book['book_id']] ?? [];
+      $activeBooks[$bookIndex]['effective_copyright_year'] = $book['copyright_year'] ?? $book['publication_year'];
+    }
+    foreach ($archivedBooks as $bookIndex => $book) {
+      $archivedBooks[$bookIndex]['course_references'] = $courseReferencesByBook[(int)$book['book_id']] ?? [];
+      $archivedBooks[$bookIndex]['effective_copyright_year'] = $book['copyright_year'] ?? $book['publication_year'];
+    }
     $inventorySchemaAvailable = true;
   } catch (PDOException $exception) {
     error_log('Inventory metrics unavailable: ' . $exception->getMessage());
@@ -184,6 +197,7 @@ $copyrightMetricStyles = [
           <tr>
             <th scope="col" class="px-4 py-3">Book</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3">Pub. Year</th>
+            <th scope="col" class="px-4 py-3">References</th>
             <th scope="col" class="px-4 py-3">Publisher</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3 text-center">Copies</th>
             <?php foreach ($copyrightYearMetrics as $metric): ?>
@@ -193,15 +207,26 @@ $copyrightMetricStyles = [
         </thead>
         <tbody class="divide-y divide-slate-100">
           <?php if (!$inventorySchemaAvailable): ?>
-            <tr><td colspan="<?php echo 4 + count($copyrightYearMetrics); ?>" class="px-4 py-12 text-center"><p class="text-sm font-semibold text-rose-700">Inventory database tables are unavailable.</p><p class="mt-1 text-xs text-slate-600">Apply the latest schema.sql to enable book records and copyright ranges.</p></td></tr>
+            <tr><td colspan="<?php echo 5 + count($copyrightYearMetrics); ?>" class="px-4 py-12 text-center"><p class="text-sm font-semibold text-rose-700">Inventory database tables are unavailable.</p><p class="mt-1 text-xs text-slate-600">Apply the latest schema.sql to enable book records and copyright ranges.</p></td></tr>
           <?php elseif (!$activeBooks): ?>
-            <tr><td colspan="<?php echo 4 + count($copyrightYearMetrics); ?>" class="px-4 py-14 text-center"><i data-lucide="book-x" class="mx-auto h-8 w-8 text-slate-300"></i><p class="mt-3 text-sm font-semibold text-slate-700">No books in the catalog</p><p class="mt-1 text-xs text-slate-600">Add a book to see its copyright-year status here.</p></td></tr>
+            <tr><td colspan="<?php echo 5 + count($copyrightYearMetrics); ?>" class="px-4 py-14 text-center"><i data-lucide="book-x" class="mx-auto h-8 w-8 text-slate-300"></i><p class="mt-3 text-sm font-semibold text-slate-700">No books in the catalog</p><p class="mt-1 text-xs text-slate-600">Add a book to see its copyright-year status here.</p></td></tr>
           <?php else: ?>
             <?php foreach ($activeBooks as $book): ?>
-              <?php $bookCopyrightYear = (int)($book['copyright_year'] ?? 0); ?>
+              <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
               <tr>
                 <td class="px-4 py-3"><p class="font-semibold text-slate-900"><?php echo $escapeInventory($book['title']); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
+                <td class="px-4 py-3">
+                  <?php if (!empty($book['course_references'])): ?>
+                    <div class="flex flex-wrap gap-1">
+                      <?php foreach ($book['course_references'] as $reference): ?>
+                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-800"><span class="font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span><?php echo $escapeInventory($reference['name']); ?></span></span>
+                      <?php endforeach; ?>
+                    </div>
+                  <?php else: ?>
+                    <span class="text-xs text-slate-500">No courses linked yet</span>
+                  <?php endif; ?>
+                </td>
                 <td class="px-4 py-3 text-slate-700"><?php echo $escapeInventory($book['publisher'] ?: '—'); ?></td>
                 <td class="px-4 py-3 text-center font-semibold tabular-nums text-slate-800"><?php echo (int)$book['copy_count']; ?></td>
                 <?php foreach ($copyrightYearMetrics as $metric): ?>
@@ -258,6 +283,7 @@ $copyrightMetricStyles = [
           <tr>
             <th scope="col" class="px-4 py-3">Book</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3">Pub. Year</th>
+            <th scope="col" class="px-4 py-3">References</th>
             <th scope="col" class="px-4 py-3">Publisher</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3 text-center">Copies</th>
             <?php foreach ($copyrightYearMetrics as $metric): ?>
@@ -267,13 +293,24 @@ $copyrightMetricStyles = [
         </thead>
         <tbody>
           <?php if (!$archivedBooks): ?>
-            <tr><td colspan="<?php echo 4 + count($copyrightYearMetrics); ?>" class="px-4 py-12 text-center"><p class="text-sm font-medium text-slate-700">No archived books</p><p class="mt-1 text-xs text-slate-600">Soft-deleted books will appear here.</p></td></tr>
+            <tr><td colspan="<?php echo 5 + count($copyrightYearMetrics); ?>" class="px-4 py-12 text-center"><p class="text-sm font-medium text-slate-700">No archived books</p><p class="mt-1 text-xs text-slate-600">Soft-deleted books will appear here.</p></td></tr>
           <?php else: ?>
             <?php foreach ($archivedBooks as $book): ?>
-              <?php $bookCopyrightYear = (int)($book['copyright_year'] ?? 0); ?>
+              <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
               <tr>
                 <td class="px-4 py-3"><p class="font-semibold text-slate-900"><?php echo $escapeInventory($book['title']); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
+                <td class="px-4 py-3">
+                  <?php if (!empty($book['course_references'])): ?>
+                    <div class="flex flex-wrap gap-1">
+                      <?php foreach ($book['course_references'] as $reference): ?>
+                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-800"><span class="font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span><?php echo $escapeInventory($reference['name']); ?></span></span>
+                      <?php endforeach; ?>
+                    </div>
+                  <?php else: ?>
+                    <span class="text-xs text-slate-500">No courses linked yet</span>
+                  <?php endif; ?>
+                </td>
                 <td class="px-4 py-3 text-slate-700"><?php echo $escapeInventory($book['publisher'] ?: '—'); ?></td>
                 <td class="px-4 py-3 text-center font-semibold tabular-nums text-slate-800"><?php echo (int)$book['copy_count']; ?></td>
                 <?php foreach ($copyrightYearMetrics as $metric): ?>

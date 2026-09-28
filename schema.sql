@@ -89,6 +89,16 @@ CREATE TABLE IF NOT EXISTS book_copies (
     CONSTRAINT fk_book_copies_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS book_courses (
+    book_id INT UNSIGNED NOT NULL,
+    course_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (book_id, course_id),
+    INDEX idx_book_courses_course (course_id),
+    CONSTRAINT fk_book_courses_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    CONSTRAINT fk_book_courses_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS copyright_year_ranges (
     range_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     years_threshold SMALLINT UNSIGNED NOT NULL,
