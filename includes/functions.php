@@ -272,3 +272,18 @@ HTML;
         return false;
     }
 }
+
+function getCopyrightYearMetrics(PDO $pdo): array {
+    $stmt = $pdo->query(
+        'SELECT r.range_id, r.years_threshold, COUNT(b.book_id) AS title_count
+         FROM copyright_year_ranges r
+         LEFT JOIN books b
+           ON b.deleted_at IS NULL
+                    AND COALESCE(b.copyright_year, b.publication_year) BETWEEN YEAR(CURRENT_DATE) - r.years_threshold AND YEAR(CURRENT_DATE)
+         WHERE r.is_active = 1
+         GROUP BY r.range_id, r.years_threshold, r.sort_order
+         ORDER BY r.sort_order, r.years_threshold'
+    );
+
+    return $stmt->fetchAll();
+}
