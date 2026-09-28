@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
@@ -8,6 +9,23 @@ if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQU
 }
 
 requireLogin();
+$totalBookTitles = 0;
+$copyrightYearMetrics = [];
+
+if ($pdo instanceof PDO) {
+  try {
+    $totalBookTitles = (int)$pdo->query('SELECT COUNT(*) FROM books WHERE deleted_at IS NULL')->fetchColumn();
+    $copyrightYearMetrics = getCopyrightYearMetrics($pdo);
+  } catch (PDOException $exception) {
+    error_log('Dashboard inventory metrics unavailable: ' . $exception->getMessage());
+  }
+}
+
+$copyrightMetricStyles = [
+  ['icon' => 'calendar-check', 'iconBorder' => 'border-emerald-200', 'iconBg' => 'bg-emerald-100', 'iconColor' => 'text-emerald-600', 'labelColor' => 'text-emerald-800', 'valueColor' => 'text-emerald-600'],
+  ['icon' => 'calendar-clock', 'iconBorder' => 'border-amber-200', 'iconBg' => 'bg-amber-100', 'iconColor' => 'text-amber-600', 'labelColor' => 'text-amber-800', 'valueColor' => 'text-amber-600'],
+  ['icon' => 'calendar-range', 'iconBorder' => 'border-rose-200', 'iconBg' => 'bg-rose-100', 'iconColor' => 'text-rose-600', 'labelColor' => 'text-rose-800', 'valueColor' => 'text-rose-700'],
+];
 ?>
 
 <div class="min-h-[calc(100vh-5rem)] p-1 text-slate-900 sm:p-2">
@@ -18,21 +36,16 @@ requireLogin();
 
   <div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
     <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
-      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-slate-600">Total Titles</p></div>
-      <p class="text-3xl font-bold leading-none text-slate-950">4</p>
+      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-rose-800">Total Titles</p></div>
+      <p class="text-3xl font-bold leading-none text-slate-950"><?php echo $totalBookTitles; ?></p>
     </div>
-    <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
-      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-100 text-emerald-600"><i data-lucide="calendar-check" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-slate-600">Within 5 Yrs</p></div>
-      <p class="text-3xl font-bold leading-none text-emerald-600">1</p>
-    </div>
-    <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
-      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-100 text-amber-600"><i data-lucide="calendar-clock" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-slate-600">Within 10 Yrs</p></div>
-      <p class="text-3xl font-bold leading-none text-amber-600">4</p>
-    </div>
-    <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
-      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="calendar-range" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-slate-600">Within 20 Yrs</p></div>
-      <p class="text-3xl font-bold leading-none text-rose-700">4</p>
-    </div>
+    <?php foreach ($copyrightYearMetrics as $index => $metric): ?>
+      <?php $style = $copyrightMetricStyles[$index % count($copyrightMetricStyles)]; ?>
+      <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+        <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border <?php echo $style['iconBorder']; ?> <?php echo $style['iconBg']; ?> <?php echo $style['iconColor']; ?>"><i data-lucide="<?php echo $style['icon']; ?>" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight <?php echo $style['labelColor']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> Yrs</p></div>
+        <p class="text-3xl font-bold leading-none <?php echo $style['valueColor']; ?>"><?php echo (int)$metric['title_count']; ?></p>
+      </div>
+    <?php endforeach; ?>
   </div>
 
   <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_1.15fr_0.72fr]">

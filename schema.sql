@@ -53,15 +53,61 @@ CREATE TABLE IF NOT EXISTS courses (
     name VARCHAR(180) NOT NULL,
     description VARCHAR(500) DEFAULT NULL,
     units TINYINT UNSIGNED DEFAULT NULL,
-    type VARCHAR(30) NOT NULL DEFAULT 'Major',
     status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-    year_level TINYINT UNSIGNED DEFAULT NULL,
     semester TINYINT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_course_program_code (program_id, code),
     CONSTRAINT fk_courses_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
     CONSTRAINT fk_courses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- Library titles and their individually numbered physical copies.
+CREATE TABLE IF NOT EXISTS books (
+    book_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    isbn VARCHAR(20) DEFAULT NULL,
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(180) NOT NULL,
+    publisher VARCHAR(180) DEFAULT NULL,
+    publication_year SMALLINT UNSIGNED DEFAULT NULL,
+    copyright_year SMALLINT UNSIGNED DEFAULT NULL,
+    description TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    UNIQUE KEY uq_books_isbn (isbn),
+    INDEX idx_books_deleted_publication_year (deleted_at, publication_year),
+    INDEX idx_books_copyright_year (copyright_year)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS book_copies (
+    copy_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    book_id INT UNSIGNED NOT NULL,
+    copy_number SMALLINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_book_copies_book_number (book_id, copy_number),
+    INDEX idx_book_copies_book (book_id),
+    CONSTRAINT fk_book_copies_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS copyright_year_ranges (
+    range_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    years_threshold SMALLINT UNSIGNED NOT NULL,
+    sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_copyright_year_ranges_threshold (years_threshold),
+    INDEX idx_copyright_year_ranges_active_order (is_active, sort_order)
+) ENGINE=InnoDB;
+
+INSERT INTO copyright_year_ranges (years_threshold, sort_order)
+SELECT defaults.years_threshold, defaults.sort_order
+FROM (
+    SELECT 5 AS years_threshold, 1 AS sort_order
+    UNION ALL SELECT 10, 2
+    UNION ALL SELECT 20, 3
+) AS defaults
+WHERE NOT EXISTS (SELECT 1 FROM copyright_year_ranges);
 
 -- Prospectus records assigned to a program or optional major.
 CREATE TABLE IF NOT EXISTS prospectuses (
@@ -212,17 +258,9 @@ PREPARE add_course_units_column FROM @add_course_units_column;
 EXECUTE add_course_units_column;
 DEALLOCATE PREPARE add_course_units_column;
 
-SET @course_type_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'type');
-SET @add_course_type_column = IF(@course_type_column_exists = 0,
-    'ALTER TABLE courses ADD COLUMN type VARCHAR(30) NOT NULL DEFAULT ''Major'' AFTER units',
-    'SELECT 1');
-PREPARE add_course_type_column FROM @add_course_type_column;
-EXECUTE add_course_type_column;
-DEALLOCATE PREPARE add_course_type_column;
-
 SET @course_status_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'status');
 SET @add_course_status_column = IF(@course_status_column_exists = 0,
-    'ALTER TABLE courses ADD COLUMN status ENUM(''active'', ''inactive'') NOT NULL DEFAULT ''active'' AFTER type',
+    'ALTER TABLE courses ADD COLUMN status ENUM(''active'', ''inactive'') NOT NULL DEFAULT ''active'' AFTER units',
     'SELECT 1');
 PREPARE add_course_status_column FROM @add_course_status_column;
 EXECUTE add_course_status_column;
@@ -349,8 +387,21 @@ CREATE TABLE IF NOT EXISTS security_logs (
     CONSTRAINT fk_security_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
-Alter table courses drop column year_level;
-Alter table courses drop column `type`;
+SET @course_year_level_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'year_level');
+SET @drop_course_year_level_column = IF(@course_year_level_column_exists > 0,
+    'ALTER TABLE courses DROP COLUMN year_level',
+    'SELECT 1');
+PREPARE drop_course_year_level_column FROM @drop_course_year_level_column;
+EXECUTE drop_course_year_level_column;
+DEALLOCATE PREPARE drop_course_year_level_column;
+
+SET @course_type_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'type');
+SET @drop_course_type_column = IF(@course_type_column_exists > 0,
+    'ALTER TABLE courses DROP COLUMN `type`',
+    'SELECT 1');
+PREPARE drop_course_type_column FROM @drop_course_type_column;
+EXECUTE drop_course_type_column;
+DEALLOCATE PREPARE drop_course_type_column;
 
 -- To create a sample librarian account with a properly hashed password,
 -- run the included create_admin.php script from the command line (php create_admin.php).
