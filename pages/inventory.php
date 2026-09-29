@@ -227,6 +227,11 @@ $archivedBooks = [];
 $activeCourses = [];
 $inventorySchemaAvailable = false;
 $escapeInventory = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$shortBookTitle = static function (string $title): string {
+  $words = preg_split('/\s+/', trim($title), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+  $words = array_values(array_filter($words, static fn($word): bool => preg_match('/[\pL\pN]/u', $word) === 1));
+  return count($words) > 3 ? implode(' ', array_slice($words, 0, 3)) . '...' : $title;
+};
 $currentYear = (int)date('Y');
 
 if ($pdo instanceof PDO) {
@@ -349,7 +354,7 @@ $copyrightMetricStyles = [
             <?php foreach ($activeBooks as $book): ?>
               <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
               <tr>
-                <td class="px-4 py-3"><p class="font-semibold text-slate-900"><?php echo $escapeInventory($book['title']); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
+                <td class="px-4 py-3"><p title="<?php echo $escapeInventory($book['title']); ?>" class="font-semibold text-slate-900"><?php echo $escapeInventory($shortBookTitle($book['title'])); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
                 <td class="px-4 py-3">
                   <?php if (!empty($book['course_references'])): ?>
@@ -539,7 +544,7 @@ $copyrightMetricStyles = [
             <?php foreach ($archivedBooks as $book): ?>
               <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
               <tr>
-                <td class="px-4 py-3"><p class="font-semibold text-slate-900"><?php echo $escapeInventory($book['title']); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
+                <td class="px-4 py-3"><p title="<?php echo $escapeInventory($book['title']); ?>" class="font-semibold text-slate-900"><?php echo $escapeInventory($shortBookTitle($book['title'])); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
                 <td class="px-4 py-3">
                   <?php if (!empty($book['course_references'])): ?>
