@@ -1,8 +1,28 @@
 <?php
-$DB_HOST = 'localhost';
-$DB_NAME = 'appsys_library';
-$DB_USER = 'root';
-$DB_PASS = '';
+$envFile = dirname(__DIR__) . '/.env';
+$environment = [];
+if (is_file($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+            continue;
+        }
+        [$name, $value] = explode('=', $line, 2);
+        $name = trim($name);
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) === 1) {
+            $environment[$name] = trim($value, " \t\r\n\"");
+        }
+    }
+}
+$getConfig = static function (string $key, string $default = '') use ($environment): string {
+    $value = getenv($key);
+    return $value !== false ? $value : (string) ($environment[$key] ?? $default);
+};
+
+$DB_HOST = $getConfig('DB_HOST', 'localhost');
+$DB_NAME = $getConfig('DB_NAME');
+$DB_USER = $getConfig('DB_USER');
+$DB_PASS = $getConfig('DB_PASS');
 
 const MAIL_FROM = 'no-reply@library.local';
 
@@ -21,7 +41,6 @@ try {
         ]
     );
 } catch (PDOException $e) {
-    // Non-functional requirement: don't leak DB details to the user
     error_log('DB connection error: ' . $e->getMessage());
     $dbConnectionError = 'Sorry, the system is temporarily unavailable. Please try again later.';
 }
