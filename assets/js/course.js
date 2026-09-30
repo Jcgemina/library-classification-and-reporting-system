@@ -319,16 +319,16 @@
                             ? `<div class="font-medium text-slate-800">${esc(course.programName)}</div><div class="text-xs text-slate-500">${esc(course.collegeName)}${course.majorName ? ` / ${esc(course.majorName)}` : ''}</div>`
                             : '<span class="text-xs italic text-slate-400">Unassigned</span>'}
                     </td>
-                    <td class="px-3 py-4">
-                        <span class="rounded-full px-2.5 py-1 text-xs font-bold ${course.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">${esc(course.status)}</span>
+                    <td class="w-28 px-3 py-4 text-center align-middle">
+                        <span class="inline-flex h-6 w-20 items-center justify-center rounded-full text-xs font-bold leading-none ${course.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">${esc(course.status)}</span>
                     </td>
                     <td class="px-3 py-4 text-right">
-                        <div class="flex flex-wrap justify-end gap-2">
-                            <button type="button" data-view="${course.id}" class="inline-flex items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100">View</button>
+                        <div class="flex justify-end gap-1">
+                            <button type="button" data-view="${course.id}" aria-label="View ${esc(course.code)} course" title="View course" class="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="eye" class="h-4 w-4"></i></button>
                             ${admin ? `
-                                <button type="button" data-edit="${course.id}" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-rose-400 hover:text-rose-700">Edit</button>
-                                <button type="button" data-toggle="${course.id}" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700">${course.status === 'active' ? 'Deactivate' : 'Activate'}</button>
-                                <button type="button" data-delete="${course.id}" class="rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600">Delete</button>
+                                <button type="button" data-edit="${course.id}" aria-label="Edit ${esc(course.code)} course" title="Edit course" class="flex h-8 w-8 items-center justify-center rounded-md text-sky-700 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="pencil" class="h-4 w-4"></i></button>
+                                <button type="button" data-toggle="${course.id}" aria-label="${course.status === 'active' ? 'Deactivate' : 'Activate'} ${esc(course.code)} course" title="${course.status === 'active' ? 'Deactivate' : 'Activate'} course" class="flex h-8 w-8 items-center justify-center rounded-md text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"><i data-lucide="${course.status === 'active' ? 'toggle-right' : 'toggle-left'}" class="h-4 w-4"></i></button>
+                                <button type="button" data-delete="${course.id}" aria-label="Delete ${esc(course.code)} course" title="Delete course" class="flex h-8 w-8 items-center justify-center rounded-md text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
                             ` : ''}
                         </div>
                     </td>
@@ -339,6 +339,7 @@
                     <td colspan="5" class="px-3 py-10 text-center text-sm text-slate-500">No courses found.</td>
                 </tr>
             `;
+            lucide.createIcons({ nodes: [$('courseBody')] });
     }
 
     const params = () => {

@@ -151,6 +151,7 @@ CREATE TABLE IF NOT EXISTS book_course_suggestion_runs (
     book_id INT UNSIGNED NOT NULL,
     requested_by INT DEFAULT NULL,
     embedding_model VARCHAR(100) NOT NULL,
+    relevance_model VARCHAR(100) NOT NULL,
     book_source_hash CHAR(64) NOT NULL,
     course_catalog_hash CHAR(64) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -163,6 +164,8 @@ CREATE TABLE IF NOT EXISTS book_course_suggestions (
     run_id BIGINT UNSIGNED NOT NULL,
     course_id INT NOT NULL,
     similarity_score DECIMAL(10, 8) NOT NULL,
+    relevance_label ENUM('relevant', 'uncertain', 'irrelevant') NOT NULL DEFAULT 'uncertain',
+    relevance_reason VARCHAR(500) DEFAULT NULL,
     decision ENUM('pending', 'approved', 'dismissed') NOT NULL DEFAULT 'pending',
     reviewed_by INT DEFAULT NULL,
     reviewed_at DATETIME DEFAULT NULL,
@@ -172,6 +175,30 @@ CREATE TABLE IF NOT EXISTS book_course_suggestions (
     CONSTRAINT fk_book_course_suggestions_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
     CONSTRAINT fk_book_course_suggestions_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+SET @suggestion_run_relevance_model_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book_course_suggestion_runs' AND COLUMN_NAME = 'relevance_model');
+SET @add_suggestion_run_relevance_model = IF(@suggestion_run_relevance_model_exists = 0,
+    'ALTER TABLE book_course_suggestion_runs ADD COLUMN relevance_model VARCHAR(100) DEFAULT NULL AFTER embedding_model',
+    'SELECT 1');
+PREPARE add_suggestion_run_relevance_model FROM @add_suggestion_run_relevance_model;
+EXECUTE add_suggestion_run_relevance_model;
+DEALLOCATE PREPARE add_suggestion_run_relevance_model;
+
+SET @suggestion_relevance_label_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book_course_suggestions' AND COLUMN_NAME = 'relevance_label');
+SET @add_suggestion_relevance_label = IF(@suggestion_relevance_label_exists = 0,
+    'ALTER TABLE book_course_suggestions ADD COLUMN relevance_label ENUM(''relevant'', ''uncertain'', ''irrelevant'') NOT NULL DEFAULT ''uncertain'' AFTER similarity_score',
+    'SELECT 1');
+PREPARE add_suggestion_relevance_label FROM @add_suggestion_relevance_label;
+EXECUTE add_suggestion_relevance_label;
+DEALLOCATE PREPARE add_suggestion_relevance_label;
+
+SET @suggestion_relevance_reason_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book_course_suggestions' AND COLUMN_NAME = 'relevance_reason');
+SET @add_suggestion_relevance_reason = IF(@suggestion_relevance_reason_exists = 0,
+    'ALTER TABLE book_course_suggestions ADD COLUMN relevance_reason VARCHAR(500) DEFAULT NULL AFTER relevance_label',
+    'SELECT 1');
+PREPARE add_suggestion_relevance_reason FROM @add_suggestion_relevance_reason;
+EXECUTE add_suggestion_relevance_reason;
+DEALLOCATE PREPARE add_suggestion_relevance_reason;
 
 SET @ai_jobs_result_run_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ai_jobs' AND COLUMN_NAME = 'result_run_id');
 SET @add_ai_jobs_result_run_column = IF(@ai_jobs_result_run_column_exists = 0,

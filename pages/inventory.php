@@ -14,6 +14,7 @@ $_SESSION['inventory_csrf'] = $csrfToken;
 $aiCourseUiConfigured = filter_var(environmentValue('AI_COURSE_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN)
   && environmentValue('GEMINI_API_KEY') !== ''
   && environmentValue('GEMINI_EMBEDDING_MODEL') !== ''
+  && environmentValue('GEMINI_RELEVANCE_MODEL') !== ''
   && function_exists('curl_init');
 
 function inventoryJsonResponse(array $payload, int $status = 200): never {
@@ -458,14 +459,14 @@ $copyrightMetricStyles = [
         <p data-ai-course-book-title class="text-base font-semibold text-slate-900"></p>
         <p data-ai-course-book-author class="mt-1 text-xs text-slate-600"></p>
         <p data-ai-course-book-description class="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700"></p>
-        <p data-ai-course-description-warning hidden class="mt-3 flex items-start gap-2 text-xs text-amber-800"><i data-lucide="triangle-alert" class="mt-0.5 h-4 w-4 flex-shrink-0"></i><span>There is no book description. Suggestions will rely on the title only.</span></p>
+        <p data-ai-course-description-warning hidden class="mt-3 items-start gap-2 text-xs text-amber-800"><i data-lucide="triangle-alert" class="mt-0.5 h-4 w-4 flex-shrink-0"></i><span>There is no book description. Suggestions will rely on the title only.</span></p>
       </section>
       <p class="text-xs leading-5 text-slate-600">Book and course titles and descriptions are sent to the configured AI provider to calculate similarity. Suggestions are for librarian review, not official classifications.</p>
-      <p data-ai-course-setup hidden role="status" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">AI suggestions are not configured on this server. Ask an administrator to complete setup.</p>
+      <p data-ai-course-setup hidden role="status" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">AI suggestions need both an embedding model and a relevance-review model. Ask an administrator to complete setup.</p>
       <p data-ai-course-status hidden role="status" aria-live="polite" class="text-sm text-slate-600"></p>
       <p data-ai-course-error hidden role="alert" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"></p>
       <div data-ai-course-results hidden class="space-y-2"></div>
-      <p data-ai-course-empty hidden class="rounded-lg border border-slate-200 px-4 py-5 text-center text-sm text-slate-600">No unlinked active courses were suggested for this book.</p>
+      <p data-ai-course-empty hidden class="rounded-lg border border-slate-200 px-4 py-5 text-center text-sm text-slate-600">No unlinked active courses passed the direct-relevance check for this book.</p>
       <div>
         <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Current course references</h4>
         <p data-ai-course-references class="mt-2 text-sm text-slate-700">No courses linked yet</p>
@@ -676,6 +677,7 @@ $copyrightMetricStyles = [
   const inventoryPage = document.getElementById('inventoryPage');
   let managedBookId = null;
   let activeAiBookId = null;
+  let activeAiRun = null;
   let aiPollTimer = null;
   let toastTimer;
 
@@ -743,10 +745,13 @@ $copyrightMetricStyles = [
   function resetAiCoursePanel(book) {
     window.clearTimeout(aiPollTimer);
     activeAiBookId = Number(book.book_id);
+    activeAiRun = null;
     document.querySelector('[data-ai-course-book-title]').textContent = book.title;
     document.querySelector('[data-ai-course-book-author]').textContent = `by ${book.author}`;
     document.querySelector('[data-ai-course-book-description]').textContent = book.description || 'No description provided.';
-    aiCourseDescriptionWarning.hidden = Boolean(book.description?.trim());
+    const missingDescription = !book.description?.trim();
+    aiCourseDescriptionWarning.hidden = !missingDescription;
+    aiCourseDescriptionWarning.classList.toggle('flex', missingDescription);
     document.querySelector('[data-ai-course-references]').textContent = book.course_references.length
       ? book.course_references.map((reference) => `${reference.code} - ${reference.name}`).join(', ')
       : 'No courses linked yet';
@@ -797,6 +802,7 @@ $copyrightMetricStyles = [
   }
 
   function renderAiCourseRun(run) {
+    activeAiRun = run;
     aiCourseStatus.hidden = true;
     aiCourseError.hidden = true;
     aiCourseResults.replaceChildren();
@@ -817,12 +823,27 @@ $copyrightMetricStyles = [
       const score = document.createElement('p');
       score.className = 'mt-1 text-xs text-slate-600';
       score.textContent = `Similarity score ${Number(suggestion.score).toFixed(3)}`;
-      copy.append(title, score);
+      const reason = document.createElement('p');
+      reason.id = `aiSuggestionReason-${run.id}-${suggestion.course_id}`;
+      reason.hidden = true;
+      reason.className = 'mt-2 text-sm leading-5 text-slate-700';
+      reason.textContent = suggestion.reason || 'The relevance check found a direct subject overlap.';
+      copy.append(title, score, reason);
 
       const actions = document.createElement('div');
       actions.className = 'flex items-center gap-1';
       if (suggestion.decision === 'pending') {
-        [['approve', 'check', 'Approve reference', 'text-emerald-800 hover:bg-emerald-50'], ['dismiss', 'x', 'Dismiss suggestion', 'text-slate-600 hover:bg-slate-100']].forEach(([action, icon, label, classes]) => {
+        const whyButton = document.createElement('button');
+        whyButton.type = 'button';
+        whyButton.dataset.aiSuggestionWhy = '';
+        whyButton.dataset.reasonId = reason.id;
+        whyButton.setAttribute('aria-controls', reason.id);
+        whyButton.setAttribute('aria-expanded', 'false');
+        whyButton.className = 'inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400';
+        whyButton.innerHTML = '<i data-lucide="circle-help" class="h-4 w-4"></i><span>Why?</span>';
+        actions.append(whyButton);
+
+        [['approve', 'check', 'Approve reference', 'text-emerald-800 hover:bg-emerald-50'], ['dismiss', 'x', 'Decline suggestion', 'text-slate-600 hover:bg-slate-100']].forEach(([action, icon, label, classes]) => {
           const button = document.createElement('button');
           button.type = 'button';
           button.dataset.aiSuggestionAction = action;
@@ -837,7 +858,7 @@ $copyrightMetricStyles = [
       } else {
         const reviewed = document.createElement('span');
         reviewed.className = `text-xs font-semibold ${suggestion.decision === 'approved' ? 'text-emerald-800' : 'text-slate-500'}`;
-        reviewed.textContent = suggestion.decision === 'approved' ? 'Approved' : 'Dismissed';
+        reviewed.textContent = suggestion.decision === 'approved' ? 'Approved' : 'Declined';
         actions.append(reviewed);
       }
       row.append(copy, actions);
@@ -848,10 +869,49 @@ $copyrightMetricStyles = [
     aiCourseGenerateButton.querySelector('span').textContent = 'Regenerate suggestions';
   }
 
+  function updateBookCourseReferences(book) {
+    const references = book.course_references;
+    document.querySelector('[data-ai-course-references]').textContent = references.length
+      ? references.map((reference) => `${reference.code} - ${reference.name}`).join(', ')
+      : 'No courses linked yet';
+
+    const actionsButton = [...document.querySelectorAll('[data-book-actions-open]')]
+      .find((button) => button.dataset.bookId === String(book.book_id));
+    const referenceCell = actionsButton?.closest('tr')?.cells[2];
+    if (!referenceCell) return;
+    referenceCell.replaceChildren();
+    if (!references.length) {
+      const empty = document.createElement('span');
+      empty.className = 'text-xs text-slate-500';
+      empty.textContent = 'No courses linked yet';
+      referenceCell.append(empty);
+      return;
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-3 gap-1';
+    references.forEach((reference) => {
+      const item = document.createElement('span');
+      item.className = 'inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-800';
+      const code = document.createElement('span');
+      code.className = 'font-semibold';
+      code.textContent = reference.code;
+      const name = document.createElement('span');
+      name.textContent = reference.name;
+      item.append(code, name);
+      grid.append(item);
+    });
+    referenceCell.append(grid);
+  }
+
   async function pollAiCourseJob(jobId, attempt = 0) {
     if (!aiCourseModal.isConnected || !aiCourseModal.open || activeAiBookId === null) return;
-    if (attempt >= 25) {
-      showAiCourseError('Suggestions are still queued. Close this panel and reopen it later to check again.');
+    if (attempt >= 120) {
+      aiCourseError.hidden = true;
+      aiCourseStatus.textContent = 'This request is still waiting for the worker. You can close this panel and check again later; the queued job will continue.';
+      aiCourseStatus.hidden = false;
+      aiCourseGenerateButton.disabled = !aiCourseConfigured;
+      aiCourseGenerateButton.querySelector('span').textContent = 'Check status';
       return;
     }
     try {
@@ -869,8 +929,10 @@ $copyrightMetricStyles = [
         return;
       }
       aiCourseStatus.textContent = result.state === 'processing'
-        ? 'Comparing the book with active courses…'
-        : 'Waiting for the AI worker…';
+        ? 'Checking course relevance…'
+        : result.state === 'retrying'
+          ? result.message
+          : 'Waiting for the AI worker…';
       aiCourseStatus.hidden = false;
       aiPollTimer = window.setTimeout(() => pollAiCourseJob(jobId, attempt + 1), Math.min(4000, 1200 + attempt * 150));
     } catch (error) {
@@ -900,6 +962,16 @@ $copyrightMetricStyles = [
   });
 
   aiCourseResults?.addEventListener('click', async (event) => {
+    const whyButton = event.target.closest('[data-ai-suggestion-why]');
+    if (whyButton) {
+      const reason = document.getElementById(whyButton.dataset.reasonId);
+      if (!reason) return;
+      reason.hidden = !reason.hidden;
+      whyButton.setAttribute('aria-expanded', String(!reason.hidden));
+      whyButton.querySelector('span').textContent = reason.hidden ? 'Why?' : 'Hide reason';
+      return;
+    }
+
     const button = event.target.closest('[data-ai-suggestion-action]');
     if (!button) return;
     button.disabled = true;
@@ -908,17 +980,28 @@ $copyrightMetricStyles = [
         run_id: button.dataset.runId,
         course_id: button.dataset.courseId,
       });
+      const suggestion = activeAiRun?.suggestions.find((item) => item.course_id === Number(button.dataset.courseId));
+      if (suggestion) {
+        suggestion.decision = button.dataset.aiSuggestionAction === 'approve' ? 'approved' : 'dismissed';
+      }
       if (button.dataset.aiSuggestionAction === 'approve') {
-        showInventoryToast(result.message);
-        window.location.reload();
+        const book = inventoryBooks[activeAiBookId];
+        if (book && suggestion && !book.course_references.some((reference) => reference.course_id === suggestion.course_id)) {
+          book.course_references.push({
+            course_id: suggestion.course_id,
+            code: suggestion.code,
+            name: suggestion.name,
+          });
+        }
+        if (book) updateBookCourseReferences(book);
+        renderAiCourseRun(activeAiRun);
+        aiCourseStatus.textContent = result.message;
+        aiCourseStatus.hidden = false;
         return;
       }
-      button.closest('[data-ai-suggestion-row]')?.remove();
-      if (!aiCourseResults.querySelector('[data-ai-suggestion-row]')) {
-        aiCourseResults.hidden = true;
-        aiCourseEmpty.hidden = false;
-      }
-      showInventoryToast(result.message);
+      renderAiCourseRun(activeAiRun);
+      aiCourseStatus.textContent = result.message;
+      aiCourseStatus.hidden = false;
     } catch (error) {
       button.disabled = false;
       showAiCourseError(error.message);

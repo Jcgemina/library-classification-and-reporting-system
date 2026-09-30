@@ -538,9 +538,9 @@ if ($action !== null) {
       const search = document.getElementById('prospectusSearch').value.trim().toLowerCase();
       const rows = prospectusData.prospectuses.filter(item => `${item.program_name} ${item.major_name || ''} ${item.curriculum_year}`.toLowerCase().includes(search));
       document.getElementById('prospectusRecordsBody').innerHTML = rows.length ? rows.map(item => {
-          const pdfActions = item.pdf_file_path ? `<a href="${esc(item.pdf_file_path)}" target="_blank" rel="noopener" class="text-xs font-semibold text-rose-600 hover:underline">View PDF</a>` : '<span class="text-xs text-slate-400">No PDF</span>';
           const displayName = `${item.program_name}${item.major_name ? ` (${item.major_name})` : ''} ${item.curriculum_year}`;
-          return `<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="px-4 py-3 font-semibold text-slate-900">${esc(item.program_name)}</td><td class="px-4 py-3 text-slate-600">${esc(item.major_name || 'General curriculum')}</td><td class="px-4 py-3 text-slate-600">${esc(item.curriculum_year)}</td><td class="px-4 py-3">${pdfActions}</td><td class="px-4 py-3 text-right"><button type="button" data-row-replace="${item.id}" class="mr-3 text-xs font-semibold text-rose-600 hover:underline">Replace PDF</button><input type="file" accept="application/pdf,.pdf" data-row-file="${item.id}" class="hidden"><button type="button" data-delete-prospectus-record="${item.id}" data-name="${esc(displayName)}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
+          const pdfActions = item.pdf_file_path ? `<a href="${esc(item.pdf_file_path)}" target="_blank" rel="noopener" aria-label="View ${esc(displayName)} PDF" title="View PDF" class="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="file-text" class="h-4 w-4"></i></a>` : '<span class="text-xs text-slate-400">No PDF</span>';
+          return `<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="px-4 py-3 font-semibold text-slate-900">${esc(item.program_name)}</td><td class="px-4 py-3 text-slate-600">${esc(item.major_name || 'General curriculum')}</td><td class="px-4 py-3 text-slate-600">${esc(item.curriculum_year)}</td><td class="px-4 py-3">${pdfActions}</td><td class="px-4 py-3"><div class="flex justify-end gap-1"><button type="button" data-row-replace="${item.id}" aria-label="Replace ${esc(displayName)} PDF" title="Replace PDF" class="flex h-8 w-8 items-center justify-center rounded-md text-sky-700 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="upload" class="h-4 w-4"></i></button><input type="file" accept="application/pdf,.pdf" data-row-file="${item.id}" class="hidden"><button type="button" data-delete-prospectus-record="${item.id}" data-name="${esc(displayName)}" aria-label="Delete ${esc(displayName)}" title="Delete record" class="flex h-8 w-8 items-center justify-center rounded-md text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-4 w-4"></i></button></div></td></tr>`;
       }).join('') : '<tr><td colspan="5" class="px-4 py-8 text-center text-sm italic text-slate-400">No prospectus records match your search.</td></tr>';
       lucide.createIcons();
       document.getElementById('prospectusStatus').textContent = `${rows.length} prospectus${rows.length === 1 ? '' : 'es'}`;
@@ -634,8 +634,11 @@ if ($action !== null) {
       }
       modal.classList.remove('hidden'); modal.classList.add('flex'); document.getElementById('organizationName').focus();
   };
-    const controls = (type, item, parent) => `<span class="flex flex-wrap items-center gap-1"><button type="button" data-edit="${type}" data-id="${item.id}" data-parent="${parent}" data-item='${esc(JSON.stringify(item))}' class="inline-flex whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 shadow-sm transition hover:border-rose-500 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200">Edit</button><button type="button" data-delete="${type}" data-id="${item.id}" data-name="${esc(item.name)}" class="inline-flex whitespace-nowrap rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 shadow-sm transition hover:border-red-500 hover:bg-red-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-red-200">Delete</button></span>`;
-    const add = (action, title, parent, major = '') => action === 'add_course' ? '' : `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" class="inline-flex whitespace-nowrap rounded-md border border-rose-300 bg-white px-2 py-1 text-[11px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow focus:outline-none focus:ring-2 focus:ring-rose-200 active:scale-95">+ ${title}</button>`;
+    const controls = (type, item, parent) => {
+        const label = type.charAt(0).toUpperCase() + type.slice(1);
+        return `<span class="flex flex-wrap items-center gap-1"><button type="button" data-edit="${type}" data-id="${item.id}" data-parent="${parent}" data-item='${esc(JSON.stringify(item))}' aria-label="Edit ${esc(label)} ${esc(item.name)}" title="Edit ${esc(label)}" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 transition hover:border-rose-500 hover:bg-rose-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-rose-300"><i data-lucide="pencil" class="h-3 w-3"></i><span>Edit ${esc(label)}</span></button><button type="button" data-delete="${type}" data-id="${item.id}" data-name="${esc(item.name)}" aria-label="Delete ${esc(label)} ${esc(item.name)}" title="Delete ${esc(label)}" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-500 hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-300"><i data-lucide="trash-2" class="h-3 w-3"></i><span>Delete ${esc(label)}</span></button></span>`;
+    };
+    const add = (action, title, parent, major = '') => action === 'add_course' ? '' : `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" title="${title}" aria-label="${title}" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 transition hover:border-rose-500 hover:bg-rose-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-rose-300"><i data-lucide="plus" class="h-3 w-3"></i><span>${title}</span></button>`;
         const countLabel = (count, singular) => `${count} ${singular}${count === 1 ? '' : 's'}`;
     let hierarchyBuilder;
     function createHierarchyBuilder() {
@@ -786,7 +789,7 @@ if ($action !== null) {
             <div id="program-${program.id}" class="program-body max-h-0 overflow-hidden pl-7 opacity-0 transition-all duration-200 ease-in-out"></div>
         </div>`).join('');
 
-        return `<article class="college-row group overflow-hidden rounded-xl border border-transparent bg-slate-50 transition-all hover:border-rose-200"><div class="flex cursor-pointer items-center gap-3 p-4" data-college-toggle="${college.id}"><i data-lucide="chevron-right" class="college-chevron h-5 w-5 shrink-0 text-rose-600 transition-transform"></i><i data-lucide="building-2" class="h-5 w-5 shrink-0 text-rose-600"></i><div class="min-w-0 flex-1"><h4 class="truncate text-sm font-bold text-slate-800">${esc(college.name)}</h4><p class="text-[10px] uppercase tracking-wide text-slate-500">${countLabel(programs.length, 'Program')}</p></div><div class="flex flex-wrap items-center gap-1">${add('add_program', 'Add program', college.id)}${controls('college', college)}</div></div><div id="college-${college.id}" class="college-body max-h-0 overflow-hidden px-4 opacity-0 transition-all duration-300 ease-in-out"><div class="space-y-2 border-t border-slate-200 pb-4 pl-2 pt-2">${programMarkup || '<p class="text-xs italic text-slate-400">No programs yet</p>'}</div></div></article>`;
+        return `<article class="college-row group overflow-hidden rounded-xl border border-transparent bg-slate-50 transition-all hover:border-rose-200"><div class="flex cursor-pointer items-center gap-3 p-4" data-college-toggle="${college.id}"><i data-lucide="chevron-right" class="college-chevron h-5 w-5 shrink-0 text-rose-600 transition-transform"></i><i data-lucide="building-2" class="h-5 w-5 shrink-0 text-rose-600"></i><div class="min-w-0 flex-1"><h4 class="truncate text-sm font-bold text-slate-800">${esc(college.name)}</h4><p class="text-[10px] uppercase tracking-wide text-slate-500">${countLabel(programs.length, 'Program')}</p></div><div class="flex flex-wrap items-center gap-1">${controls('college', college)}${add('add_program', 'Add program', college.id)}</div></div><div id="college-${college.id}" class="college-body max-h-0 overflow-hidden px-4 opacity-0 transition-all duration-300 ease-in-out"><div class="space-y-2 border-t border-slate-200 pb-4 pl-2 pt-2">${programMarkup || '<p class="text-xs italic text-slate-400">No programs yet</p>'}</div></div></article>`;
     };
 
     const renderProgramMajors = program => {
@@ -840,8 +843,13 @@ if ($action !== null) {
                             (status === 'all' || record.status === status) && (type === 'all' || record.entity === type);
             });
             document.getElementById('organizationRecordsBody').innerHTML = rows.length ? rows.map(record => {
-                        return `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3 text-right"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-rose-600 hover:underline">Edit</button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" class="mr-2 text-xs font-semibold text-slate-600 hover:underline">${record.status === 'archived' ? 'Restore' : 'Archive'}</button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button></td></tr>`;
+                        const recordLabel = `${record.type} ${record.name}`;
+                        const archiveLabel = record.status === 'archived' ? 'Restore' : 'Archive';
+                        const archiveIcon = record.status === 'archived' ? 'rotate-ccw' : 'archive';
+                        const archiveClasses = record.status === 'archived' ? 'text-emerald-700 hover:bg-emerald-50 focus:ring-emerald-400' : 'text-amber-700 hover:bg-amber-50 focus:ring-amber-400';
+                        return `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3"><div class="flex justify-end gap-1"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" aria-label="Edit ${esc(recordLabel)}" title="Edit" class="flex h-8 w-8 items-center justify-center rounded-md text-sky-700 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="pencil" class="h-4 w-4"></i></button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" aria-label="${archiveLabel} ${esc(recordLabel)}" title="${archiveLabel}" class="flex h-8 w-8 items-center justify-center rounded-md ${archiveClasses} focus:outline-none focus:ring-2"><i data-lucide="${archiveIcon}" class="h-4 w-4"></i></button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" aria-label="Delete ${esc(recordLabel)}" title="Delete" class="flex h-8 w-8 items-center justify-center rounded-md text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-4 w-4"></i></button></div></td></tr>`;
                     }).join('') : '<tr><td colspan="4" class="px-3 py-8 text-center text-sm italic text-slate-400">No organization records match your search.</td></tr>';
+            lucide.createIcons();
     }
     let organizationLoadToken = 0;
     function load() {
@@ -947,15 +955,19 @@ if ($action !== null) {
           closeDeleteDialog();
       }
   });
-  const setBusy = (button, busy, busyLabel = 'Working...') => {
+    const setBusy = (button, busy, busyLabel = 'Working...') => {
       if (!button) return;
       if (busy) {
-          button.dataset.originalLabel = button.textContent.trim();
+                    button.dataset.originalMarkup = button.innerHTML;
           button.textContent = busyLabel;
           button.disabled = true;
           button.classList.add('cursor-wait', 'opacity-70');
       } else {
-          button.textContent = button.dataset.originalLabel || button.textContent;
+          if (button.dataset.originalMarkup !== undefined) {
+              button.innerHTML = button.dataset.originalMarkup;
+              lucide.createIcons({ nodes: [button] });
+              delete button.dataset.originalMarkup;
+          }
           button.disabled = false;
           button.classList.remove('cursor-wait', 'opacity-70');
       }
