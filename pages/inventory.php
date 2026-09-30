@@ -11,6 +11,10 @@ if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQU
 requireLogin();
 $csrfToken = $_SESSION['inventory_csrf'] ?? bin2hex(random_bytes(32));
 $_SESSION['inventory_csrf'] = $csrfToken;
+$aiCourseUiConfigured = filter_var(environmentValue('AI_COURSE_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN)
+  && environmentValue('GEMINI_API_KEY') !== ''
+  && environmentValue('GEMINI_EMBEDDING_MODEL') !== ''
+  && function_exists('curl_init');
 
 function inventoryJsonResponse(array $payload, int $status = 200): never {
   http_response_code($status);
@@ -374,12 +378,8 @@ $copyrightMetricStyles = [
                   <td class="px-4 py-3 text-center"><span class="inline-flex h-6 w-6 items-center justify-center rounded-full <?php echo $withinRange ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'; ?>" aria-label="<?php echo $withinRange ? 'Within' : 'Outside'; ?> <?php echo (int)$metric['years_threshold']; ?> year range"><i data-lucide="<?php echo $withinRange ? 'check' : 'x'; ?>" class="h-3.5 w-3.5"></i></span></td>
                 <?php endforeach; ?>
                 <td class="px-4 py-3">
-                  <div class="flex justify-end gap-1">
-                    <button type="button" data-book-action="view" data-book-id="<?php echo (int)$book['book_id']; ?>" aria-label="View book information" title="View information" class="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="eye" class="h-4 w-4"></i></button>
-                    <button type="button" data-book-action="edit" data-book-id="<?php echo (int)$book['book_id']; ?>" aria-label="Edit book" title="Edit book" class="flex h-8 w-8 items-center justify-center rounded-md text-sky-700 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="pencil" class="h-4 w-4"></i></button>
-                    <button type="button" data-book-action="reference" data-book-id="<?php echo (int)$book['book_id']; ?>" aria-label="Add course reference" title="Add reference" <?php echo $activeCourses ? '' : 'disabled'; ?> class="flex h-8 w-8 items-center justify-center rounded-md text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-40"><i data-lucide="link-2" class="h-4 w-4"></i></button>
-                    <button type="button" data-book-action="manage-references" data-book-id="<?php echo (int)$book['book_id']; ?>" aria-label="Edit or remove course references" title="Manage references" class="flex h-8 w-8 items-center justify-center rounded-md text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"><i data-lucide="list-checks" class="h-4 w-4"></i></button>
-                    <button type="button" data-book-action="delete" data-book-id="<?php echo (int)$book['book_id']; ?>" aria-label="Delete book" title="Delete book" class="flex h-8 w-8 items-center justify-center rounded-md text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                  <div class="flex justify-end">
+                    <button type="button" data-book-actions-open data-book-id="<?php echo (int)$book['book_id']; ?>" aria-controls="inventoryBookActionsMenu" aria-expanded="false" aria-label="More actions for <?php echo $escapeInventory($book['title']); ?>" title="More actions" class="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="ellipsis" class="h-4 w-4"></i></button>
                   </div>
                 </td>
               </tr>
@@ -389,6 +389,21 @@ $copyrightMetricStyles = [
       </table>
     </div>
   </section>
+
+  <div id="inventoryBookActionsMenu" popover="auto" aria-label="Book actions" class="fixed inset-auto z-[105] m-0 w-[calc(100vw-1rem)] max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-2xl">
+    <div class="border-b border-slate-200 px-4 py-3">
+      <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Book actions</h3>
+      <p data-book-actions-title class="mt-1 max-w-[16rem] truncate text-sm font-semibold text-slate-900"></p>
+    </div>
+    <div class="grid grid-cols-2 gap-2 p-4">
+      <button type="button" data-book-action="view" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="eye" class="h-4 w-4"></i>View info</button>
+      <button type="button" data-book-action="edit" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="pencil" class="h-4 w-4"></i>Edit book</button>
+      <button type="button" data-book-action="reference" <?php echo $activeCourses ? '' : 'disabled title="No active courses available"'; ?> class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-rose-800 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-40"><i data-lucide="link-2" class="h-4 w-4"></i>Add reference</button>
+      <button type="button" data-book-action="manage-references" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-amber-800 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"><i data-lucide="list-checks" class="h-4 w-4"></i>Manage refs</button>
+      <button type="button" data-book-action="ai-course" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-indigo-800 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400"><i data-lucide="sparkles" class="h-4 w-4"></i>AI course</button>
+      <button type="button" data-book-action="delete" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-rose-800 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-4 w-4"></i>Archive</button>
+    </div>
+  </div>
 
   <dialog id="inventoryAddBookModal" aria-labelledby="inventoryAddBookTitle" class="fixed z-[100] m-auto max-h-[90vh] w-[calc(100%-1.5rem)] max-w-2xl overflow-hidden rounded-xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/50">
     <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
@@ -431,6 +446,35 @@ $copyrightMetricStyles = [
       <div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase text-slate-500">Course References</dt><dd data-book-info="references" class="mt-1 text-slate-900"></dd></div>
       <div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase text-slate-500">Description</dt><dd data-book-info="description" class="mt-1 whitespace-pre-wrap text-slate-900"></dd></div>
     </dl>
+  </dialog>
+
+  <dialog id="inventoryAiCourseModal" aria-labelledby="inventoryAiCourseTitle" class="fixed z-[100] m-auto max-h-[90vh] w-[calc(100%-1.5rem)] max-w-xl overflow-hidden rounded-xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/50">
+    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+      <div><h3 id="inventoryAiCourseTitle" class="text-base font-bold text-slate-900">AI Course Suggestions</h3><p class="mt-1 text-xs text-slate-600">Review potential course matches before linking.</p></div>
+      <button type="button" data-ai-course-close aria-label="Close AI course suggestion" class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
+    <div class="max-h-[calc(90vh-4.5rem)] space-y-5 overflow-y-auto p-5">
+      <section class="border-b border-slate-200 pb-4">
+        <p data-ai-course-book-title class="text-base font-semibold text-slate-900"></p>
+        <p data-ai-course-book-author class="mt-1 text-xs text-slate-600"></p>
+        <p data-ai-course-book-description class="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700"></p>
+        <p data-ai-course-description-warning hidden class="mt-3 flex items-start gap-2 text-xs text-amber-800"><i data-lucide="triangle-alert" class="mt-0.5 h-4 w-4 flex-shrink-0"></i><span>There is no book description. Suggestions will rely on the title only.</span></p>
+      </section>
+      <p class="text-xs leading-5 text-slate-600">Book and course titles and descriptions are sent to the configured AI provider to calculate similarity. Suggestions are for librarian review, not official classifications.</p>
+      <p data-ai-course-setup hidden role="status" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">AI suggestions are not configured on this server. Ask an administrator to complete setup.</p>
+      <p data-ai-course-status hidden role="status" aria-live="polite" class="text-sm text-slate-600"></p>
+      <p data-ai-course-error hidden role="alert" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"></p>
+      <div data-ai-course-results hidden class="space-y-2"></div>
+      <p data-ai-course-empty hidden class="rounded-lg border border-slate-200 px-4 py-5 text-center text-sm text-slate-600">No unlinked active courses were suggested for this book.</p>
+      <div>
+        <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Current course references</h4>
+        <p data-ai-course-references class="mt-2 text-sm text-slate-700">No courses linked yet</p>
+      </div>
+      <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+        <button type="button" data-ai-course-close class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Close</button>
+        <button type="button" data-ai-course-generate class="inline-flex items-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"><i data-lucide="sparkles" class="h-4 w-4"></i><span>Generate suggestions</span></button>
+      </div>
+    </div>
   </dialog>
 
   <dialog id="inventoryAddReferenceModal" aria-labelledby="inventoryAddReferenceTitle" class="fixed z-[100] m-auto max-h-[90vh] w-[calc(100%-1.5rem)] max-w-lg overflow-hidden rounded-xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/50">
@@ -575,6 +619,7 @@ $copyrightMetricStyles = [
 <script>
 (() => {
   const inventoryBooks = <?php echo json_encode(array_column($activeBooks, null, 'book_id'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+  const aiCourseConfigured = <?php echo $aiCourseUiConfigured ? 'true' : 'false'; ?>;
   const addBookButton = document.querySelector('[data-inventory-add-open]');
   const addBookDialog = document.getElementById('inventoryAddBookModal');
   const addBookForm = document.querySelector('[data-inventory-add-form]');
@@ -586,8 +631,19 @@ $copyrightMetricStyles = [
   const archiveOpenButton = document.querySelector('[data-inventory-archive-open]');
   const archiveCloseButton = document.querySelector('[data-inventory-archive-close]');
   const archiveModal = document.getElementById('inventoryArchiveModal');
+  const bookActionsMenu = document.getElementById('inventoryBookActionsMenu');
+  const bookActionsTitle = document.querySelector('[data-book-actions-title]');
+  let bookActionsTrigger = null;
   const bookInfoModal = document.getElementById('inventoryBookInfoModal');
   const bookInfoCloseButton = document.querySelector('[data-book-info-close]');
+  const aiCourseModal = document.getElementById('inventoryAiCourseModal');
+  const aiCourseGenerateButton = document.querySelector('[data-ai-course-generate]');
+  const aiCourseStatus = document.querySelector('[data-ai-course-status]');
+  const aiCourseError = document.querySelector('[data-ai-course-error]');
+  const aiCourseResults = document.querySelector('[data-ai-course-results]');
+  const aiCourseEmpty = document.querySelector('[data-ai-course-empty]');
+  const aiCourseSetup = document.querySelector('[data-ai-course-setup]');
+  const aiCourseDescriptionWarning = document.querySelector('[data-ai-course-description-warning]');
   const addReferenceModal = document.getElementById('inventoryAddReferenceModal');
   const referenceForm = document.querySelector('[data-reference-form]');
   const referenceCloseButton = document.querySelector('[data-reference-close]');
@@ -619,6 +675,8 @@ $copyrightMetricStyles = [
   const inventoryToast = document.querySelector('[data-inventory-toast]');
   const inventoryPage = document.getElementById('inventoryPage');
   let managedBookId = null;
+  let activeAiBookId = null;
+  let aiPollTimer = null;
   let toastTimer;
 
   function closeDialog(dialog) {
@@ -639,12 +697,25 @@ $copyrightMetricStyles = [
   archiveOpenButton?.addEventListener('click', () => archiveModal.showModal());
   archiveCloseButton?.addEventListener('click', () => closeDialog(archiveModal));
   bookInfoCloseButton?.addEventListener('click', () => closeDialog(bookInfoModal));
+  document.querySelectorAll('[data-ai-course-close]').forEach((button) => {
+    button.addEventListener('click', () => closeDialog(aiCourseModal));
+  });
+  aiCourseModal?.addEventListener('close', () => window.clearTimeout(aiPollTimer));
+  aiCourseModal?.addEventListener('click', (event) => {
+    if (event.target === aiCourseModal) closeDialog(aiCourseModal);
+  });
   referenceCloseButton?.addEventListener('click', () => closeDialog(addReferenceModal));
   referenceCancelButton?.addEventListener('click', () => closeDialog(addReferenceModal));
   manageReferencesCloseButton?.addEventListener('click', () => closeDialog(manageReferencesModal));
   referenceEditCancel?.addEventListener('click', () => closeDialog(referenceEditModal));
   referenceRemoveCancel?.addEventListener('click', () => closeDialog(referenceRemoveModal));
   deleteBookCancel?.addEventListener('click', () => closeDialog(deleteBookModal));
+  bookActionsMenu?.addEventListener('toggle', (event) => {
+    if (event.newState === 'closed') {
+      bookActionsTrigger?.setAttribute('aria-expanded', 'false');
+      bookActionsTrigger = null;
+    }
+  });
   archiveModal?.addEventListener('click', (event) => {
     if (event.target === archiveModal) closeDialog(archiveModal);
   });
@@ -668,6 +739,191 @@ $copyrightMetricStyles = [
       inventoryToast.hidden = true;
     }, 3500);
   }
+
+  function resetAiCoursePanel(book) {
+    window.clearTimeout(aiPollTimer);
+    activeAiBookId = Number(book.book_id);
+    document.querySelector('[data-ai-course-book-title]').textContent = book.title;
+    document.querySelector('[data-ai-course-book-author]').textContent = `by ${book.author}`;
+    document.querySelector('[data-ai-course-book-description]').textContent = book.description || 'No description provided.';
+    aiCourseDescriptionWarning.hidden = Boolean(book.description?.trim());
+    document.querySelector('[data-ai-course-references]').textContent = book.course_references.length
+      ? book.course_references.map((reference) => `${reference.code} - ${reference.name}`).join(', ')
+      : 'No courses linked yet';
+    aiCourseStatus.hidden = true;
+    aiCourseError.hidden = true;
+    aiCourseResults.hidden = true;
+    aiCourseResults.replaceChildren();
+    aiCourseEmpty.hidden = true;
+    aiCourseSetup.hidden = aiCourseConfigured;
+    aiCourseGenerateButton.disabled = !aiCourseConfigured;
+    aiCourseGenerateButton.querySelector('span').textContent = 'Generate suggestions';
+    aiCourseModal.showModal();
+  }
+
+  async function requestAiCourseJson(action, method = 'GET', values = {}) {
+    const options = {
+      method,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    };
+    let url = `pages/ai_course.php?action=${encodeURIComponent(action)}`;
+    if (method === 'POST') {
+      values.csrf_token = addBookForm.elements.csrf_token.value;
+      options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      options.body = new URLSearchParams(values);
+    } else {
+      url += `&${new URLSearchParams(values)}`;
+    }
+
+    const response = await fetch(url, options);
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      throw new Error('The server returned an unexpected response. Reload Inventory and try again.');
+    }
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Unable to complete the AI course action.');
+    }
+    return result;
+  }
+
+  function showAiCourseError(message) {
+    aiCourseStatus.hidden = true;
+    aiCourseError.textContent = message;
+    aiCourseError.hidden = false;
+    aiCourseGenerateButton.disabled = !aiCourseConfigured;
+    aiCourseGenerateButton.querySelector('span').textContent = 'Retry suggestions';
+  }
+
+  function renderAiCourseRun(run) {
+    aiCourseStatus.hidden = true;
+    aiCourseError.hidden = true;
+    aiCourseResults.replaceChildren();
+    const suggestions = Array.isArray(run.suggestions) ? run.suggestions : [];
+    aiCourseResults.hidden = suggestions.length === 0;
+    aiCourseEmpty.hidden = suggestions.length > 0;
+
+    suggestions.forEach((suggestion) => {
+      const row = document.createElement('article');
+      row.dataset.aiSuggestionRow = '';
+      row.className = 'flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-3';
+
+      const copy = document.createElement('div');
+      copy.className = 'min-w-0 flex-1';
+      const title = document.createElement('p');
+      title.className = 'text-sm font-semibold text-slate-900';
+      title.textContent = `${suggestion.code} - ${suggestion.name}`;
+      const score = document.createElement('p');
+      score.className = 'mt-1 text-xs text-slate-600';
+      score.textContent = `Similarity score ${Number(suggestion.score).toFixed(3)}`;
+      copy.append(title, score);
+
+      const actions = document.createElement('div');
+      actions.className = 'flex items-center gap-1';
+      if (suggestion.decision === 'pending') {
+        [['approve', 'check', 'Approve reference', 'text-emerald-800 hover:bg-emerald-50'], ['dismiss', 'x', 'Dismiss suggestion', 'text-slate-600 hover:bg-slate-100']].forEach(([action, icon, label, classes]) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.dataset.aiSuggestionAction = action;
+          button.dataset.runId = run.id;
+          button.dataset.courseId = suggestion.course_id;
+          button.setAttribute('aria-label', label);
+          button.title = label;
+          button.className = `flex h-9 w-9 items-center justify-center rounded-md ${classes} focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50`;
+          button.innerHTML = `<i data-lucide="${icon}" class="h-4 w-4"></i>`;
+          actions.append(button);
+        });
+      } else {
+        const reviewed = document.createElement('span');
+        reviewed.className = `text-xs font-semibold ${suggestion.decision === 'approved' ? 'text-emerald-800' : 'text-slate-500'}`;
+        reviewed.textContent = suggestion.decision === 'approved' ? 'Approved' : 'Dismissed';
+        actions.append(reviewed);
+      }
+      row.append(copy, actions);
+      aiCourseResults.append(row);
+    });
+    window.lucide?.createIcons({ nodes: [aiCourseResults] });
+    aiCourseGenerateButton.disabled = !aiCourseConfigured;
+    aiCourseGenerateButton.querySelector('span').textContent = 'Regenerate suggestions';
+  }
+
+  async function pollAiCourseJob(jobId, attempt = 0) {
+    if (!aiCourseModal.isConnected || !aiCourseModal.open || activeAiBookId === null) return;
+    if (attempt >= 25) {
+      showAiCourseError('Suggestions are still queued. Close this panel and reopen it later to check again.');
+      return;
+    }
+    try {
+      const result = await requestAiCourseJson('job_status', 'GET', { job_id: jobId });
+      if (result.state === 'complete') {
+        renderAiCourseRun(result.run);
+        return;
+      }
+      if (result.state === 'stale') {
+        showAiCourseError(result.message || 'Catalog information changed. Generate fresh suggestions.');
+        return;
+      }
+      if (result.state === 'failed' || result.state === 'cancelled') {
+        showAiCourseError(result.message || 'Suggestions could not be generated.');
+        return;
+      }
+      aiCourseStatus.textContent = result.state === 'processing'
+        ? 'Comparing the book with active courses…'
+        : 'Waiting for the AI worker…';
+      aiCourseStatus.hidden = false;
+      aiPollTimer = window.setTimeout(() => pollAiCourseJob(jobId, attempt + 1), Math.min(4000, 1200 + attempt * 150));
+    } catch (error) {
+      showAiCourseError(error.message);
+    }
+  }
+
+  aiCourseGenerateButton?.addEventListener('click', async () => {
+    if (activeAiBookId === null || !aiCourseConfigured) return;
+    aiCourseGenerateButton.disabled = true;
+    aiCourseGenerateButton.querySelector('span').textContent = 'Queueing…';
+    aiCourseError.hidden = true;
+    aiCourseEmpty.hidden = true;
+    aiCourseStatus.textContent = 'Preparing course suggestions…';
+    aiCourseStatus.hidden = false;
+    try {
+      const result = await requestAiCourseJson('request_suggestions', 'POST', { book_id: String(activeAiBookId) });
+      if (result.state === 'complete') {
+        renderAiCourseRun(result.run);
+        return;
+      }
+      aiCourseGenerateButton.querySelector('span').textContent = 'Generating…';
+      pollAiCourseJob(result.job_id);
+    } catch (error) {
+      showAiCourseError(error.message);
+    }
+  });
+
+  aiCourseResults?.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-ai-suggestion-action]');
+    if (!button) return;
+    button.disabled = true;
+    try {
+      const result = await requestAiCourseJson(button.dataset.aiSuggestionAction, 'POST', {
+        run_id: button.dataset.runId,
+        course_id: button.dataset.courseId,
+      });
+      if (button.dataset.aiSuggestionAction === 'approve') {
+        showInventoryToast(result.message);
+        window.location.reload();
+        return;
+      }
+      button.closest('[data-ai-suggestion-row]')?.remove();
+      if (!aiCourseResults.querySelector('[data-ai-suggestion-row]')) {
+        aiCourseResults.hidden = true;
+        aiCourseEmpty.hidden = false;
+      }
+      showInventoryToast(result.message);
+    } catch (error) {
+      button.disabled = false;
+      showAiCourseError(error.message);
+    }
+  });
 
   function openReferenceEdit(book, reference) {
     referenceEditForm.reset();
@@ -728,8 +984,35 @@ $copyrightMetricStyles = [
   }
 
   inventoryPage?.addEventListener('click', async (event) => {
+    const actionsOpenButton = event.target.closest('[data-book-actions-open]');
+    if (actionsOpenButton) {
+      const book = inventoryBooks[actionsOpenButton.dataset.bookId];
+      if (!book) return;
+      if (bookActionsMenu.matches(':popover-open')) bookActionsMenu.hidePopover();
+      bookActionsTrigger = actionsOpenButton;
+      bookActionsTrigger.setAttribute('aria-expanded', 'true');
+      bookActionsTitle.textContent = book.title;
+      bookActionsMenu.querySelectorAll('[data-book-action]').forEach((button) => {
+        button.dataset.bookId = book.book_id;
+      });
+      bookActionsMenu.showPopover();
+      const triggerRect = actionsOpenButton.getBoundingClientRect();
+      const menuRect = bookActionsMenu.getBoundingClientRect();
+      const edge = 8;
+      const gap = 6;
+      const belowTop = triggerRect.bottom + gap;
+      const top = belowTop + menuRect.height <= window.innerHeight - edge
+        ? belowTop
+        : Math.max(edge, triggerRect.top - menuRect.height - gap);
+      const left = Math.max(edge, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - edge));
+      bookActionsMenu.style.top = `${top}px`;
+      bookActionsMenu.style.left = `${left}px`;
+      return;
+    }
+
     const actionButton = event.target.closest('[data-book-action]');
     if (!actionButton) return;
+    if (bookActionsMenu.matches(':popover-open')) bookActionsMenu.hidePopover();
 
     if (actionButton.dataset.bookAction === 'restore') {
       const formData = new FormData();
@@ -772,6 +1055,11 @@ $copyrightMetricStyles = [
         references.textContent = 'No courses linked yet';
       }
       bookInfoModal.showModal();
+      return;
+    }
+
+    if (actionButton.dataset.bookAction === 'ai-course') {
+      resetAiCoursePanel(book);
       return;
     }
 

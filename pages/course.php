@@ -9,6 +9,7 @@ if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower((string) $_SERVER['HT
 }
 
 requireLogin();
+$courseCsvEnabled = false;
 
 function courseJson(array $payload, int $status = 200): never
 {
@@ -123,6 +124,203 @@ if ($action !== null) {
 
                 courseJson(['success' => true, 'message' => 'Course status updated.']);
 
+            case 'import':
+                if (!$courseCsvEnabled) {
+                    courseJson(['success' => false, 'message' => 'Course CSV import is temporarily disabled.'], 503);
+                }
+
+                $upload = $_FILES['csv_file'] ?? null;
+                if (!is_array($upload)) {
+                    courseJson(['success' => false, 'message' => 'Choose a CSV file to import.'], 422);
+                }
+
+                $uploadError = (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE);
+                if ($uploadError !== UPLOAD_ERR_OK) {
+                    $message = match ($uploadError) {
+                        UPLOAD_ERR_NO_FILE => 'Choose a CSV file to import.',
+                        UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'The CSV exceeds the server upload limit.',
+                        UPLOAD_ERR_PARTIAL => 'The CSV upload was incomplete. Try again.',
+                        default => 'The CSV could not be uploaded. Try again.',
+                    };
+                    courseJson(['success' => false, 'message' => $message], 422);
+                }
+
+                if (($upload['size'] ?? 0) > 5 * 1024 * 1024 || !is_uploaded_file((string) ($upload['tmp_name'] ?? ''))) {
+                    courseJson(['success' => false, 'message' => 'The CSV file is invalid or exceeds the 5 MB limit.'], 422);
+                }
+
+                $handle = fopen((string) $upload['tmp_name'], 'rb');
+                if ($handle === false) {
+                    courseJson(['success' => false, 'message' => 'Unable to read the uploaded CSV file.'], 422);
+                }
+
+                $headers = fgetcsv($handle, null, ',', '"', '');
+                if ($headers === false || $headers === [null]) {
+                    fclose($handle);
+                    courseJson(['success' => false, 'message' => 'The CSV file must include a header row.'], 422);
+                }
+
+                $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $headers[0]);
+                $aliases = ['course_code' => 'code', 'course_name' => 'name'];
+                $indexes = [];
+                foreach ($headers as $index => $header) {
+                    $header = strtolower(trim((string) $header));
+                    $header = preg_replace('/[\s-]+/', '_', $header);
+                    $header = $aliases[$header] ?? $header;
+                    if ($header !== '' && isset($indexes[$header])) {
+                        fclose($handle);
+                        courseJson(['success' => false, 'message' => 'The CSV contains duplicate column names.'], 422);
+                    }
+                    if ($header !== '') {
+                        $indexes[$header] = $index;
+                    }
+                }
+
+                foreach (['code', 'name', 'program_id'] as $requiredColumn) {
+                    if (!isset($indexes[$requiredColumn])) {
+                        fclose($handle);
+                        courseJson(['success' => false, 'message' => 'CSV headers must include code, name, and program_id.'], 422);
+                    }
+                }
+
+                $errors = [];
+                $rows = [];
+                $programCache = [];
+                $majorCache = [];
+                $seenCodes = [];
+                $dataRowCount = 0;
+                $rowNumber = 1;
+                $programCheck = $pdo->prepare('SELECT id FROM programs WHERE id = :id LIMIT 1');
+                $majorCheck = $pdo->prepare('SELECT id FROM majors WHERE id = :id AND program_id = :program_id LIMIT 1');
+                $courseCheck = $pdo->prepare('SELECT id FROM courses WHERE program_id = :program_id AND code = :code LIMIT 1');
+
+                while (($values = fgetcsv($handle, null, ',', '"', '')) !== false) {
+                    $rowNumber++;
+                    if ($values === [null] || count(array_filter($values, static fn ($value): bool => trim((string) $value) !== '')) === 0) {
+                        continue;
+                    }
+
+                    $dataRowCount++;
+                    if ($dataRowCount > 1000) {
+                        $errors[] = 'The CSV may contain no more than 1,000 course rows.';
+                        break;
+                    }
+
+                    $value = static fn (string $column): string => trim((string) ($values[$indexes[$column] ?? -1] ?? ''));
+                    $code = strtoupper($value('code'));
+                    $name = $value('name');
+                    $programIdValue = $value('program_id');
+                    $majorIdValue = $value('major_id');
+                    $description = $value('description');
+                    $statusValue = strtolower($value('status'));
+                    $rowErrors = [];
+
+                    if (preg_match('/\A[A-Za-z0-9]{1,30}\z/', $code) !== 1) {
+                        $rowErrors[] = 'code must contain 1 to 30 letters or numbers';
+                    }
+                    if ($name === '' || (function_exists('mb_strlen') ? mb_strlen($name, 'UTF-8') : strlen($name)) > 180) {
+                        $rowErrors[] = 'name is required and must be at most 180 characters';
+                    }
+                    if (preg_match('/\A[1-9][0-9]*\z/', $programIdValue) !== 1) {
+                        $rowErrors[] = 'program_id must be a positive integer';
+                    }
+                    if ($majorIdValue !== '' && preg_match('/\A[1-9][0-9]*\z/', $majorIdValue) !== 1) {
+                        $rowErrors[] = 'major_id must be a positive integer';
+                    }
+                    if ((function_exists('mb_strlen') ? mb_strlen($description, 'UTF-8') : strlen($description)) > 500) {
+                        $rowErrors[] = 'description must be at most 500 characters';
+                    }
+                    if ($statusValue !== '' && !in_array($statusValue, ['active', 'inactive'], true)) {
+                        $rowErrors[] = 'status must be active or inactive';
+                    }
+
+                    $programId = preg_match('/\A[1-9][0-9]*\z/', $programIdValue) === 1 ? (int) $programIdValue : 0;
+                    $majorId = $majorIdValue !== '' && preg_match('/\A[1-9][0-9]*\z/', $majorIdValue) === 1 ? (int) $majorIdValue : null;
+
+                    if ($programId > 0) {
+                        if (!array_key_exists($programId, $programCache)) {
+                            $programCheck->execute([':id' => $programId]);
+                            $programCache[$programId] = (bool) $programCheck->fetchColumn();
+                        }
+                        if (!$programCache[$programId]) {
+                            $rowErrors[] = 'program_id does not match an existing program';
+                        }
+                    }
+
+                    if ($majorId !== null && $programId > 0) {
+                        $majorKey = $majorId . ':' . $programId;
+                        if (!array_key_exists($majorKey, $majorCache)) {
+                            $majorCheck->execute([':id' => $majorId, ':program_id' => $programId]);
+                            $majorCache[$majorKey] = (bool) $majorCheck->fetchColumn();
+                        }
+                        if (!$majorCache[$majorKey]) {
+                            $rowErrors[] = 'major_id does not belong to program_id';
+                        }
+                    }
+
+                    if ($programId > 0 && preg_match('/\A[A-Za-z0-9]{1,30}\z/', $code) === 1) {
+                        $codeKey = $programId . ':' . $code;
+                        if (isset($seenCodes[$codeKey])) {
+                            $rowErrors[] = 'code is repeated in this CSV for the same program';
+                        } else {
+                            $seenCodes[$codeKey] = true;
+                            $courseCheck->execute([':program_id' => $programId, ':code' => $code]);
+                            if ($courseCheck->fetchColumn()) {
+                                $rowErrors[] = 'code already exists for this program';
+                            }
+                        }
+                    }
+
+                    if ($rowErrors) {
+                        $errors[] = 'Row ' . $rowNumber . ': ' . implode('; ', $rowErrors) . '.';
+                        continue;
+                    }
+
+                    $rows[] = [
+                        'code' => $code,
+                        'name' => $name,
+                        'program_id' => $programId,
+                        'major_id' => $majorId,
+                        'description' => $description,
+                        'status' => $statusValue !== '' ? $statusValue : 'active',
+                    ];
+                }
+                fclose($handle);
+
+                if ($dataRowCount === 0) {
+                    $errors[] = 'The CSV contains no course rows.';
+                }
+                if ($errors) {
+                    $errorMessage = 'No courses were imported. ' . implode(' ', array_slice($errors, 0, 10));
+                    if (count($errors) > 10) {
+                        $errorMessage .= ' Additional row errors were omitted.';
+                    }
+                    courseJson(['success' => false, 'message' => $errorMessage, 'errors' => $errors], 422);
+                }
+
+                $pdo->beginTransaction();
+                try {
+                    $insertCourse = $pdo->prepare('INSERT INTO courses (program_id, major_id, code, name, description, status) VALUES (:program_id, :major_id, :code, :name, :description, :status)');
+                    foreach ($rows as $row) {
+                        $insertCourse->execute([
+                            ':program_id' => $row['program_id'],
+                            ':major_id' => $row['major_id'],
+                            ':code' => $row['code'],
+                            ':name' => $row['name'],
+                            ':description' => $row['description'] !== '' ? $row['description'] : null,
+                            ':status' => $row['status'],
+                        ]);
+                    }
+                    $pdo->commit();
+                } catch (Throwable $exception) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    throw $exception;
+                }
+
+                courseJson(['success' => true, 'message' => count($rows) . ' courses imported successfully.']);
+
             case 'save':
                 $id = (int) ($_POST['id'] ?? 0);
                 $code = strtoupper(trim((string) ($_POST['code'] ?? '')));
@@ -132,8 +330,16 @@ if ($action !== null) {
                 $status = ($_POST['status'] ?? 'active') === 'inactive' ? 'inactive' : 'active';
                 $description = trim((string) ($_POST['description'] ?? ''));
 
+                if ($programId === null) {
+                    courseJson(['success' => false, 'message' => 'A program assignment is required for every course.'], 422);
+                }
+
                 if ($code === '' || $name === '') {
                     courseJson(['success' => false, 'message' => 'Course code and name are required.'], 422);
+                }
+
+                if (preg_match('/\A[A-Za-z0-9]{1,30}\z/', $code) !== 1) {
+                    courseJson(['success' => false, 'message' => 'Course code must contain 1 to 30 letters or numbers.'], 422);
                 }
 
                 if ($majorId !== null && $programId === null) {
@@ -198,10 +404,23 @@ if ($action !== null) {
         </div>
 
         <?php if (in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)): ?>
-            <button type="button" id="addCourseBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700">
-                <i data-lucide="plus" class="h-4 w-4"></i>
-                Add Course
-            </button>
+            <div class="flex flex-wrap gap-2">
+                <?php if ($courseCsvEnabled): ?>
+                    <button type="button" id="importCoursesBtn" class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50" title="Import a CSV with code, name, and program_id columns">
+                        <i data-lucide="upload" class="h-4 w-4"></i>
+                        Import CSV
+                    </button>
+                    <a href="assets/course-template.csv" download="courses-template.csv" class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                        <i data-lucide="download" class="h-4 w-4"></i>
+                        CSV template
+                    </a>
+                    <input type="file" id="courseCsvFile" accept=".csv,text/csv" class="hidden" aria-label="Choose course CSV file">
+                <?php endif; ?>
+                <button type="button" id="addCourseBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700">
+                    <i data-lucide="plus" class="h-4 w-4"></i>
+                    Add Course
+                </button>
+            </div>
         <?php endif; ?>
     </div>
 
@@ -274,7 +493,7 @@ if ($action !== null) {
         <div class="mt-5 grid gap-4 sm:grid-cols-2">
             <label class="text-sm font-semibold text-slate-700">
                 Course code
-                <input name="code" id="courseCode" maxlength="30" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                <input name="code" id="courseCode" type="text" autocapitalize="characters" pattern="[A-Za-z0-9]+" title="Use letters and numbers only." maxlength="30" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 uppercase">
             </label>
 
             <label class="text-sm font-semibold text-slate-700">
@@ -299,12 +518,12 @@ if ($action !== null) {
 
             <label class="text-sm font-semibold text-slate-700">
                 Program
-                <select name="program_id" id="formProgram" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
-                    <option value="">No program link</option>
+                <select name="program_id" id="formProgram" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                    <option value="">Select a program</option>
                 </select>
             </label>
 
-            <label class="text-sm font-semibold text-slate-700 sm:col-span-2">
+            <label class="text-sm font-semibold text-slate-700">
                 Major
                 <select name="major_id" id="formMajor" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
                     <option value="">No major link</option>

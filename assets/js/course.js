@@ -15,6 +15,25 @@
         '"': '&quot;',
         "'": '&#039;'
     }[char]));
+    const lowercasePrepositions = new Set([
+        'about', 'above', 'across', 'after', 'against', 'along', 'among', 'around', 'as', 'at',
+        'before', 'behind', 'below', 'beneath', 'beside', 'between', 'beyond', 'by', 'despite',
+        'down', 'during', 'except', 'for', 'from', 'in', 'inside', 'into', 'near', 'of', 'off',
+        'on', 'onto', 'out', 'outside', 'over', 'past', 'per', 'since', 'through', 'throughout',
+        'to', 'toward', 'towards', 'under', 'underneath', 'until', 'up', 'upon', 'via', 'within',
+        'without', 'with', 'a', 'an', 'the', 'and', 'but', 'or', 'nor', 'so', 'yet'
+    ]);
+    const formatCourseName = (value) => String(value ?? '').toLocaleLowerCase().replace(
+        /(^|[\s\p{P}])([\p{L}\p{N}][\p{L}\p{M}\p{N}'’]*)/gu,
+        (match, prefix, word) => {
+            if (lowercasePrepositions.has(word)) {
+                return `${prefix}${word}`;
+            }
+
+            const firstLetter = [...word][0];
+            return `${prefix}${firstLetter.toLocaleUpperCase()}${word.slice(firstLetter.length)}`;
+        }
+    );
 
     const toast = (message, error = false) => {
         const container = $('courseToastContainer');
@@ -56,7 +75,15 @@
         };
 
         const response = await fetch(`pages/course.php${url}`, rawOptions);
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json();
+        } catch {
+            const message = response.status === 413
+                ? 'The CSV exceeds the server upload limit.'
+                : 'The server returned an unexpected response. Your session may have expired or the upload may exceed server limits.';
+            throw new Error(message);
+        }
 
         if (!response.ok || !data.success) {
             throw new Error(data.message || 'Request failed.');
@@ -97,7 +124,7 @@
             state.programs.filter(
                 (item) => item.status === 'active' && (!course.collegeId || String(item.college_id) === String(course.collegeId))
             ),
-            'No program link',
+            'Select a program',
             course.programId || ''
         );
 
@@ -114,8 +141,8 @@
     function openModal(course = null) {
         $('courseModalTitle').textContent = course ? 'Edit Course' : 'Add Course';
         $('courseId').value = course?.id || '';
-        $('courseCode').value = course?.code || '';
-        $('courseName').value = course?.name || '';
+        $('courseCode').value = (course?.code || '').toUpperCase();
+        $('courseName').value = formatCourseName(course?.name || '');
         $('courseDescription').value = course?.description || '';
         $('formStatus').value = course?.status || 'active';
 
@@ -369,12 +396,47 @@
     $('addCourseBtn')?.addEventListener('click', () => openModal());
     $('closeCourseModal').addEventListener('click', closeModal);
     $('cancelCourseModal').addEventListener('click', closeModal);
+    $('courseCode').addEventListener('input', (event) => {
+        event.target.value = event.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    });
+    $('courseName').addEventListener('input', (event) => {
+        event.target.value = formatCourseName(event.target.value);
+    });
+    $('importCoursesBtn')?.addEventListener('click', () => $('courseCsvFile').click());
+    $('courseCsvFile')?.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast('The CSV exceeds the 5 MB limit.', true);
+            event.target.value = '';
+            return;
+        }
+
+        const button = $('importCoursesBtn');
+        button.disabled = true;
+        try {
+            const form = new FormData();
+            form.append('action', 'import');
+            form.append('csv_file', file);
+            const data = await request('', { method: 'POST', body: form });
+            toast(data.message);
+            await loadCourses();
+        } catch (error) {
+            toast(error.message, true);
+        } finally {
+            event.target.value = '';
+            button.disabled = false;
+        }
+    });
 
     $('formCollege').addEventListener('change', () => {
         fillSelect(
             $('formProgram'),
             state.programs.filter((item) => !$('formCollege').value || String(item.college_id) === $('formCollege').value),
-            'No program link'
+            'Select a program'
         );
         fillSelect($('formMajor'), [], 'No major link');
     });

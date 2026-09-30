@@ -99,6 +99,96 @@ CREATE TABLE IF NOT EXISTS book_courses (
     CONSTRAINT fk_book_courses_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS book_embeddings (
+    book_id INT UNSIGNED PRIMARY KEY,
+    embedding_model VARCHAR(100) NOT NULL,
+    source_hash CHAR(64) NOT NULL,
+    dimensions SMALLINT UNSIGNED NOT NULL,
+    embedding_json JSON NOT NULL,
+    generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_book_embeddings_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS course_embeddings (
+    course_id INT PRIMARY KEY,
+    embedding_model VARCHAR(100) NOT NULL,
+    source_hash CHAR(64) NOT NULL,
+    dimensions SMALLINT UNSIGNED NOT NULL,
+    embedding_json JSON NOT NULL,
+    generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_course_embeddings_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS ai_jobs (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    job_type ENUM('embed_book', 'embed_course', 'suggest_courses') NOT NULL,
+    book_id INT UNSIGNED DEFAULT NULL,
+    course_id INT DEFAULT NULL,
+    requested_by INT DEFAULT NULL,
+    result_run_id BIGINT UNSIGNED DEFAULT NULL,
+    request_key CHAR(64) DEFAULT NULL,
+    status ENUM('queued', 'processing', 'completed', 'failed', 'cancelled') NOT NULL DEFAULT 'queued',
+    attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    available_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    locked_until DATETIME DEFAULT NULL,
+    started_at DATETIME DEFAULT NULL,
+    finished_at DATETIME DEFAULT NULL,
+    last_error VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_ai_jobs_request_key (request_key),
+    INDEX idx_ai_jobs_due (status, available_at, id),
+    INDEX idx_ai_jobs_book_status (book_id, status),
+    INDEX idx_ai_jobs_course_status (course_id, status),
+    INDEX idx_ai_jobs_user (requested_by, id),
+    CONSTRAINT fk_ai_jobs_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    CONSTRAINT fk_ai_jobs_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ai_jobs_user FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS book_course_suggestion_runs (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    book_id INT UNSIGNED NOT NULL,
+    requested_by INT DEFAULT NULL,
+    embedding_model VARCHAR(100) NOT NULL,
+    book_source_hash CHAR(64) NOT NULL,
+    course_catalog_hash CHAR(64) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_book_suggestion_runs_latest (book_id, id),
+    CONSTRAINT fk_book_course_suggestion_runs_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    CONSTRAINT fk_book_course_suggestion_runs_user FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS book_course_suggestions (
+    run_id BIGINT UNSIGNED NOT NULL,
+    course_id INT NOT NULL,
+    similarity_score DECIMAL(10, 8) NOT NULL,
+    decision ENUM('pending', 'approved', 'dismissed') NOT NULL DEFAULT 'pending',
+    reviewed_by INT DEFAULT NULL,
+    reviewed_at DATETIME DEFAULT NULL,
+    PRIMARY KEY (run_id, course_id),
+    INDEX idx_book_course_suggestions_course (course_id),
+    CONSTRAINT fk_book_course_suggestions_run FOREIGN KEY (run_id) REFERENCES book_course_suggestion_runs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_book_course_suggestions_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    CONSTRAINT fk_book_course_suggestions_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+SET @ai_jobs_result_run_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ai_jobs' AND COLUMN_NAME = 'result_run_id');
+SET @add_ai_jobs_result_run_column = IF(@ai_jobs_result_run_column_exists = 0,
+    'ALTER TABLE ai_jobs ADD COLUMN result_run_id BIGINT UNSIGNED DEFAULT NULL AFTER requested_by',
+    'SELECT 1');
+PREPARE add_ai_jobs_result_run_column FROM @add_ai_jobs_result_run_column;
+EXECUTE add_ai_jobs_result_run_column;
+DEALLOCATE PREPARE add_ai_jobs_result_run_column;
+
+SET @ai_jobs_result_run_fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ai_jobs' AND CONSTRAINT_NAME = 'fk_ai_jobs_result_run');
+SET @add_ai_jobs_result_run_fk = IF(@ai_jobs_result_run_fk_exists = 0,
+    'ALTER TABLE ai_jobs ADD CONSTRAINT fk_ai_jobs_result_run FOREIGN KEY (result_run_id) REFERENCES book_course_suggestion_runs(id) ON DELETE SET NULL',
+    'SELECT 1');
+PREPARE add_ai_jobs_result_run_fk FROM @add_ai_jobs_result_run_fk;
+EXECUTE add_ai_jobs_result_run_fk;
+DEALLOCATE PREPARE add_ai_jobs_result_run_fk;
+
 CREATE TABLE IF NOT EXISTS copyright_year_ranges (
     range_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     years_threshold SMALLINT UNSIGNED NOT NULL,
