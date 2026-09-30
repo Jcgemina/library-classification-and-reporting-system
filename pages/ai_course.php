@@ -80,7 +80,7 @@ try {
         if ($jobId === false || $jobId < 1) {
             aiCourseApiResponse(['success' => false, 'message' => 'Choose a valid job.'], 422);
         }
-        $stmt = $pdo->prepare('SELECT id, book_id, requested_by, result_run_id, status, last_error FROM ai_jobs WHERE id = :id AND requested_by = :user_id');
+        $stmt = $pdo->prepare('SELECT id, book_id, requested_by, result_run_id, status, attempts, last_error FROM ai_jobs WHERE id = :id AND requested_by = :user_id');
         $stmt->execute([':id' => $jobId, ':user_id' => (int)$_SESSION['user_id']]);
         $job = $stmt->fetch();
         if (!$job) {
@@ -101,6 +101,10 @@ try {
                 'state' => $job['status'],
                 'message' => aiCoursePublicJobError($job['last_error']),
             ]);
+        }
+        if ($job['status'] === 'queued' && (int)$job['attempts'] > 0) {
+            $retryMessage = aiCoursePublicJobError($job['last_error']);
+            aiCourseApiResponse(['success' => true, 'state' => 'retrying', 'message' => $retryMessage]);
         }
         aiCourseApiResponse(['success' => true, 'state' => $job['status']]);
     }
@@ -127,7 +131,7 @@ try {
 
         $pdo->beginTransaction();
         try {
-            $candidateStmt = $pdo->prepare('SELECT s.decision, r.book_id FROM book_course_suggestions s INNER JOIN book_course_suggestion_runs r ON r.id = s.run_id INNER JOIN books b ON b.book_id = r.book_id AND b.deleted_at IS NULL INNER JOIN courses c ON c.id = s.course_id AND c.status = \'active\' WHERE s.run_id = :run_id AND s.course_id = :course_id FOR UPDATE');
+            $candidateStmt = $pdo->prepare('SELECT s.decision, s.relevance_label, r.book_id FROM book_course_suggestions s INNER JOIN book_course_suggestion_runs r ON r.id = s.run_id INNER JOIN books b ON b.book_id = r.book_id AND b.deleted_at IS NULL INNER JOIN courses c ON c.id = s.course_id AND c.status = \'active\' WHERE s.run_id = :run_id AND s.course_id = :course_id AND s.relevance_label = \'relevant\' FOR UPDATE');
             $candidateStmt->execute([':run_id' => $runId, ':course_id' => $courseId]);
             $candidate = $candidateStmt->fetch();
             if (!$candidate) {

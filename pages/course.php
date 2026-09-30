@@ -466,7 +466,7 @@ if ($action !== null) {
                         <th class="px-3 py-3">Course name</th>
                         <th class="px-3 py-3">Details</th>
                         <th class="px-3 py-3">Academic link</th>
-                        <th class="px-3 py-3">Status</th>
+                        <th class="w-28 px-3 py-3 text-center">Status</th>
                         <th class="px-3 py-3 text-right">Actions</th>
                     </tr>
                 </thead>

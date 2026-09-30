@@ -41,10 +41,12 @@ while ($processed < $batchSize) {
     } catch (AiCourseException $exception) {
         aiCourseRecordJobFailure($pdo, $job, $exception, $config);
         error_log('AI course job ' . (int)$job['id'] . ' failed: ' . $exception->errorKey);
+        fwrite(STDERR, 'AI job ' . (int)$job['id'] . ': ' . $exception->errorKey . PHP_EOL);
     } catch (Throwable $exception) {
         $safeFailure = new AiCourseException('internal_error', 'AI job failed unexpectedly.', true);
         aiCourseRecordJobFailure($pdo, $job, $safeFailure, $config);
         error_log('AI course job ' . (int)$job['id'] . ' failed with ' . $exception::class);
+        fwrite(STDERR, 'AI job ' . (int)$job['id'] . ': internal_error (' . $exception::class . ')' . PHP_EOL);
     }
 }
 
