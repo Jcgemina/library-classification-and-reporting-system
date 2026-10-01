@@ -114,7 +114,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($inventoryActio
         $pdo->rollBack();
         inventoryJsonResponse(['success' => false, 'message' => 'Book not found or already archived.'], 404);
       }
-      $pdo->prepare('DELETE FROM book_courses WHERE book_id = :book_id')->execute([':book_id' => $bookId]);
       $pdo->commit();
       inventoryJsonResponse(['success' => true, 'message' => 'Book moved to the archive.']);
     }

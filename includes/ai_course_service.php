@@ -505,6 +505,20 @@ function aiCourseCatalogFingerprint(array $courses, string $model): string
     return hash('sha256', implode("\n", $parts));
 }
 
+function aiCourseReferenceFingerprint(array $courseIds): string
+{
+    $courseIds = array_values(array_unique(array_map('intval', $courseIds)));
+    sort($courseIds, SORT_NUMERIC);
+    return hash('sha256', implode("\n", $courseIds));
+}
+
+function aiCourseBookReferenceFingerprint(PDO $pdo, int $bookId): string
+{
+    $stmt = $pdo->prepare('SELECT course_id FROM book_courses WHERE book_id = :book_id ORDER BY course_id');
+    $stmt->execute([':book_id' => $bookId]);
+    return aiCourseReferenceFingerprint($stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
 function aiCourseLoadRun(PDO $pdo, int $runId): ?array
 {
     $runStmt = $pdo->prepare('SELECT id, book_id, embedding_model, book_source_hash, course_catalog_hash, created_at FROM book_course_suggestion_runs WHERE id = :id');
@@ -538,12 +552,15 @@ function aiCourseFindCurrentRun(PDO $pdo, int $bookId, array $config): ?array
     $bookHash = aiCourseSourceHash('book-v1', aiCourseBookText($book), $config['embedding_model']);
     $courses = aiCourseFetchActiveCourses($pdo);
     $catalogHash = aiCourseCatalogFingerprint($courses, $config['embedding_model']);
-    $stmt = $pdo->prepare('SELECT id, book_source_hash, course_catalog_hash, embedding_model, relevance_model FROM book_course_suggestion_runs WHERE book_id = :book_id ORDER BY id DESC LIMIT 1');
+    $bookLinksHash = aiCourseBookReferenceFingerprint($pdo, $bookId);
+    $stmt = $pdo->prepare('SELECT id, book_source_hash, course_catalog_hash, book_links_hash, embedding_model, relevance_model FROM book_course_suggestion_runs WHERE book_id = :book_id ORDER BY id DESC LIMIT 1');
     $stmt->execute([':book_id' => $bookId]);
     $latest = $stmt->fetch();
     if (!$latest
         || !hash_equals($bookHash, (string)$latest['book_source_hash'])
         || !hash_equals($catalogHash, (string)$latest['course_catalog_hash'])
+        || !is_string($latest['book_links_hash'])
+        || !hash_equals($bookLinksHash, $latest['book_links_hash'])
         || $latest['embedding_model'] !== $config['embedding_model']
         || $latest['relevance_model'] !== $config['relevance_model']) {
         return null;
@@ -603,7 +620,9 @@ function aiCourseProcessJob(PDO $pdo, array $job, array $config): void
 
     $linkedStmt = $pdo->prepare('SELECT course_id FROM book_courses WHERE book_id = :book_id');
     $linkedStmt->execute([':book_id' => $bookId]);
-    $linked = array_fill_keys(array_map('intval', $linkedStmt->fetchAll(PDO::FETCH_COLUMN)), true);
+    $linkedCourseIds = array_map('intval', $linkedStmt->fetchAll(PDO::FETCH_COLUMN));
+    $bookLinksHash = aiCourseReferenceFingerprint($linkedCourseIds);
+    $linked = array_fill_keys($linkedCourseIds, true);
 
     $ranked = [];
     foreach ($courses as $course) {
@@ -630,16 +649,18 @@ function aiCourseProcessJob(PDO $pdo, array $job, array $config): void
 
     $currentBook = aiCourseFetchBook($pdo, $bookId);
     $currentCourses = aiCourseFetchActiveCourses($pdo);
+    $currentBookLinksHash = aiCourseBookReferenceFingerprint($pdo, $bookId);
     if (!$currentBook
         || !hash_equals($bookHash, aiCourseSourceHash('book-v1', aiCourseBookText($currentBook), $config['embedding_model']))
-        || !hash_equals($catalogHash, aiCourseCatalogFingerprint($currentCourses, $config['embedding_model']))) {
+        || !hash_equals($catalogHash, aiCourseCatalogFingerprint($currentCourses, $config['embedding_model']))
+        || !hash_equals($bookLinksHash, $currentBookLinksHash)) {
         aiCourseReleaseJob($pdo, $jobId);
         return;
     }
 
     $pdo->beginTransaction();
     try {
-        $runStmt = $pdo->prepare('INSERT INTO book_course_suggestion_runs (book_id, requested_by, embedding_model, relevance_model, book_source_hash, course_catalog_hash) VALUES (:book_id, :requested_by, :embedding_model, :relevance_model, :book_hash, :catalog_hash)');
+        $runStmt = $pdo->prepare('INSERT INTO book_course_suggestion_runs (book_id, requested_by, embedding_model, relevance_model, book_source_hash, course_catalog_hash, book_links_hash) VALUES (:book_id, :requested_by, :embedding_model, :relevance_model, :book_hash, :catalog_hash, :book_links_hash)');
         $runStmt->execute([
             ':book_id' => $bookId,
             ':requested_by' => $job['requested_by'],
@@ -647,6 +668,7 @@ function aiCourseProcessJob(PDO $pdo, array $job, array $config): void
             ':relevance_model' => $config['relevance_model'],
             ':book_hash' => $bookHash,
             ':catalog_hash' => $catalogHash,
+            ':book_links_hash' => $bookLinksHash,
         ]);
         $runId = (int)$pdo->lastInsertId();
         $insertSuggestion = $pdo->prepare('INSERT INTO book_course_suggestions (run_id, course_id, similarity_score, relevance_label, relevance_reason) VALUES (:run_id, :course_id, :score, :relevance_label, :relevance_reason)');
