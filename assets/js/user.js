@@ -266,50 +266,45 @@
       const initials = String(librarian.fullName || '').split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
 
       return `
-        <div class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div class="flex items-center gap-3">
+        <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div class="flex min-w-0 items-center justify-center gap-3 md:flex-1 md:justify-start">
             <input type="checkbox" data-select-id="${librarian.id}" class="h-4 w-4 rounded border-slate-300 text-rose-500 focus:ring-rose-200" ${isSelected ? 'checked' : ''} />
 
-            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-100 font-bold text-rose-700">
+            <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-rose-100 text-sm font-bold text-rose-700">
               ${esc(initials || 'L')}
             </div>
 
-            <div class="min-w-0">
-              <p class="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Account</p>
-              <div class="flex items-center gap-2">
-                <p class="font-semibold text-slate-900">${esc(librarian.fullName)}</p>
-                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold ${isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">
+            <div class="min-w-0 text-center">
+              <div class="flex flex-wrap items-center justify-center gap-1.5">
+                <p class="text-sm font-semibold text-slate-900">${esc(librarian.fullName)}</p>
+                <span class="rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">
                   ${esc(librarian.role)}
                 </span>
               </div>
-              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
-                <span><span class="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Username</span>@${esc(librarian.username)}</span>
-                <span><span class="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Joined</span>${esc(librarian.joinedAt || 'Recently')}</span>
+              <div class="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                <span>@${esc(librarian.username)}</span>
+                <span><span class="mr-1 text-[9px] font-semibold uppercase tracking-wide text-slate-400">Joined</span>${esc(librarian.joinedAt || 'Recently')}</span>
               </div>
             </div>
           </div>
 
-          <div class="w-full md:w-56 md:flex-shrink-0">
-            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Primary actions</p>
-            <div class="mt-1.5 grid grid-cols-2 gap-2">
-              <button type="button" data-action="view" data-id="${librarian.id}" aria-label="View ${esc(librarian.fullName)}" class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:border-sky-200 hover:text-sky-700">
-                <i data-lucide="eye" class="h-3.5 w-3.5"></i>
-                View
+          <div class="w-full md:w-64 md:flex-shrink-0">
+            <p class="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Primary actions</p>
+            <div class="mt-1 flex items-center gap-1">
+              <button type="button" data-action="view" data-id="${librarian.id}" aria-label="View ${esc(librarian.fullName)}" title="View profile" class="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-slate-200 bg-white px-1.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400">
+                <i data-lucide="eye" class="h-3.5 w-3.5"></i><span>View</span>
               </button>
 
-              <button type="button" data-action="edit" data-id="${librarian.id}" aria-label="Edit ${esc(librarian.fullName)}" class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 transition hover:border-rose-200 hover:text-rose-700">
-                <i data-lucide="pencil-line" class="h-3.5 w-3.5"></i>
-                Edit
+              <button type="button" data-action="edit" data-id="${librarian.id}" aria-label="Edit ${esc(librarian.fullName)}" title="Edit user" class="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-sky-200 bg-white px-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                <i data-lucide="pencil" class="h-3.5 w-3.5"></i><span>Edit</span>
               </button>
 
-              <button type="button" data-action="toggle-status" data-id="${librarian.id}" aria-label="${isActive ? 'Deactivate' : 'Activate'} ${esc(librarian.fullName)}" class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100">
-                <i data-lucide="${isActive ? 'user-round-x' : 'user-round-check'}" class="h-3.5 w-3.5"></i>
-                ${isActive ? 'Disable' : 'Enable'}
+              <button type="button" data-action="toggle-status" data-id="${librarian.id}" aria-label="${isActive ? 'Deactivate' : 'Activate'} ${esc(librarian.fullName)}" title="${isActive ? 'Deactivate' : 'Activate'} account" class="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-amber-200 bg-white px-1.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                <i data-lucide="${isActive ? 'user-round-x' : 'user-round-check'}" class="h-3.5 w-3.5"></i><span>${isActive ? 'Disable' : 'Enable'}</span>
               </button>
 
-              <button type="button" data-action="delete" data-id="${librarian.id}" aria-label="Delete ${esc(librarian.fullName)}" class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
-                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                Delete
+              <button type="button" data-action="delete" data-id="${librarian.id}" aria-label="Delete ${esc(librarian.fullName)}" title="Delete user" class="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-white px-1.5 text-[10px] font-semibold text-rose-700 transition hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
+                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i><span>Delete</span>
               </button>
             </div>
           </div>

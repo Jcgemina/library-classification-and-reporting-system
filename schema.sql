@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS book_course_suggestion_runs (
     relevance_model VARCHAR(100) NOT NULL,
     book_source_hash CHAR(64) NOT NULL,
     course_catalog_hash CHAR(64) NOT NULL,
+    book_links_hash CHAR(64) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_book_suggestion_runs_latest (book_id, id),
     CONSTRAINT fk_book_course_suggestion_runs_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
@@ -175,6 +176,14 @@ CREATE TABLE IF NOT EXISTS book_course_suggestions (
     CONSTRAINT fk_book_course_suggestions_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
     CONSTRAINT fk_book_course_suggestions_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+SET @suggestion_run_book_links_hash_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book_course_suggestion_runs' AND COLUMN_NAME = 'book_links_hash');
+SET @add_suggestion_run_book_links_hash = IF(@suggestion_run_book_links_hash_exists = 0,
+    'ALTER TABLE book_course_suggestion_runs ADD COLUMN book_links_hash CHAR(64) DEFAULT NULL AFTER course_catalog_hash',
+    'SELECT 1');
+PREPARE add_suggestion_run_book_links_hash FROM @add_suggestion_run_book_links_hash;
+EXECUTE add_suggestion_run_book_links_hash;
+DEALLOCATE PREPARE add_suggestion_run_book_links_hash;
 
 SET @suggestion_run_relevance_model_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book_course_suggestion_runs' AND COLUMN_NAME = 'relevance_model');
 SET @add_suggestion_run_relevance_model = IF(@suggestion_run_relevance_model_exists = 0,
