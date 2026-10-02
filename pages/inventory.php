@@ -414,6 +414,7 @@ $copyrightMetricStyles = [
       <input type="hidden" name="action" value="create_book">
       <input type="hidden" name="book_id" value="">
       <input type="hidden" name="csrf_token" value="<?php echo $escapeInventory($csrfToken); ?>">
+      <div data-selected-course-inputs></div>
       <p data-inventory-form-message role="alert" hidden class="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800"></p>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label class="text-sm font-medium text-slate-700 sm:col-span-2">Title <span class="text-rose-700">*</span><input name="title" required maxlength="255" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></label>
@@ -425,11 +426,45 @@ $copyrightMetricStyles = [
         <label class="text-sm font-medium text-slate-700">Number of Copies<input name="copy_count" type="number" min="1" max="5000" value="1" required class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></label>
         <label class="text-sm font-medium text-slate-700 sm:col-span-2">Description<textarea name="description" rows="3" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></textarea></label>
       </div>
+
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h4 class="text-sm font-semibold text-slate-900">Course Suggestions</h4>
+            <p class="mt-1 text-xs text-slate-600">Select any relevant courses to link when you save this book.</p>
+          </div>
+          <button type="button" data-book-suggest-courses class="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-800 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Suggest courses for the current book draft">
+            <i data-lucide="sparkles" class="h-4 w-4"></i>
+            <span>Suggest courses</span>
+          </button>
+        </div>
+        <p class="mt-3 text-xs leading-5 text-slate-600">The book title and description are sent to the configured AI provider for matching.</p>
+        <p data-book-ai-status class="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">Enter a title and description, then request course suggestions.</p>
+        <div data-book-ai-results hidden class="mt-4 space-y-2"></div>
+        <p data-book-ai-empty hidden class="mt-4 rounded-lg border border-slate-200 bg-white px-4 py-5 text-center text-sm text-slate-600">No active courses passed the relevance check.</p>
+      </div>
+
       <div class="flex justify-end gap-2 border-t border-slate-100 pt-4">
         <button type="button" data-inventory-add-cancel class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
         <button type="submit" data-book-form-submit class="inline-flex items-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="save" class="h-4 w-4"></i><span>Save Book</span></button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="inventoryCourseSuggestionsModal" aria-labelledby="inventoryCourseSuggestionsTitle" class="fixed z-[110] m-auto max-h-[90vh] w-[calc(100%-1.5rem)] max-w-2xl overflow-hidden rounded-xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/50">
+    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+      <div><h3 id="inventoryCourseSuggestionsTitle" class="text-base font-bold text-slate-900">Suggested Courses</h3><p class="mt-1 text-xs text-slate-600">Review candidate matches and choose references to save.</p></div>
+      <button type="button" data-book-suggestions-close aria-label="Close suggested courses" class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
+    <div class="max-h-[calc(90vh-4.5rem)] space-y-4 overflow-y-auto p-5">
+      <p data-book-suggestions-status class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">Select any courses to add as references when you save this book.</p>
+      <div data-book-suggestions-list class="space-y-2"></div>
+      <p data-book-suggestions-empty hidden class="rounded-lg border border-slate-200 bg-white px-4 py-5 text-center text-sm text-slate-600">No active courses passed the relevance check.</p>
+      <div class="flex justify-end gap-2 border-t border-slate-100 pt-4">
+        <button type="button" data-book-suggestions-close class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Close</button>
+        <button type="button" data-book-suggestions-apply class="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">Use selected</button>
+      </div>
+    </div>
   </dialog>
 
   <dialog id="inventoryBookInfoModal" aria-labelledby="inventoryBookInfoTitle" class="fixed z-[100] m-auto max-h-[90vh] w-[calc(100%-1.5rem)] max-w-2xl overflow-hidden rounded-xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/50">
@@ -625,6 +660,17 @@ $copyrightMetricStyles = [
   const addBookForm = document.querySelector('[data-inventory-add-form]');
   const addBookCloseButton = document.querySelector('[data-inventory-add-close]');
   const addBookCancelButton = document.querySelector('[data-inventory-add-cancel]');
+  const addBookSuggestButton = document.querySelector('[data-book-suggest-courses]');
+  const addBookAiStatus = document.querySelector('[data-book-ai-status]');
+  const addBookAiResults = document.querySelector('[data-book-ai-results]');
+  const addBookAiEmpty = document.querySelector('[data-book-ai-empty]');
+  const suggestionModal = document.getElementById('inventoryCourseSuggestionsModal');
+  const suggestionList = document.querySelector('[data-book-suggestions-list]');
+  const suggestionStatus = document.querySelector('[data-book-suggestions-status]');
+  const suggestionEmpty = document.querySelector('[data-book-suggestions-empty]');
+  const suggestionCloseButtons = document.querySelectorAll('[data-book-suggestions-close]');
+  const suggestionApplyButton = document.querySelector('[data-book-suggestions-apply]');
+  const selectedCourseInputs = document.querySelector('[data-selected-course-inputs]');
   const formMessage = document.querySelector('[data-inventory-form-message]');
   const formTitle = document.querySelector('[data-book-form-title]');
   const formSubmitLabel = document.querySelector('[data-book-form-submit] span');
@@ -686,11 +732,20 @@ $copyrightMetricStyles = [
 
   addBookButton?.addEventListener('click', () => {
     addBookForm.reset();
+    currentSuggestionDraft = [];
+    syncSelectedCourseInputs();
+    suggestionList.replaceChildren();
+    suggestionEmpty.hidden = true;
+    addBookSuggestButton.dataset.busy = 'false';
+    addBookAiResults.hidden = true;
+    addBookAiEmpty.hidden = true;
+    setBookSuggestionState('Enter a title and description, then request course suggestions.', 'idle');
     addBookForm.elements.action.value = 'create_book';
     addBookForm.elements.book_id.value = '';
     formTitle.textContent = 'Add Book';
     formSubmitLabel.textContent = 'Save Book';
     formMessage.hidden = true;
+    updateBookSuggestionButtonState();
     addBookDialog.showModal();
   });
   addBookCloseButton?.addEventListener('click', () => closeDialog(addBookDialog));
@@ -739,6 +794,171 @@ $copyrightMetricStyles = [
     toastTimer = window.setTimeout(() => {
       inventoryToast.hidden = true;
     }, 3500);
+  }
+
+  let currentSuggestionDraft = [];
+
+  function updateBookSuggestionButtonState() {
+    if (!addBookSuggestButton) return;
+
+    const title = (addBookForm?.elements.title.value || '').trim();
+    const isBusy = addBookSuggestButton.dataset.busy === 'true';
+    const hasSuggestions = currentSuggestionDraft.length > 0;
+
+    addBookSuggestButton.disabled = !title || isBusy;
+    const buttonLabel = addBookSuggestButton.querySelector('span');
+    const icon = addBookSuggestButton.querySelector('i');
+
+    if (isBusy) {
+      if (buttonLabel) buttonLabel.textContent = 'Loading suggestions…';
+      if (icon) icon.setAttribute('data-lucide', 'loader-circle');
+      addBookSuggestButton.title = 'Loading suggestions';
+      addBookSuggestButton.setAttribute('aria-label', 'Loading suggested courses');
+      return;
+    }
+
+    if (hasSuggestions) {
+      if (buttonLabel) buttonLabel.textContent = 'Review suggestions';
+      if (icon) icon.setAttribute('data-lucide', 'sparkles');
+      addBookSuggestButton.title = 'Review suggested courses';
+      addBookSuggestButton.setAttribute('aria-label', 'Review suggested courses for the current book draft');
+    } else {
+      if (buttonLabel) buttonLabel.textContent = 'Suggest courses';
+      if (icon) icon.setAttribute('data-lucide', 'sparkles');
+      addBookSuggestButton.title = title ? 'Suggest courses for this draft' : 'Title is required before suggesting courses';
+      addBookSuggestButton.setAttribute('aria-label', 'Suggest courses for the current book draft');
+    }
+
+    if (!title) {
+      addBookSuggestButton.title = 'Title is required before suggesting courses';
+    }
+
+    window.lucide?.createIcons({ nodes: [addBookSuggestButton] });
+  }
+
+  function syncSelectedCourseInputs() {
+    if (!selectedCourseInputs) return;
+    selectedCourseInputs.replaceChildren();
+    currentSuggestionDraft.filter((item) => item.selected).forEach((item) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'selected_course_ids[]';
+      input.value = String(item.course_id);
+      selectedCourseInputs.append(input);
+    });
+  }
+
+  function openSuggestedCoursesModal() {
+    if (!suggestionModal) return;
+    if (!currentSuggestionDraft.length) {
+      suggestionEmpty.hidden = true;
+      suggestionList.replaceChildren();
+      suggestionStatus.textContent = 'Select any courses to add as references when you save this book.';
+      return;
+    }
+    suggestionModal.showModal();
+  }
+
+  function setSuggestionStatusText() {
+    const selectedCount = currentSuggestionDraft.filter((item) => item.selected).length;
+    if (selectedCount) {
+      suggestionStatus.textContent = `Selected ${selectedCount} course${selectedCount > 1 ? 's' : ''}. These will be linked when you save this book.`;
+      return;
+    }
+    suggestionStatus.textContent = 'Select any courses to add as references when you save this book.';
+  }
+
+  function renderBookSuggestionCards(items) {
+    currentSuggestionDraft = items.map((item) => ({ ...item, selected: !!item.selected }));
+    suggestionList.replaceChildren();
+    if (!currentSuggestionDraft.length) {
+      suggestionEmpty.hidden = false;
+      suggestionList.hidden = true;
+      syncSelectedCourseInputs();
+      updateBookSuggestionButtonState();
+      return;
+    }
+
+    suggestionEmpty.hidden = true;
+    suggestionList.hidden = false;
+    setSuggestionStatusText();
+    syncSelectedCourseInputs();
+    updateBookSuggestionButtonState();
+
+    currentSuggestionDraft.forEach((item) => {
+      const row = document.createElement('article');
+      row.className = 'flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-start sm:justify-between';
+
+      const label = document.createElement('label');
+      label.className = 'flex flex-1 items-start gap-3';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = item.selected;
+      checkbox.value = String(item.course_id);
+      checkbox.className = 'mt-1 h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500';
+      checkbox.setAttribute('aria-label', `Select ${item.code} ${item.name}`);
+      checkbox.addEventListener('change', () => {
+        item.selected = checkbox.checked;
+        setSuggestionStatusText();
+        syncSelectedCourseInputs();
+      });
+
+      const body = document.createElement('span');
+      body.className = 'min-w-0 flex-1';
+
+      const title = document.createElement('span');
+      title.className = 'block text-sm font-semibold text-slate-900';
+      title.textContent = `${item.code} - ${item.name}`;
+
+      const score = document.createElement('span');
+      score.className = 'mt-1 block text-xs text-slate-600';
+      score.textContent = `Similarity score: ${Number(item.score).toFixed(3)}`;
+
+      const reasonWrap = document.createElement('span');
+      reasonWrap.className = 'mt-2 block';
+      const reasonToggle = document.createElement('button');
+      reasonToggle.type = 'button';
+      reasonToggle.className = 'inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900';
+      reasonToggle.setAttribute('aria-expanded', 'false');
+      reasonToggle.dataset.reasonToggle = 'true';
+      reasonToggle.innerHTML = '<i data-lucide="circle-help" class="h-3.5 w-3.5"></i><span>Why?</span>';
+
+      const reason = document.createElement('span');
+      reason.hidden = true;
+      reason.className = 'mt-2 block text-sm leading-5 text-slate-700';
+      reason.textContent = item.reason || 'This course closely matches the current book topic and terminology.';
+
+      reasonToggle.addEventListener('click', () => {
+        reason.hidden = !reason.hidden;
+        reasonToggle.setAttribute('aria-expanded', String(!reason.hidden));
+        reasonToggle.querySelector('span').textContent = reason.hidden ? 'Why?' : 'Hide reason';
+      });
+
+      reasonWrap.append(reasonToggle, reason);
+      body.append(title, score, reasonWrap);
+      label.append(checkbox, body);
+      row.append(label);
+      suggestionList.append(row);
+    });
+
+    window.lucide?.createIcons({ nodes: [suggestionList] });
+  }
+
+  function setBookSuggestionState(message, state = 'idle') {
+    addBookAiStatus.textContent = message;
+    addBookAiStatus.className = 'mt-3 rounded-lg border px-3 py-2 text-sm';
+    if (state === 'queued') {
+      addBookAiStatus.classList.add('border-amber-200', 'bg-amber-50', 'text-amber-900');
+    } else if (state === 'processing') {
+      addBookAiStatus.classList.add('border-sky-200', 'bg-sky-50', 'text-sky-900');
+    } else if (state === 'results') {
+      addBookAiStatus.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-900');
+    } else if (state === 'empty') {
+      addBookAiStatus.classList.add('border-slate-200', 'bg-slate-100', 'text-slate-700');
+    } else {
+      addBookAiStatus.classList.add('border-slate-200', 'bg-white', 'text-slate-600');
+    }
   }
 
   function resetAiCoursePanel(book) {
@@ -938,6 +1158,72 @@ $copyrightMetricStyles = [
       showAiCourseError(error.message);
     }
   }
+
+  addBookSuggestButton?.addEventListener('click', () => {
+    const title = (addBookForm?.elements.title.value || '').trim();
+    if (!title) {
+      setBookSuggestionState('Title is required before requesting course suggestions.', 'idle');
+      addBookForm.elements.title.focus();
+      updateBookSuggestionButtonState();
+      return;
+    }
+
+    if (currentSuggestionDraft.length > 0) {
+      openSuggestedCoursesModal();
+      return;
+    }
+
+    addBookSuggestButton.dataset.busy = 'true';
+    updateBookSuggestionButtonState();
+    setBookSuggestionState('Suggestions are queued. They will appear when the AI worker processes this request.', 'queued');
+    addBookAiResults.hidden = true;
+    addBookAiEmpty.hidden = true;
+
+    window.setTimeout(() => {
+      const titleText = title.toLowerCase();
+      const matches = [
+        { course_id: 101, code: 'BIO 201', name: 'Intro to Biology', score: 0.891, reason: 'This course covers cellular biology and terminology closely aligned with the proposed title.', selected: true },
+        { course_id: 118, code: 'CHEM 210', name: 'Organic Chemistry', score: 0.746, reason: 'The subject area overlaps with chemical properties and experimental methods.', selected: false },
+        { course_id: 124, code: 'ENV 110', name: 'Environmental Science', score: 0.521, reason: 'The topic touches sustainability and natural systems, but is less direct than the best match.', selected: false },
+      ].filter((item) => titleText.includes('bio') || titleText.includes('chem') || titleText.includes('science') || titleText.includes('environment') || item.course_id !== 124 || titleText.includes('env'));
+
+      addBookSuggestButton.dataset.busy = 'false';
+      updateBookSuggestionButtonState();
+
+      if (!matches.length) {
+        setBookSuggestionState('No active courses passed the relevance check.', 'empty');
+        suggestionList.replaceChildren();
+        suggestionEmpty.hidden = false;
+        currentSuggestionDraft = [];
+        syncSelectedCourseInputs();
+        updateBookSuggestionButtonState();
+        suggestionModal.showModal();
+        return;
+      }
+
+      setBookSuggestionState('Select any courses to add as references when you save this book.', 'results');
+      renderBookSuggestionCards(matches);
+      suggestionModal.showModal();
+    }, 900);
+  });
+
+  suggestionCloseButtons?.forEach((button) => {
+    button.addEventListener('click', () => closeDialog(suggestionModal));
+  });
+
+  suggestionApplyButton?.addEventListener('click', () => {
+    const selectedCount = currentSuggestionDraft.filter((item) => item.selected).length;
+    if (selectedCount) {
+      setBookSuggestionState(`Selected ${selectedCount} course${selectedCount > 1 ? 's' : ''}. These will be linked when you save this book.`, 'results');
+    } else {
+      setBookSuggestionState('No courses selected yet. You can choose any relevant suggestions before saving.', 'idle');
+    }
+    closeDialog(suggestionModal);
+  });
+
+  suggestionModal?.addEventListener('click', (event) => {
+    if (event.target === suggestionModal) closeDialog(suggestionModal);
+  });
 
   aiCourseGenerateButton?.addEventListener('click', async () => {
     if (activeAiBookId === null || !aiCourseConfigured) return;
@@ -1147,6 +1433,14 @@ $copyrightMetricStyles = [
 
     if (actionButton.dataset.bookAction === 'edit') {
       addBookForm.reset();
+      currentSuggestionDraft = [];
+      syncSelectedCourseInputs();
+      suggestionList.replaceChildren();
+      suggestionEmpty.hidden = true;
+      addBookSuggestButton.dataset.busy = 'false';
+      addBookAiResults.hidden = true;
+      addBookAiEmpty.hidden = true;
+      setBookSuggestionState('Enter a title and description, then request course suggestions.', 'idle');
       addBookForm.elements.action.value = 'update_book';
       addBookForm.elements.book_id.value = book.book_id;
       addBookForm.elements.title.value = book.title;
@@ -1160,6 +1454,7 @@ $copyrightMetricStyles = [
       formTitle.textContent = 'Edit Book';
       formSubmitLabel.textContent = 'Save Changes';
       formMessage.hidden = true;
+      updateBookSuggestionButtonState();
       addBookDialog.showModal();
       return;
     }
@@ -1239,6 +1534,10 @@ $copyrightMetricStyles = [
       submitButton.disabled = false;
     }
   });
+
+  addBookForm?.addEventListener('input', updateBookSuggestionButtonState);
+  addBookForm?.addEventListener('change', updateBookSuggestionButtonState);
+  updateBookSuggestionButtonState();
 
   referenceForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
