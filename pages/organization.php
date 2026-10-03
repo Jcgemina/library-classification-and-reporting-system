@@ -812,22 +812,55 @@ if ($action !== null) {
         tree.innerHTML = colleges.length
             ? colleges.map(renderDirectCollege).join('')
             : '<div class="flex flex-col items-center justify-center gap-2 py-12 text-slate-500"><i data-lucide="building-2" class="h-10 w-10 text-slate-400"></i><p class="text-sm">No colleges yet. Click <strong>Add College</strong> to get started.</p></div>';
+        tree.querySelectorAll('.college-body, .program-body').forEach(body => {
+            body.style.maxHeight = '0px';
+        });
 
         expandedColleges.forEach(collegeId => {
             const body = document.getElementById(`college-${collegeId}`);
             const toggle = tree.querySelector(`[data-college-toggle="${collegeId}"]`);
-            body?.classList.remove('max-h-0', 'opacity-0');
-            body?.classList.add('max-h-[2000px]', 'opacity-100');
-            toggle?.querySelector('.college-chevron')?.classList.add('rotate-90');
+            if (body) {
+                body.dataset.open = 'true';
+                body.classList.remove('max-h-0', 'opacity-0');
+                body.classList.add('opacity-100');
+                body.style.maxHeight = '2000px';
+            }
+            const chevron = toggle?.querySelector('.college-chevron');
+            if (chevron) {
+                chevron.dataset.open = 'true';
+                chevron.style.transform = 'rotate(90deg)';
+            }
         });
         expandedPrograms.forEach(programId => {
             const program = data.colleges.flatMap(college => college.programs || []).find(item => String(item.id) === String(programId));
             const body = document.getElementById(`program-${programId}`);
             const toggle = tree.querySelector(`[data-program-toggle="${programId}"]`);
             if (program && body) body.innerHTML = renderProgramMajors(program);
-            body?.classList.remove('max-h-0', 'opacity-0');
-            body?.classList.add('max-h-[1000px]', 'opacity-100');
-            toggle?.querySelector('.program-chevron')?.classList.add('rotate-90');
+            if (body) {
+                body.dataset.open = 'true';
+                body.classList.remove('max-h-0', 'opacity-0');
+                body.classList.add('opacity-100');
+                body.style.maxHeight = '1000px';
+            }
+            const chevron = toggle?.querySelector('.program-chevron');
+            if (chevron) {
+                chevron.dataset.open = 'true';
+                chevron.style.transform = 'rotate(90deg)';
+            }
+        });
+        tree.querySelectorAll('.college-chevron').forEach((icon) => {
+            const collegeId = icon.closest('[data-college-toggle]')?.dataset.collegeToggle;
+            const body = document.getElementById(`college-${collegeId}`);
+            const isOpen = body?.dataset.open === 'true';
+            icon.dataset.open = String(Boolean(isOpen));
+            icon.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+        });
+        tree.querySelectorAll('.program-chevron').forEach((icon) => {
+            const programId = icon.closest('[data-program-toggle]')?.dataset.programToggle;
+            const body = document.getElementById(`program-${programId}`);
+            const isOpen = body?.dataset.open === 'true';
+            icon.dataset.open = String(Boolean(isOpen));
+            icon.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
         });
         lucide.createIcons();
 
@@ -890,37 +923,47 @@ if ($action !== null) {
         if (programToggle && !addButton && !edit && !del) {
             const programId = programToggle.dataset.programToggle;
             const body = document.getElementById(`program-${programId}`);
-            const chevron = programToggle.querySelector('.program-chevron');
             if (body) {
-                const isOpening = body.classList.contains('max-h-0');
-                if (isOpening && !body.dataset.loaded) {
+                const isOpen = body.dataset.open === 'true';
+                const nextOpen = !isOpen;
+                if (!isOpen && !body.dataset.loaded) {
                     const program = organizationData.colleges
                         .flatMap(college => college.programs || [])
                         .find(item => String(item.id) === String(programId));
                     if (program) {
                         body.innerHTML = renderProgramMajors(program);
                         body.dataset.loaded = '1';
-                        lucide.createIcons();
+                        lucide.createIcons({ root: body });
                     }
                 }
-                body.classList.toggle('max-h-0', !isOpening);
-                body.classList.toggle('max-h-[1000px]', isOpening);
-                body.classList.toggle('opacity-0', !isOpening);
-                body.classList.toggle('opacity-100', isOpening);
+                const chevron = programToggle.querySelector('.program-chevron');
+                body.dataset.open = String(nextOpen);
+                body.classList.toggle('max-h-0', !nextOpen);
+                body.style.maxHeight = nextOpen ? '1000px' : '0px';
+                body.classList.toggle('opacity-0', !nextOpen);
+                body.classList.toggle('opacity-100', nextOpen);
+                if (chevron) {
+                    chevron.dataset.open = String(nextOpen);
+                    chevron.style.transform = nextOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+                }
             }
-            chevron?.classList.toggle('rotate-90');
         }
         if (toggle && !addButton && !edit && !del) {
             const body = document.getElementById(`college-${toggle.dataset.collegeToggle}`);
             const chevron = toggle.querySelector('.college-chevron');
             if (body) {
-                const isOpening = body.classList.contains('max-h-0');
-                body.classList.toggle('max-h-0', !isOpening);
-                body.classList.toggle('max-h-[2000px]', isOpening);
-                body.classList.toggle('opacity-0', !isOpening);
-                body.classList.toggle('opacity-100', isOpening);
+                const isOpen = body.dataset.open === 'true';
+                const nextOpen = !isOpen;
+                body.dataset.open = String(nextOpen);
+                body.classList.toggle('max-h-0', !nextOpen);
+                body.style.maxHeight = nextOpen ? '2000px' : '0px';
+                body.classList.toggle('opacity-0', !nextOpen);
+                body.classList.toggle('opacity-100', nextOpen);
+                if (chevron) {
+                    chevron.dataset.open = String(nextOpen);
+                    chevron.style.transform = nextOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+                }
             }
-            chevron?.classList.toggle('rotate-90');
         }
         if (addButton) { closeHierarchyForm(); openForm(addButton.dataset.add, `Add ${addButton.dataset.title.replace('Add ', '')}`, '', addButton.dataset.parent, {}, addButton.dataset.major); }
         if (edit) { closeHierarchyForm(); openForm(`edit_${edit.dataset.edit}`, `Edit ${edit.dataset.edit}`, edit.dataset.id, edit.dataset.parent, JSON.parse(edit.dataset.item)); }
