@@ -46,11 +46,30 @@ function seedUserModuleAccounts(PDO $pdo): void
     }
 }
 
+function normalizeUserFullName(string $fullName): string
+{
+    $normalized = preg_replace('/\s+/u', ' ', trim($fullName));
+
+    if ($normalized === '') {
+        return '';
+    }
+
+    $lowercased = mb_strtolower($normalized, 'UTF-8');
+
+    return preg_replace_callback(
+        '/(^|[\s\'’\-])([^\s\'’\-])/u',
+        static function (array $matches): string {
+            return $matches[1] . mb_strtoupper($matches[2], 'UTF-8');
+        },
+        $lowercased
+    );
+}
+
 function normalizeUserRow(array $user): array
 {
     return [
         'id' => (int) $user['id'],
-        'fullName' => $user['full_name'],
+        'fullName' => normalizeUserFullName((string) ($user['full_name'] ?? '')),
         'username' => $user['username'],
         'email' => $user['email'] ?? '',
         'role' => strtolower((string) $user['role']),
@@ -99,6 +118,9 @@ function userHasAdminPassword(PDO $pdo, int $adminUserId, string $plainPassword)
 
 function findDuplicateUser(PDO $pdo, ?int $ignoreId, string $username, string $fullName): ?array
 {
+    $username = trim($username);
+    $fullName = normalizeUserFullName($fullName);
+
     $duplicateSql = 'SELECT id, username, full_name FROM users WHERE (LOWER(username) = LOWER(:username) OR LOWER(full_name) = LOWER(:full_name))';
     $duplicateParams = [':username' => $username, ':full_name' => $fullName];
 
@@ -115,6 +137,10 @@ function findDuplicateUser(PDO $pdo, ?int $ignoreId, string $username, string $f
 
 function saveUserRecord(PDO $pdo, ?int $id, string $fullName, string $email, string $username, string $password, string $role, int $adminUserId, string $adminPassword): array
 {
+    $fullName = normalizeUserFullName($fullName);
+    $username = trim($username);
+    $email = trim($email);
+
     if (!userHasAdminPassword($pdo, $adminUserId, $adminPassword)) {
         userJson(['success' => false, 'message' => 'The administrator password is incorrect.'], 403);
     }
