@@ -112,7 +112,10 @@
   }
 
   function capitalizeFullName(fullName) {
-    return String(fullName || '').toLowerCase().replace(/\b\w/g, (character) => character.toUpperCase());
+    const normalized = String(fullName || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!normalized) return '';
+
+    return normalized.replace(/(^|[\s'’-])([a-zà-öø-ÿ])/g, (_, prefix, letter) => prefix + letter.toUpperCase());
   }
 
   function generateUsername(fullName) {
@@ -267,21 +270,21 @@
 
       return `
         <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div class="flex min-w-0 items-center justify-center gap-3 md:flex-1 md:justify-start">
+          <div class="flex min-w-0 items-center justify-start gap-3 md:flex-1">
             <input type="checkbox" data-select-id="${librarian.id}" class="h-4 w-4 rounded border-slate-300 text-rose-500 focus:ring-rose-200" ${isSelected ? 'checked' : ''} />
 
             <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-rose-100 text-sm font-bold text-rose-700">
               ${esc(initials || 'L')}
             </div>
 
-            <div class="min-w-0 text-center">
-              <div class="flex flex-wrap items-center justify-center gap-1.5">
+            <div class="min-w-0 text-left">
+              <div class="flex flex-wrap items-center justify-start gap-1.5">
                 <p class="text-sm font-semibold text-slate-900">${esc(librarian.fullName)}</p>
                 <span class="rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">
                   ${esc(librarian.role)}
                 </span>
               </div>
-              <div class="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+              <div class="mt-1 flex flex-wrap items-center justify-start gap-x-3 gap-y-1 text-[11px] text-slate-500">
                 <span>@${esc(librarian.username)}</span>
                 <span><span class="mr-1 text-[9px] font-semibold uppercase tracking-wide text-slate-400">Joined</span>${esc(librarian.joinedAt || 'Recently')}</span>
               </div>

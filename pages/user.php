@@ -70,8 +70,7 @@ if ($action !== null) {
 
     if ($action === 'save') {
     $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int) $_POST['id'] : null;
-    $fullName = trim((string)($_POST['fullName'] ?? ''));
-    $fullName = ucwords(strtolower($fullName));
+    $fullName = normalizeUserFullName((string)($_POST['fullName'] ?? ''));
     $email = trim((string)($_POST['email'] ?? ''));
     $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
