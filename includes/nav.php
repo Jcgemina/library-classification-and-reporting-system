@@ -6,14 +6,21 @@ if (!isset($currentPage)) {
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $isValidatedUser = !empty($_SESSION['authenticated']) && !empty($_SESSION['user_id']);
 $isAdmin = $isValidatedUser && $userRole === 'admin';
+$navSections = [
+    'overview' => 'Overview',
+    'operations' => 'Library Operations',
+    'academics' => 'Academic Management',
+    'administration' => 'Administration',
+];
 $navItems = [
-    ['label' => 'Dashboard', 'page' => 'dashboard', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
-    ['label' => 'Inventory', 'page' => 'inventory', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
-    ['label' => 'Academics', 'page' => 'academics', 'href' => 'app.php?page=academics', 'icon' => 'building-2'],
-    ['label' => 'Courses', 'page' => 'course', 'href' => 'app.php?page=course', 'icon' => 'book-open'],
-    ['label' => 'Report', 'page' => 'report', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
-    ['label' => 'User', 'page' => 'user', 'href' => 'app.php?page=user', 'icon' => 'users'],
-    ['label' => 'Logs', 'page' => 'logs', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text'],
+    ['label' => 'Dashboard', 'page' => 'dashboard', 'section' => 'overview', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
+    ['label' => 'Inventory', 'page' => 'inventory', 'section' => 'operations', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
+    ['label' => 'Report', 'page' => 'report', 'section' => 'operations', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
+    ['label' => 'Academics', 'page' => 'academics', 'section' => 'academics', 'href' => 'app.php?page=academics', 'icon' => 'building-2'],
+    ['label' => 'Courses', 'page' => 'course', 'section' => 'academics', 'href' => 'app.php?page=course', 'icon' => 'book-open'],
+    ['label' => 'User', 'page' => 'user', 'section' => 'administration', 'href' => 'app.php?page=user', 'icon' => 'users'],
+    ['label' => 'Logs', 'page' => 'logs', 'section' => 'administration', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text'],
+    ['label' => 'Configure', 'page' => 'configure', 'section' => 'administration', 'href' => 'app.php?page=configure', 'icon' => 'settings-2'],
 ];
 
 if (!$isValidatedUser || $userRole !== 'admin') {
@@ -25,6 +32,12 @@ if (!$isValidatedUser || $userRole !== 'admin') {
 if (!$isValidatedUser || $userRole !== 'admin') {
   $navItems = array_values(array_filter($navItems, static function ($item) {
     return $item['page'] !== 'logs';
+  }));
+}
+
+if (!$isValidatedUser || $userRole !== 'admin') {
+  $navItems = array_values(array_filter($navItems, static function ($item) {
+    return $item['page'] !== 'configure';
   }));
 }
 
@@ -42,14 +55,53 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .nav-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.125rem;
+  }
+
+  .nav-section + .nav-section {
+    border-left: 1px solid #e2e8f0;
+    padding-left: 0.75rem;
+  }
+
+  .nav-section-label {
+    display: flex;
+    width: 100%;
+    align-items: center;
     gap: 0.5rem;
+    color: #64748b;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .nav-section-label::before,
+  .nav-section-label::after {
+    flex: 1;
+    border-top: 1px solid #cbd5e1;
+    content: "";
+  }
+
+  .nav-section-links {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
   }
 
   .nav-highlight {
     position: absolute;
-    top: 0.15rem;
+    top: 0;
     left: 0;
-    height: calc(100% - 0.3rem);
+    height: 0;
     border-radius: 0.75rem;
     background: #f43f5e;
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
@@ -138,9 +190,17 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     </div>
 
     <!-- Navigation track (center) - hidden on mobile -->
-    <div class="nav-track hidden md:flex items-center gap-0.5 lg:gap-3 text-xs lg:text-sm font-medium">
+    <div class="nav-track hidden md:flex text-xs lg:text-sm font-medium">
       <div class="nav-highlight"></div>
+      <?php $activeSection = null; ?>
       <?php foreach ($navItems as $item): ?>
+        <?php if ($activeSection !== $item['section']): ?>
+          <?php if ($activeSection !== null): ?></div></div><?php endif; ?>
+          <?php $activeSection = $item['section']; ?>
+          <div class="nav-section">
+            <span class="nav-section-label"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></span>
+            <div class="nav-section-links">
+        <?php endif; ?>
         <?php $isActive = $item['page'] === $currentPage; ?>
         <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
           data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
@@ -151,6 +211,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
           <span class="nav-label"><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
         </a>
       <?php endforeach; ?>
+      <?php if ($activeSection !== null): ?></div></div><?php endif; ?>
     </div>
 
     <!-- User menu (right) -->
@@ -180,7 +241,12 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
 <!-- Mobile navigation menu -->
 <div id="mobileMenu" class="mobile-nav-menu hidden md:hidden border-t border-slate-200 bg-white px-3 py-3">
   <div class="flex flex-col gap-1">
+    <?php $activeSection = null; ?>
     <?php foreach ($navItems as $item): ?>
+      <?php if ($activeSection !== $item['section']): ?>
+        <?php $activeSection = $item['section']; ?>
+        <p class="nav-section-label px-3 pb-1 pt-3 text-[10px] font-bold tracking-[0.12em] first:pt-0"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
+      <?php endif; ?>
       <?php $isActive = $item['page'] === $currentPage; ?>
       <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
         data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
@@ -219,12 +285,17 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     </div>
   </div>
 
-  <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Main navigation">
+  <nav class="flex-1 overflow-y-auto px-3 py-5" aria-label="Main navigation">
+    <?php $activeSection = null; ?>
     <?php foreach ($navItems as $item): ?>
+      <?php if ($activeSection !== $item['section']): ?>
+        <?php $activeSection = $item['section']; ?>
+        <p class="nav-section-label <?php echo $activeSection === 'overview' ? '' : 'mt-5'; ?> mb-2 px-3 text-[10px] font-bold tracking-[0.12em]"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
+      <?php endif; ?>
       <?php $isActive = $item['page'] === $currentPage; ?>
       <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
         data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
-        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors <?php echo $isActive ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
+        class="mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors <?php echo $isActive ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
         <?php echo $isActive ? 'aria-current="page"' : ''; ?>>
         <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="h-4 w-4 flex-shrink-0"></i>
         <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>

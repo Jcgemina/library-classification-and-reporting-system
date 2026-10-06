@@ -33,3 +33,9 @@ package-lock.json
 
 # AI agent files
 *.agent
+
+# AI Test files
+*.tests
+
+# Txt files
+*.txt
