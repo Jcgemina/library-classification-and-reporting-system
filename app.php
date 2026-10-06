@@ -6,9 +6,9 @@ require_once __DIR__ . '/includes/functions.php';
 requireLogin();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'report', 'user', 'logs'];
+$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'report', 'user', 'logs', 'configure'];
 $staffPages = ['dashboard', 'inventory', 'academics', 'course', 'report'];
-$restrictedPages = ['user', 'logs'];
+$restrictedPages = ['user', 'logs', 'configure'];
 
 $allowedPages = $userRole === 'admin' ? $adminPages : $staffPages;
 $pageParam = $_GET['page'] ?? 'dashboard';
@@ -55,9 +55,9 @@ $currentPage = $page;
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
-    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'report', 'user', 'logs'];
+    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'report', 'user', 'logs', 'configure'];
     const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'report'];
-    const restrictedPages = ['user', 'logs'];
+    const restrictedPages = ['user', 'logs', 'configure'];
     const allowedPages = currentUserRole === 'admin' ? adminPages : staffPages;
 
     function normalizePage(pageName) {
@@ -108,10 +108,13 @@ $currentPage = $page;
             const trackRect = navTrack.getBoundingClientRect();
             const linkRect = activeLink.getBoundingClientRect();
             const offsetLeft = linkRect.left - trackRect.left;
+            const offsetTop = linkRect.top - trackRect.top;
 
           if (!highlight.classList.contains('is-ready')) {
             highlight.style.transition = 'none';
             highlight.style.width = activeLink.offsetWidth + 'px';
+            highlight.style.height = linkRect.height + 'px';
+            highlight.style.top = offsetTop + 'px';
             highlight.style.transform = `translate3d(${offsetLeft}px, 0, 0)`;
 
             requestAnimationFrame(function () {
@@ -121,6 +124,8 @@ $currentPage = $page;
           } else {
             requestAnimationFrame(function () {
               highlight.style.width = activeLink.offsetWidth + 'px';
+              highlight.style.height = linkRect.height + 'px';
+              highlight.style.top = offsetTop + 'px';
               highlight.style.transform = `translate3d(${offsetLeft}px, 0, 0)`;
             });
           }
