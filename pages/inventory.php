@@ -362,9 +362,9 @@ $copyrightMetricStyles = [
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
                 <td class="px-4 py-3">
                   <?php if (!empty($book['course_references'])): ?>
-                    <div class="grid grid-cols-3 gap-1">
+                    <div class="flex flex-wrap items-center gap-1">
                       <?php foreach ($book['course_references'] as $reference): ?>
-                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-800"><span class="font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span><?php echo $escapeInventory($reference['name']); ?></span></span>
+                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0"><?php echo $escapeInventory($reference['name']); ?></span></span>
                       <?php endforeach; ?>
                     </div>
                   <?php else: ?>
@@ -593,9 +593,9 @@ $copyrightMetricStyles = [
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
                 <td class="px-4 py-3">
                   <?php if (!empty($book['course_references'])): ?>
-                    <div class="grid grid-cols-3 gap-1">
+                    <div class="flex flex-wrap items-center gap-1">
                       <?php foreach ($book['course_references'] as $reference): ?>
-                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-800"><span class="font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span><?php echo $escapeInventory($reference['name']); ?></span></span>
+                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0"><?php echo $escapeInventory($reference['name']); ?></span></span>
                       <?php endforeach; ?>
                     </div>
                   <?php else: ?>
@@ -888,20 +888,21 @@ $copyrightMetricStyles = [
       return;
     }
 
-    const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-3 gap-1';
+    const referenceList = document.createElement('div');
+    referenceList.className = 'flex flex-wrap items-center gap-1';
     references.forEach((reference) => {
       const item = document.createElement('span');
-      item.className = 'inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-800';
+      item.className = 'inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800';
       const code = document.createElement('span');
-      code.className = 'font-semibold';
+      code.className = 'flex-shrink-0 font-semibold';
       code.textContent = reference.code;
       const name = document.createElement('span');
+      name.className = 'min-w-0';
       name.textContent = reference.name;
       item.append(code, name);
-      grid.append(item);
+      referenceList.append(item);
     });
-    referenceCell.append(grid);
+    referenceCell.append(referenceList);
   }
 
   async function pollAiCourseJob(jobId, attempt = 0) {
@@ -1126,10 +1127,10 @@ $copyrightMetricStyles = [
       references.replaceChildren();
       if (book.course_references.length) {
         const referenceGrid = document.createElement('div');
-        referenceGrid.className = 'grid grid-cols-3 gap-1';
+        referenceGrid.className = 'flex flex-wrap items-center gap-1';
         book.course_references.forEach((reference) => {
           const item = document.createElement('span');
-          item.className = 'min-w-0 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-800';
+          item.className = 'inline-flex max-w-full items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs text-rose-800';
           item.textContent = `${reference.code} ${reference.name}`;
           referenceGrid.append(item);
         });
