@@ -33,6 +33,13 @@ if ($action !== null) {
     try {
         switch ($action) {
             case 'list':
+                $minimumBooksPerCourse = (int) $pdo->query(
+                    'SELECT minimum_books_per_course FROM library_configuration WHERE id = 1'
+                )->fetchColumn();
+                if ($minimumBooksPerCourse < 1) {
+                    courseJson(['success' => false, 'message' => 'Course readiness settings are unavailable. Check the latest schema.sql.'], 503);
+                }
+
                 $search = trim((string) ($_GET['search'] ?? ''));
                 $status = (string) ($_GET['status'] ?? 'all');
                 $collegeId = (int) ($_GET['college_id'] ?? 0);
@@ -64,7 +71,13 @@ if ($action !== null) {
                     $params[':program_id'] = $programId;
                 }
 
-                $sql = 'SELECT c.id, c.code, c.name, c.description, c.status, c.program_id, c.major_id, p.name AS program_name, col.id AS college_id, col.name AS college_name, m.name AS major_name FROM courses c LEFT JOIN programs p ON p.id = c.program_id LEFT JOIN colleges col ON col.id = p.college_id LEFT JOIN majors m ON m.id = c.major_id';                if ($where) {
+                $sql = 'SELECT c.id, c.code, c.name, c.description, c.status, c.program_id, c.major_id, p.name AS program_name, col.id AS college_id, col.name AS college_name, m.name AS major_name,
+                        (SELECT COUNT(*) FROM book_courses bc INNER JOIN books b ON b.book_id = bc.book_id WHERE bc.course_id = c.id AND b.deleted_at IS NULL) AS book_count
+                        FROM courses c
+                        LEFT JOIN programs p ON p.id = c.program_id
+                        LEFT JOIN colleges col ON col.id = p.college_id
+                        LEFT JOIN majors m ON m.id = c.major_id';
+                if ($where) {
                     $sql .= ' WHERE ' . implode(' AND ', $where);
                 }
                 $sql .= ' ORDER BY c.code, c.name';
@@ -72,7 +85,7 @@ if ($action !== null) {
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($params);
 
-                $courses = array_map(static function (array $course): array {
+                $courses = array_map(static function (array $course) use ($minimumBooksPerCourse): array {
                     return [
                         'id' => (int) $course['id'],
                         'code' => $course['code'],
@@ -85,6 +98,9 @@ if ($action !== null) {
                         'collegeName' => $course['college_name'] ?? '',
                         'programName' => $course['program_name'] ?? '',
                         'majorName' => $course['major_name'] ?? '',
+                        'bookCount' => (int) $course['book_count'],
+                        'minimumBooks' => $minimumBooksPerCourse,
+                        'meetsBookMinimum' => (int) $course['book_count'] >= $minimumBooksPerCourse,
                     ];
                 }, $stmt->fetchAll());
 
@@ -400,7 +416,7 @@ if ($action !== null) {
         <div>
             <p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Academic catalog</p>
             <h2 class="mt-1 text-3xl font-bold text-slate-900">Course Management</h2>
-            <p class="mt-1 text-sm text-slate-500">Maintain course records and their links to colleges, programs, and majors.</p>
+            <p class="mt-1 text-sm text-slate-500">Maintain course records and their links to colleges, programs, and majors. Book coverage shows whether each course meets the configured minimum.</p>
         </div>
 
         <?php if (in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)): ?>
@@ -459,14 +475,22 @@ if ($action !== null) {
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full min-w-[1050px] text-left text-sm">
+            <table class="w-full min-w-[1120px] table-fixed text-left text-sm">
+                <colgroup>
+                    <col style="width: 120px">
+                    <col style="width: 200px">
+                    <col style="width: 300px">
+                    <col style="width: 115px">
+                    <col style="width: 200px">
+                    <col style="width: 175px">
+                </colgroup>
                 <thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                         <th class="px-3 py-3">Course code</th>
                         <th class="px-3 py-3">Course name</th>
-                        <th class="px-3 py-3">Details</th>
                         <th class="px-3 py-3">Academic link</th>
                         <th class="w-28 px-3 py-3 text-center">Status</th>
+                        <th class="px-3 py-3">Book readiness</th>
                         <th class="px-3 py-3 text-right">Actions</th>
                     </tr>
                 </thead>
@@ -547,4 +571,4 @@ if ($action !== null) {
 
 <div id="courseToastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" role="status"></div>
 
-<script src="assets/js/course.js"></script>
+<script src="assets/js/course.js?v=20261008-2"></script>

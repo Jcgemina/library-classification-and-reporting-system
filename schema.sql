@@ -245,6 +245,16 @@ FROM (
 ) AS defaults
 WHERE NOT EXISTS (SELECT 1 FROM copyright_year_ranges);
 
+CREATE TABLE IF NOT EXISTS library_configuration (
+    id TINYINT UNSIGNED PRIMARY KEY,
+    minimum_books_per_course SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO library_configuration (id, minimum_books_per_course)
+VALUES (1, 1)
+ON DUPLICATE KEY UPDATE id = 1;
+
 -- Prospectus records assigned to a program or optional major.
 CREATE TABLE IF NOT EXISTS prospectuses (
     id INT AUTO_INCREMENT PRIMARY KEY,

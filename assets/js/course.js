@@ -310,10 +310,6 @@
                     <td class="px-3 py-4 text-slate-600">
                         <div class="font-medium text-slate-800">${esc(course.name)}</div>
                     </td>
-                    <td class="px-3 py-4 text-slate-600">
-                        <span>${esc(course.type)}</span>
-                        ${course.yearLevel ? `<div class="mt-1 text-xs text-slate-500">Year ${course.yearLevel}</div>` : ''}
-                    </td>
                     <td class="px-3 py-4">
                         ${course.programName
                             ? `<div class="font-medium text-slate-800">${esc(course.programName)}</div><div class="text-xs text-slate-500">${esc(course.collegeName)}${course.majorName ? ` / ${esc(course.majorName)}` : ''}</div>`
@@ -322,13 +318,19 @@
                     <td class="w-28 px-3 py-4 text-center align-middle">
                         <span class="inline-flex h-6 w-20 items-center justify-center rounded-full text-xs font-bold leading-none ${course.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">${esc(course.status)}</span>
                     </td>
-                    <td class="px-3 py-4 text-right">
-                        <div class="flex justify-end gap-1">
-                            <button type="button" data-view="${course.id}" aria-label="View ${esc(course.code)} course" title="View course" class="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="eye" class="h-4 w-4"></i></button>
+                    <td class="px-3 py-4">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${course.meetsBookMinimum ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}">
+                            ${course.meetsBookMinimum ? 'Meets minimum' : 'Below minimum'}
+                        </span>
+                        <div class="mt-1 text-xs ${course.meetsBookMinimum ? 'text-emerald-900' : 'text-amber-950'}">${esc(course.bookCount)} of ${esc(course.minimumBooks)} active titles</div>
+                    </td>
+                    <td class="w-44 whitespace-nowrap px-3 py-4 text-right">
+                        <div class="inline-flex max-w-full flex-nowrap justify-end gap-1">
+                            <button type="button" data-view="${course.id}" aria-label="View ${esc(course.code)} course" title="View course" class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="eye" class="h-4 w-4"></i></button>
                             ${admin ? `
-                                <button type="button" data-edit="${course.id}" aria-label="Edit ${esc(course.code)} course" title="Edit course" class="flex h-8 w-8 items-center justify-center rounded-md text-sky-700 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="pencil" class="h-4 w-4"></i></button>
-                                <button type="button" data-toggle="${course.id}" aria-label="${course.status === 'active' ? 'Deactivate' : 'Activate'} ${esc(course.code)} course" title="${course.status === 'active' ? 'Deactivate' : 'Activate'} course" class="flex h-8 w-8 items-center justify-center rounded-md text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"><i data-lucide="${course.status === 'active' ? 'toggle-right' : 'toggle-left'}" class="h-4 w-4"></i></button>
-                                <button type="button" data-delete="${course.id}" aria-label="Delete ${esc(course.code)} course" title="Delete course" class="flex h-8 w-8 items-center justify-center rounded-md text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                                <button type="button" data-edit="${course.id}" aria-label="Edit ${esc(course.code)} course" title="Edit course" class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-sky-700 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="pencil" class="h-4 w-4"></i></button>
+                                <button type="button" data-toggle="${course.id}" aria-label="${course.status === 'active' ? 'Deactivate' : 'Activate'} ${esc(course.code)} course" title="${course.status === 'active' ? 'Deactivate' : 'Activate'} course" class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"><i data-lucide="${course.status === 'active' ? 'toggle-right' : 'toggle-left'}" class="h-4 w-4"></i></button>
+                                <button type="button" data-delete="${course.id}" aria-label="Delete ${esc(course.code)} course" title="Delete course" class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
                             ` : ''}
                         </div>
                     </td>
@@ -336,7 +338,7 @@
             `).join('')
             : `
                 <tr>
-                    <td colspan="5" class="px-3 py-10 text-center text-sm text-slate-500">No courses found.</td>
+                    <td colspan="6" class="px-3 py-10 text-center text-sm text-slate-500">No courses found.</td>
                 </tr>
             `;
             lucide.createIcons({ nodes: [$('courseBody')] });
