@@ -32,7 +32,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     if (!hash_equals($csrfToken, (string) ($_POST['csrf_token'] ?? ''))) {
-        configureJsonResponse(['success' => false, 'message' => 'Your session has expired. Reload Configure and try again.'], 403);
+        configureJsonResponse(['success' => false, 'message' => 'Your session has expired. Reload Library Settings and try again.'], 403);
     }
 
     $copyrightRanges = array_map(
@@ -44,6 +44,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         ]
     );
     $minimumBooks = filter_var($_POST['minimum_books_per_course'] ?? null, FILTER_VALIDATE_INT);
+    $defaultCurriculumYear = trim((string) ($_POST['default_curriculum_year'] ?? ''));
 
     if (
         in_array(false, $copyrightRanges, true)
@@ -64,6 +65,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'message' => 'The minimum books per course must be between 1 and 65,535.',
         ], 422);
     }
+    if ($defaultCurriculumYear === '' || strlen($defaultCurriculumYear) > 30) {
+        configureJsonResponse([
+            'success' => false,
+            'message' => 'Enter a default curriculum year using no more than 30 characters.',
+        ], 422);
+    }
 
     try {
         $pdo->beginTransaction();
@@ -79,11 +86,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
 
         $configurationStatement = $pdo->prepare(
-            'INSERT INTO library_configuration (id, minimum_books_per_course)
-             VALUES (1, :minimum_books_per_course)
-             ON DUPLICATE KEY UPDATE minimum_books_per_course = VALUES(minimum_books_per_course)'
+            'INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year)
+             VALUES (1, :minimum_books_per_course, :default_curriculum_year)
+             ON DUPLICATE KEY UPDATE
+                minimum_books_per_course = VALUES(minimum_books_per_course),
+                default_curriculum_year = VALUES(default_curriculum_year)'
         );
-        $configurationStatement->execute([':minimum_books_per_course' => $minimumBooks]);
+        $configurationStatement->execute([
+            ':minimum_books_per_course' => $minimumBooks,
+            ':default_curriculum_year' => $defaultCurriculumYear,
+        ]);
         $pdo->commit();
 
         configureJsonResponse(['success' => true, 'message' => 'Settings saved.']);
@@ -101,6 +113,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 $copyrightRanges = [5, 10, 20];
 $minimumBooks = 1;
+$defaultCurriculumYear = date('Y') . '-' . ((int) date('Y') + 1);
 $loadError = null;
 if (!$pdo instanceof PDO) {
     $loadError = 'The database connection is unavailable. Settings cannot be loaded or changed.';
@@ -110,15 +123,19 @@ if (!$pdo instanceof PDO) {
             'SELECT years_threshold FROM copyright_year_ranges WHERE is_active = 1 ORDER BY sort_order, years_threshold'
         )->fetchAll(PDO::FETCH_COLUMN);
         $configuration = $pdo->query(
-            'SELECT minimum_books_per_course FROM library_configuration WHERE id = 1'
-        )->fetchColumn();
+            'SELECT minimum_books_per_course, default_curriculum_year FROM library_configuration WHERE id = 1'
+        )->fetch(PDO::FETCH_ASSOC);
 
         if (count($rangeRows) !== 3 || $configuration === false) {
             throw new PDOException('Required library configuration records are missing.');
         }
 
         $copyrightRanges = array_map('intval', $rangeRows);
-        $minimumBooks = (int) $configuration;
+        $minimumBooks = (int) $configuration['minimum_books_per_course'];
+        $defaultCurriculumYear = (string) $configuration['default_curriculum_year'];
+        if ($defaultCurriculumYear === '') {
+            $defaultCurriculumYear = date('Y') . '-' . ((int) date('Y') + 1);
+        }
     } catch (PDOException $exception) {
         error_log('Library configuration could not be loaded: ' . $exception->getMessage());
         $loadError = 'Settings could not be loaded. Check that the latest schema.sql has been applied.';
@@ -129,10 +146,10 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
 
 ?>
 
-<div class="mx-auto max-w-4xl space-y-6 p-1 text-slate-900 sm:p-2" data-configure-page data-csrf-token="<?php echo $escapeConfigureValue($csrfToken); ?>">
+<div class="mx-auto w-full max-w-6xl space-y-6 p-1 text-slate-900 sm:p-2" data-configure-page data-csrf-token="<?php echo $escapeConfigureValue($csrfToken); ?>">
     <header>
-        <h2 class="text-2xl font-bold text-slate-900">Configure</h2>
-        <p class="mt-1 text-sm text-slate-600">Set the copyright reporting windows and the minimum book coverage for each course.</p>
+        <h2 class="text-2xl font-bold text-slate-900">Library Settings</h2>
+        <p class="mt-1 text-sm text-slate-600">Set copyright reporting windows, course book coverage, and the default curriculum year for new prospectus records.</p>
     </header>
 
     <?php if ($loadError !== null): ?>
@@ -141,8 +158,8 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
         </div>
     <?php endif; ?>
 
-    <form id="configureForm" class="space-y-6" novalidate>
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="copyrightSettingsHeading">
+    <form id="configureForm" class="grid gap-6 lg:grid-cols-2" novalidate>
+        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2" aria-labelledby="copyrightSettingsHeading">
             <div class="border-b border-slate-200 pb-4">
                 <h3 id="copyrightSettingsHeading" class="text-lg font-bold text-slate-900">Copyright year ranges</h3>
                 <p class="mt-1 text-sm text-slate-600">These rolling year windows are used for copyright counts on the dashboard and in Inventory. Keep them in ascending order.</p>
@@ -168,7 +185,28 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
             </div>
         </section>
 
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="courseMinimumHeading">
+        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="curriculumYearHeading">
+            <div class="border-b border-slate-200 pb-4">
+                <h3 id="curriculumYearHeading" class="text-lg font-bold text-slate-900">Default prospectus curriculum year</h3>
+                <p class="mt-1 text-sm text-slate-600">Prefills the curriculum year when an admin creates a new prospectus. Admins can still change it for each prospectus.</p>
+            </div>
+            <label for="defaultCurriculumYear" class="mt-5 block max-w-sm text-sm font-semibold text-slate-700">
+                Initial curriculum year
+                <input
+                    id="defaultCurriculumYear"
+                    name="default_curriculum_year"
+                    type="text"
+                    maxlength="30"
+                    value="<?php echo $escapeConfigureValue($defaultCurriculumYear); ?>"
+                    placeholder="2026-2027"
+                    required
+                    <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                    class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
+                >
+            </label>
+        </section>
+
+        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="courseMinimumHeading">
             <div class="border-b border-slate-200 pb-4">
                 <h3 id="courseMinimumHeading" class="text-lg font-bold text-slate-900">Minimum books per course</h3>
                 <p class="mt-1 text-sm text-slate-600">A course meets this readiness requirement when at least this many active book titles are linked to it. Copies of the same title count once.</p>
@@ -190,7 +228,7 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
             </label>
         </section>
 
-        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between lg:col-span-2">
             <p id="configureMessage" class="text-sm text-slate-600" role="status" aria-live="polite"></p>
             <button
                 id="saveConfigureButton"

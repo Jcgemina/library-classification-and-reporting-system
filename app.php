@@ -175,7 +175,10 @@ $currentPage = $page;
         });
 
         updateActiveTab(safePage);
-        document.title = 'AppSys Library - ' + safePage.charAt(0).toUpperCase() + safePage.slice(1);
+        const pageTitle = safePage === 'configure'
+          ? 'Library Settings'
+          : safePage.charAt(0).toUpperCase() + safePage.slice(1);
+        document.title = 'AppSys Library - ' + pageTitle;
       })
       .catch(() => {
         document.getElementById('pageContent').innerHTML = '<div class="bg-white rounded-2xl shadow-md p-8"><h2 class="text-2xl font-bold text-slate-900 mb-2">Page unavailable</h2><p class="text-slate-500">The requested module could not be loaded.</p></div>';

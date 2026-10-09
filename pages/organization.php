@@ -137,13 +137,19 @@ if ($action !== null) {
             $prospectuses = $pdo->query('SELECT p.id, p.program_id, p.major_id, p.curriculum_year, pr.name AS program_name, m.name AS major_name, pd.file_name AS pdf_file_name, pd.file_path AS pdf_file_path, (pd.id IS NOT NULL) AS has_specific_pdf FROM prospectuses p INNER JOIN programs pr ON pr.id = p.program_id LEFT JOIN majors m ON m.id = p.major_id LEFT JOIN prospectus_documents pd ON pd.prospectus_id = p.id ORDER BY pr.name, p.curriculum_year')->fetchAll();
             $programs = $pdo->query('SELECT id, name FROM programs WHERE status = \'active\' ORDER BY name')->fetchAll();
             $majors = $pdo->query('SELECT id, program_id, name FROM majors WHERE status = \'active\' ORDER BY name')->fetchAll();
+            $defaultCurriculumYear = $pdo->query(
+                'SELECT default_curriculum_year FROM library_configuration WHERE id = 1'
+            )->fetchColumn();
+            if ($defaultCurriculumYear === false || $defaultCurriculumYear === '') {
+                throw new PDOException('Default prospectus curriculum year is unavailable. Apply the latest schema.sql.');
+            }
             $availableCourses = $pdo->query(
                 'SELECT id, program_id, major_id, code, name, units
                 FROM courses
                 WHERE status = \'active\'
                 ORDER BY code, name'
             )->fetchAll();            
-            organizationJson(['success' => true, 'prospectuses' => $prospectuses, 'programs' => $programs, 'majors' => $majors, 'availableCourses' => $availableCourses]);
+            organizationJson(['success' => true, 'prospectuses' => $prospectuses, 'programs' => $programs, 'majors' => $majors, 'availableCourses' => $availableCourses, 'defaultCurriculumYear' => $defaultCurriculumYear]);
         }
 
         if ($action === 'save_prospectus') {
@@ -477,7 +483,7 @@ if ($action !== null) {
         titleCompatibilityField.name = 'retired_title';
         prospectusRecordForm.append(titleCompatibilityField);
     }
-    let prospectusData = { prospectuses: [], courses: [], programs: [], majors: [], availableCourses: [] };
+    let prospectusData = { prospectuses: [], courses: [], programs: [], majors: [], availableCourses: [], defaultCurriculumYear: '' };
     let selectedProspectusId = 0;
     const organizationStatus = document.getElementById('organizationStatus');
     const retryOrganizationBtn = document.getElementById('retryOrganizationBtn');
@@ -1043,7 +1049,7 @@ if ($action !== null) {
     retryOrganizationBtn.onclick = load;
         document.getElementById('prospectusSearch').oninput = renderProspectusRecords;
         document.getElementById('prospectusRecordProgram').onchange = event => fillProspectusMajors(event.target.value);
-        document.getElementById('addProspectusBtn').onclick = () => { prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = ''; document.getElementById('prospectusRecordFile').required = true; fillProspectusPrograms(); fillProspectusMajors(''); document.getElementById('prospectusModalTitle').textContent = 'Upload Prospectus'; openDialog(document.getElementById('prospectusModal')); };
+        document.getElementById('addProspectusBtn').onclick = () => { prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = ''; document.getElementById('prospectusRecordFile').required = true; document.getElementById('prospectusRecordYear').value = prospectusData.defaultCurriculumYear; fillProspectusPrograms(); fillProspectusMajors(''); document.getElementById('prospectusModalTitle').textContent = 'Upload Prospectus'; openDialog(document.getElementById('prospectusModal')); };
         document.getElementById('closeProspectusModal').onclick = () => closeDialog(document.getElementById('prospectusModal'));
         const uploadProspectusFile = (prospectusId, file, button) => {
             if (!file) return;
