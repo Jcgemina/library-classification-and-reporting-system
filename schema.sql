@@ -45,6 +45,30 @@ CREATE TABLE IF NOT EXISTS majors (
     CONSTRAINT fk_majors_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Per-program and per-major quarterly verification progress, by calendar year.
+CREATE TABLE IF NOT EXISTS program_progress (
+    progress_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    program_id INT NOT NULL,
+    major_id INT DEFAULT NULL,
+    major_scope_id INT NOT NULL DEFAULT 0,
+    progress_year SMALLINT UNSIGNED NOT NULL,
+    target_quarter ENUM('Q1', 'Q2', 'Q3', 'Q4') NOT NULL DEFAULT 'Q1',
+    q1_actual TINYINT(1) NOT NULL DEFAULT 0,
+    q2_actual TINYINT(1) NOT NULL DEFAULT 0,
+    q3_actual TINYINT(1) NOT NULL DEFAULT 0,
+    q4_actual TINYINT(1) NOT NULL DEFAULT 0,
+    q1_updated_month DATE DEFAULT NULL,
+    q2_updated_month DATE DEFAULT NULL,
+    q3_updated_month DATE DEFAULT NULL,
+    q4_updated_month DATE DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_program_progress_scope_year (program_id, progress_year, major_scope_id),
+    INDEX idx_program_progress_year (progress_year),
+    CONSTRAINT fk_program_progress_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_program_progress_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS courses (
     id INT AUTO_INCREMENT PRIMARY KEY,
     program_id INT DEFAULT NULL,
@@ -248,11 +272,32 @@ WHERE NOT EXISTS (SELECT 1 FROM copyright_year_ranges);
 CREATE TABLE IF NOT EXISTS library_configuration (
     id TINYINT UNSIGNED PRIMARY KEY,
     minimum_books_per_course SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+    default_curriculum_year VARCHAR(30) NOT NULL DEFAULT '',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
-INSERT INTO library_configuration (id, minimum_books_per_course)
-VALUES (1, 1)
+SET @default_curriculum_year_column_exists = (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'library_configuration'
+      AND COLUMN_NAME = 'default_curriculum_year'
+);
+SET @add_default_curriculum_year_column = IF(
+    @default_curriculum_year_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN default_curriculum_year VARCHAR(30) NOT NULL DEFAULT '''' AFTER minimum_books_per_course',
+    'SELECT 1'
+);
+PREPARE add_default_curriculum_year_column FROM @add_default_curriculum_year_column;
+EXECUTE add_default_curriculum_year_column;
+DEALLOCATE PREPARE add_default_curriculum_year_column;
+
+UPDATE library_configuration
+SET default_curriculum_year = CONCAT(YEAR(CURRENT_DATE), '-', YEAR(CURRENT_DATE) + 1)
+WHERE default_curriculum_year = '';
+
+INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year)
+VALUES (1, 1, CONCAT(YEAR(CURRENT_DATE), '-', YEAR(CURRENT_DATE) + 1))
 ON DUPLICATE KEY UPDATE id = 1;
 
 -- Prospectus records assigned to a program or optional major.

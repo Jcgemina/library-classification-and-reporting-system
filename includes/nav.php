@@ -20,7 +20,7 @@ $navItems = [
     ['label' => 'Courses', 'page' => 'course', 'section' => 'academics', 'href' => 'app.php?page=course', 'icon' => 'book-open'],
     ['label' => 'User', 'page' => 'user', 'section' => 'administration', 'href' => 'app.php?page=user', 'icon' => 'users'],
     ['label' => 'Logs', 'page' => 'logs', 'section' => 'administration', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text'],
-    ['label' => 'Configure', 'page' => 'configure', 'section' => 'administration', 'href' => 'app.php?page=configure', 'icon' => 'settings-2'],
+    ['label' => 'Library Settings', 'page' => 'configure', 'section' => 'administration', 'href' => 'app.php?page=configure', 'icon' => 'settings-2'],
 ];
 
 if (!$isValidatedUser || $userRole !== 'admin') {
