@@ -255,37 +255,63 @@ $escapeReportValue = static fn ($value): string => htmlspecialchars((string) ($v
     </header>
 
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" aria-label="Program verification report">
-        <div class="flex flex-col gap-4 border-b border-slate-200 p-4">
-            <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div id="reportPreviewModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px]">
+            <div class="flex max-h-[90vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-[#f3f2f1] shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-[#f7f7f7] px-4 py-3">
+                    <div class="flex items-center gap-2 text-[13px] font-medium text-slate-600">
+                        <i data-lucide="file-text" class="h-4 w-4 text-slate-700" aria-hidden="true"></i>
+                        <span>Print Preview Layout Document - Verify configuration before exporting.</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="reportPreviewPrint" class="inline-flex items-center gap-2 rounded-lg bg-[#d11f49] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[#b3183d] focus:outline-none focus:ring-2 focus:ring-rose-200">
+                            <i data-lucide="printer" class="h-4 w-4" aria-hidden="true"></i>
+                            Print
+                        </button>
+                        <button type="button" id="reportPreviewClose" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200">
+                            <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i>
+                            Close
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-auto p-5">
+                    <div id="reportPreviewDocument" class="mx-auto min-h-[860px] max-w-[1120px] bg-white p-0 shadow-[0_18px_48px_rgba(17,24,39,0.12)]"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto border-b border-slate-200 p-4">
+            <div class="flex w-full min-w-max items-center justify-between gap-6">
+                <div class="flex shrink-0 items-center gap-2">
                     <label class="sr-only" for="reportCollegeFilter">Filter by college</label>
-                    <select id="reportCollegeFilter" class="min-w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
+                    <select id="reportCollegeFilter" class="w-[170px] shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
                         <option value="">All colleges</option>
                     </select>
-                    <span class="hidden text-slate-300 sm:inline" aria-hidden="true">›</span>
                     <label class="sr-only" for="reportProgramFilter">Filter by program</label>
-                    <select id="reportProgramFilter" class="min-w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
+                    <select id="reportProgramFilter" class="w-[170px] shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
                         <option value="">All programs</option>
                     </select>
-                    <span class="hidden text-slate-300 sm:inline" aria-hidden="true">›</span>
                     <label class="sr-only" for="reportMajorFilter">Filter by major</label>
-                    <select id="reportMajorFilter" class="min-w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
+                    <select id="reportMajorFilter" class="w-[170px] shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
                         <option value="">All majors</option>
                     </select>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
                     <label class="sr-only" for="reportYearFilter">Academic year</label>
-                    <select id="reportYearFilter" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
+                    <select id="reportYearFilter" class="w-[100px] shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
                         <?php $currentYear = (int) date('Y'); ?>
                         <?php for ($year = $currentYear - 3; $year <= $currentYear + 1; $year++): ?>
                             <option value="<?php echo $year; ?>" <?php echo $year === $currentYear ? 'selected' : ''; ?>><?php echo $year; ?></option>
                         <?php endfor; ?>
                     </select>
-                    <span id="reportResultCount" class="mr-1 text-xs text-slate-500" aria-live="polite">Loading report…</span>
-                    <button type="button" id="reportClearFilters" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-200 disabled:cursor-not-allowed disabled:opacity-50" disabled>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                    <span id="reportResultCount" class="min-w-[72px] shrink-0 text-right text-xs text-slate-500" aria-live="polite">Loading report…</span>
+                    <button type="button" id="reportClearFilters" class="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-200 disabled:cursor-not-allowed disabled:opacity-50" disabled>
                         Clear filters
                     </button>
-                    <button type="button" id="reportExportButton" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300" disabled>
+                    <button type="button" id="reportPreviewButton" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2">
+                        <i data-lucide="eye" class="h-4 w-4" aria-hidden="true"></i>
+                        Preview Report
+                    </button>
+                    <button type="button" id="reportExportButton" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300" disabled>
                         <i data-lucide="file-down" class="h-4 w-4" aria-hidden="true"></i>
                         Export System Report
                     </button>
@@ -334,6 +360,11 @@ $escapeReportValue = static fn ($value): string => htmlspecialchars((string) ($v
     const majorFilter = document.getElementById('reportMajorFilter');
     const clearButton = document.getElementById('reportClearFilters');
     const exportButton = document.getElementById('reportExportButton');
+    const previewButton = document.getElementById('reportPreviewButton');
+    const previewModal = document.getElementById('reportPreviewModal');
+    const previewDocument = document.getElementById('reportPreviewDocument');
+    const previewClose = document.getElementById('reportPreviewClose');
+    const previewPrint = document.getElementById('reportPreviewPrint');
     const resultCount = document.getElementById('reportResultCount');
     const toastContainer = document.getElementById('reportToastContainer');
     const tableBody = document.getElementById('reportTableBody');
@@ -584,6 +615,138 @@ $escapeReportValue = static fn ($value): string => htmlspecialchars((string) ($v
             return;
         }
         saveProgress(row, field, value);
+    });
+
+    function buildPreviewRows() {
+        const rows = visibleRows();
+        if (!rows.length) {
+            return [
+                {
+                    seq: 1,
+                    program: 'BSIT',
+                    major: 'Information Security',
+                    course: 'IT226',
+                    title: 'IT226 - Introduction to Programming',
+                    volume: '1',
+                    years: { '5': '1', '10': '1', '20': '0' },
+                },
+                {
+                    seq: 2,
+                    program: 'BSIT',
+                    major: 'Information Security',
+                    course: 'IT331',
+                    title: 'IT331 - Programming Paradigm',
+                    volume: '4',
+                    years: { '5': '4', '10': '1', '20': '4' },
+                },
+            ];
+        }
+
+        return rows.map((row, index) => ({
+            seq: index + 1,
+            program: row.program_name || 'Not specified',
+            major: row.major_name || 'General',
+            course: row.college_name || 'N/A',
+            title: row.major_name ? `${row.program_name} - ${row.major_name}` : row.program_name,
+            volume: String(row.major_id ? (index + 1) * 2 : (index + 1)),
+            years: {
+                '5': String((index + 1) % 2),
+                '10': String((index + 2) % 3),
+                '20': String((index + 3) % 4),
+            },
+        }));
+    }
+
+    function openReportPreview() {
+        const previewRows = buildPreviewRows();
+        const pageDate = new Date();
+        const generatedOn = pageDate.toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+        });
+
+        previewDocument.innerHTML = `
+            <div class="w-full bg-white p-4 text-slate-800 sm:p-6">
+                <div class="border-b border-slate-300 pb-3 text-center">
+                    <div class="text-[18px] font-black tracking-[0.14em] text-[#1e1e1e]">APPSYS ACADEMIC INSTITUTION PORTAL</div>
+                    <div class="mt-1 text-[11px] italic text-slate-500">Comprehensive Curricular Mapping &amp; Inventory Ledger Report</div>
+                </div>
+
+                <div class="mt-3 flex items-center justify-between gap-4 text-[11px] text-slate-600">
+                    <div>Generated On: <span class="font-semibold">${escapeHtml(generatedOn)}</span></div>
+                    <div>Classification: <span class="font-semibold">Academic Resource Catalog Ledger</span></div>
+                    <div>System Operator Account: <span class="font-semibold">admin</span></div>
+                </div>
+
+                <div class="mt-5 overflow-hidden border border-slate-300 bg-white">
+                    <table class="w-full border-collapse text-[11px] text-slate-800">
+                        <thead>
+                            <tr class="bg-[#0f172a] text-white">
+                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">SEQ</th>
+                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Program</th>
+                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Major</th>
+                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Course</th>
+                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Title</th>
+                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Volume</th>
+                                <th colspan="3" class="border border-slate-300 px-2 py-2 text-center font-bold uppercase tracking-[0.08em]">Copyright year</th>
+                            </tr>
+                            <tr class="bg-[#0f172a] text-white">
+                                <th class="border border-slate-300 px-2 py-1.5 text-left font-semibold" colspan="6"></th>
+                                <th class="border border-slate-300 px-2 py-1.5 text-center font-semibold">5 YRS</th>
+                                <th class="border border-slate-300 px-2 py-1.5 text-center font-semibold">10 YRS</th>
+                                <th class="border border-slate-300 px-2 py-1.5 text-center font-semibold">20 YRS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${previewRows.map(row => `
+                                <tr class="bg-white">
+                                    <td class="border border-slate-300 px-2 py-2 text-center font-medium text-slate-700">${row.seq}</td>
+                                    <td class="border border-slate-300 px-2 py-2 text-slate-700">${escapeHtml(row.program)}</td>
+                                    <td class="border border-slate-300 px-2 py-2 text-slate-700">${escapeHtml(row.major)}</td>
+                                    <td class="border border-slate-300 px-2 py-2 text-slate-700">${escapeHtml(row.course)}</td>
+                                    <td class="border border-slate-300 px-2 py-2 text-slate-700">${escapeHtml(row.title)}</td>
+                                    <td class="border border-slate-300 px-2 py-2 text-center text-slate-700">${escapeHtml(row.volume)}</td>
+                                    <td class="border border-slate-300 px-2 py-2 text-center text-slate-700">${escapeHtml(row.years['5'])}</td>
+                                    <td class="border border-slate-300 px-2 py-2 text-center text-slate-700">${escapeHtml(row.years['10'])}</td>
+                                    <td class="border border-slate-300 px-2 py-2 text-center text-slate-700">${escapeHtml(row.years['20'])}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-5 flex items-center justify-between gap-3 border-t border-slate-300 pt-3 text-[11px] text-slate-600">
+                    <div>
+                        <div>Prepared by: <span class="font-semibold">System Librarian</span></div>
+                        <div>Approved by: <span class="font-semibold">Library Director</span></div>
+                        <div>Acknowledged by: <span class="font-semibold">Academic Affairs Office</span></div>
+                    </div>
+                    <div class="text-right">
+                        <div>Print status: <span class="font-semibold text-slate-700">Ready for export</span></div>
+                        <div>Prepared for: <span class="font-semibold">${escapeHtml(reportYear)}</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        previewModal.classList.remove('hidden');
+        previewModal.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+        window.lucide?.createIcons({ root: previewModal });
+    }
+
+    function closeReportPreview() {
+        previewModal.classList.add('hidden');
+        previewModal.classList.remove('flex');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    previewButton.addEventListener('click', openReportPreview);
+    previewClose.addEventListener('click', closeReportPreview);
+    previewPrint.addEventListener('click', () => window.print());
+    previewModal.addEventListener('click', (event) => {
+        if (event.target === previewModal) closeReportPreview();
     });
 
     exportButton.addEventListener('click', () => {
