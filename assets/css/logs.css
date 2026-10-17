@@ -2,6 +2,31 @@
   position: relative;
 }
 
+.log-tab[aria-selected="true"] {
+  background-color: #e11d48;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.log-tab[aria-selected="true"]:hover {
+  background-color: #be123c;
+}
+
+.log-tab[aria-selected="false"] {
+  background-color: transparent;
+  color: #475569;
+}
+
+.log-tab[aria-selected="false"]:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.log-tab:focus-visible {
+  outline: 2px solid #e11d48;
+  outline-offset: 2px;
+}
+
 .log-panel {
   position: absolute;
   inset: 0;
@@ -25,7 +50,7 @@
 }
 
 .log-filter-form {
-  margin: 1rem;
+  margin: 0 1rem 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
   background: #f8fafc;

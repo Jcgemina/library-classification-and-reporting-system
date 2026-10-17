@@ -239,5 +239,6 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
         </div>
     </form>
 </div>
+<div id="configureToastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" role="status" aria-live="polite" aria-relevant="additions"></div>
 
 <script src="assets/js/configure.js"></script>

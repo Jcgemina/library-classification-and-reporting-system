@@ -1,6 +1,7 @@
 function initializeLogs() {
   const logsRoot = document.getElementById('logsContent');
   if (!logsRoot) return;
+  window.lucide?.createIcons({ root: logsRoot });
 
   document.getElementById('logDetailDialog')?.remove();
   const detailDialog = document.createElement('dialog');
@@ -20,10 +21,10 @@ function initializeLogs() {
       const detail = JSON.parse(button.dataset.logDetail);
       detailDialog.querySelector('[data-log-detail-title]').textContent = detail.action;
       detailDialog.querySelector('[data-log-detail-fields]').innerHTML = Object.entries(detail).filter(function (entry) {
-        return entry[0] !== 'action' && entry[0] !== 'description';
+        return entry[0] !== 'action';
       }).map(function (entry) {
         return '<div><dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">' + escapeHtml(entry[0]) + '</dt><dd class="mt-1 break-words font-medium text-slate-900">' + escapeHtml(entry[1]) + '</dd></div>';
-      }).join('') + '<div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Description</dt><dd class="mt-1 text-slate-900">' + escapeHtml(detail.description) + '</dd></div>';
+      }).join('');
       detailDialog.showModal();
     });
   });
@@ -48,10 +49,6 @@ function initializeLogs() {
     if (formTab) formTab.value = tabName;
     logsRoot.querySelectorAll('[data-log-tab]').forEach(function (item) {
       const selected = item.dataset.logTab === tabName;
-      item.classList.toggle('bg-slate-900', selected);
-      item.classList.toggle('text-white', selected);
-      item.classList.toggle('text-slate-600', !selected);
-      item.classList.toggle('hover:bg-slate-100', !selected);
       item.setAttribute('aria-selected', selected ? 'true' : 'false');
       item.setAttribute('tabindex', selected ? '0' : '-1');
     });

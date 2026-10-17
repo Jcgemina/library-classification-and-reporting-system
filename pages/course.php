@@ -442,15 +442,24 @@ if ($action !== null) {
 
     <div class="grid grid-cols-3 gap-2 sm:gap-3">
         <div class="min-w-0 rounded-xl border border-slate-200 bg-white p-2.5 sm:p-4">
-            <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Total courses</p>
+            <div class="flex items-center justify-between gap-1">
+                <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Total courses</p>
+                <i data-lucide="book-open" class="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true"></i>
+            </div>
             <p id="totalCount" class="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">0</p>
         </div>
         <div class="min-w-0 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 sm:p-4">
-            <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-emerald-700 sm:text-xs">Active</p>
+            <div class="flex items-center justify-between gap-1">
+                <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-emerald-700 sm:text-xs">Active</p>
+                <i data-lucide="circle-check" class="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true"></i>
+            </div>
             <p id="activeCount" class="mt-1 text-xl font-bold text-emerald-900 sm:text-2xl">0</p>
         </div>
         <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-4">
-            <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Inactive</p>
+            <div class="flex items-center justify-between gap-1">
+                <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Inactive</p>
+                <i data-lucide="circle-minus" class="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true"></i>
+            </div>
             <p id="inactiveCount" class="mt-1 text-xl font-bold text-slate-700 sm:text-2xl">0</p>
         </div>
     </div>

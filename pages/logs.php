@@ -31,6 +31,8 @@ $securitySearch = trim((string)($_GET['security_search'] ?? $_GET['search'] ?? '
 $securityUserId = filter_var($_GET['security_user_id'] ?? $_GET['user_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
 $securitySeverity = in_array($_GET['security_severity'] ?? $_GET['severity'] ?? '', ['info', 'warning', 'critical'], true) ? (string)($_GET['security_severity'] ?? $_GET['severity']) : '';
 $activeTab = ($_GET['log_tab'] ?? '') === 'security' ? 'security' : 'activity';
+$activeLogTabClasses = 'inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-rose-700';
+$inactiveLogTabClasses = 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900';
 $pageSize = 8;
 $activityPage = max(1, (int)($_GET['activity_page'] ?? 1));
 $securityPage = max(1, (int)($_GET['security_page'] ?? 1));
@@ -139,17 +141,25 @@ $renderLogPagination = static function (string $type, int $currentPage, int $pag
 ?>
 <link rel="stylesheet" href="assets/css/logs.css">
 <div id="logsContent" class="min-h-[calc(100vh-5rem)] p-1 text-slate-900 sm:p-2">
-  <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-    <div><h2 class="text-2xl font-bold">System activity and security</h2><p class="mt-1 text-sm text-slate-500">Review activity and security events with separate filters for each stream.</p></div>
-    <div class="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm" role="tablist" aria-label="Log type">
-      <button id="activityLogTab" type="button" role="tab" aria-controls="activityLogPanel" tabindex="<?php echo $activeTab === 'activity' ? '0' : '-1'; ?>" class="log-tab rounded-md px-3 py-2 text-sm font-semibold <?php echo $activeTab === 'activity' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'; ?>" data-log-tab="activity" aria-selected="<?php echo $activeTab === 'activity' ? 'true' : 'false'; ?>">Activity logs</button>
-      <button id="securityLogTab" type="button" role="tab" aria-controls="securityLogPanel" tabindex="<?php echo $activeTab === 'security' ? '0' : '-1'; ?>" class="log-tab rounded-md px-3 py-2 text-sm font-semibold <?php echo $activeTab === 'security' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'; ?>" data-log-tab="security" aria-selected="<?php echo $activeTab === 'security' ? 'true' : 'false'; ?>">Security logs</button>
+  <div class="mb-2">
+    <div>
+      <h2 class="text-3xl font-bold text-slate-900">System activity and security</h2>
+      <p class="mt-1 text-sm text-slate-500">Review activity and security events with separate filters for each stream.</p>
+    </div>
+    <div class="mx-4 mt-4 inline-flex self-start rounded-lg border border-slate-200/80 bg-white p-1 shadow-sm">
+      <nav class="flex items-center gap-1" role="tablist" aria-label="Log type">
+        <button id="activityLogTab" type="button" role="tab" aria-controls="activityLogPanel" tabindex="<?php echo $activeTab === 'activity' ? '0' : '-1'; ?>" class="log-tab <?php echo $activeTab === 'activity' ? $activeLogTabClasses : $inactiveLogTabClasses; ?>" data-log-tab="activity" aria-selected="<?php echo $activeTab === 'activity' ? 'true' : 'false'; ?>">
+          <i data-lucide="activity" class="h-3.5 w-3.5"></i><span>Activity logs</span>
+        </button>
+        <button id="securityLogTab" type="button" role="tab" aria-controls="securityLogPanel" tabindex="<?php echo $activeTab === 'security' ? '0' : '-1'; ?>" class="log-tab <?php echo $activeTab === 'security' ? $activeLogTabClasses : $inactiveLogTabClasses; ?>" data-log-tab="security" aria-selected="<?php echo $activeTab === 'security' ? 'true' : 'false'; ?>">
+          <i data-lucide="shield-check" class="h-3.5 w-3.5"></i><span>Security logs</span>
+        </button>
+      </nav>
     </div>
   </div>
   <?php if ($databaseError): ?><div role="alert" class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><span><?php echo htmlspecialchars($databaseError, ENT_QUOTES, 'UTF-8'); ?></span><a href="app.php?page=logs" class="font-semibold underline underline-offset-2">Try again</a></div><?php endif; ?>
   <div id="logsStage" class="logs-stage">
   <section id="activityLogPanel" role="tabpanel" aria-labelledby="activityLogTab" <?php echo $activeTab === 'activity' ? '' : 'hidden'; ?> class="log-panel <?php echo $activeTab === 'activity' ? 'is-active' : ''; ?>">
-    <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-bold">Activity logs</h3><p class="text-sm text-slate-500">Changes made inside the library system.</p></div>
     <form id="activityLogFilterForm" data-log-filter-form="activity" method="get" action="app.php" class="log-filter-form p-4">
       <input type="hidden" name="page" value="logs"><input type="hidden" name="log_tab" value="activity">
       <input type="hidden" name="security_start_date" value="<?php echo htmlspecialchars($securityStartDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="security_end_date" value="<?php echo htmlspecialchars($securityEndDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="security_search" value="<?php echo htmlspecialchars($securitySearch, ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="security_user_id" value="<?php echo $securityUserId ?? ''; ?>"><input type="hidden" name="security_severity" value="<?php echo htmlspecialchars($securitySeverity, ENT_QUOTES, 'UTF-8'); ?>">
@@ -162,10 +172,35 @@ $renderLogPagination = static function (string $type, int $currentPage, int $pag
       </div>
       <p class="mt-3 flex flex-wrap gap-3 text-xs text-slate-500"><span><?php echo number_format($activityTotal); ?> activity records match this range.</span><a href="pages/logs_export.php?<?php echo htmlspecialchars(http_build_query($queryParams), ENT_QUOTES, 'UTF-8'); ?>" class="font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900">Export filtered logs</a></p>
     </form>
-    <?php if ($databaseError): ?><p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Activity records are unavailable until the connection is restored.</p><?php elseif (!$activityLogs): ?><p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">No activity logs match the selected filters.</p><?php else: ?><div class="log-results-card"><div class="log-table-shell overflow-x-auto"><table class="w-full min-w-[760px] text-left text-sm"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="px-5 py-3">Time</th><th class="px-5 py-3">User</th><th class="px-5 py-3">Action</th><th class="px-5 py-3">Description</th><th class="px-5 py-3">IP address</th><th class="px-5 py-3">Details</th></tr></thead><tbody class="divide-y divide-slate-100"><?php foreach ($activityLogs as $log): ?><tr><td class="whitespace-nowrap px-5 py-3 text-slate-500"><?php echo htmlspecialchars($formatLogDate($log['created_at']), ENT_QUOTES, 'UTF-8'); ?></td><td class="px-5 py-3 font-medium"><?php echo htmlspecialchars($log['full_name'] ?? 'System', ENT_QUOTES, 'UTF-8'); ?></td><td class="px-5 py-3"><?php echo htmlspecialchars($formatLogLabel($log['action']), ENT_QUOTES, 'UTF-8'); ?></td><td class="max-w-[32rem] px-5 py-3 text-slate-600"><?php echo htmlspecialchars($log['description'], ENT_QUOTES, 'UTF-8'); ?></td><td class="px-5 py-3 text-slate-500"><?php echo htmlspecialchars($log['ip_address'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td><td class="px-5 py-3"><button type="button" class="log-detail-button font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900" data-log-detail="<?php echo htmlspecialchars(json_encode(['type' => 'Activity', 'time' => $formatLogDate($log['created_at']), 'user' => $log['full_name'] ?? 'System', 'action' => $formatLogLabel($log['action']), 'description' => $log['description'], 'ip' => $log['ip_address'] ?? '-', 'entity' => ($log['entity_type'] ?? '-') . (($log['entity_id'] ?? null) ? ' #' . $log['entity_id'] : ''), 'agent' => '-'], JSON_THROW_ON_ERROR), ENT_QUOTES, 'UTF-8'); ?>">View</button></td></tr><?php endforeach; ?></tbody></table></div><?php $renderLogPagination('activity', $activityPage, $activityPages); ?></div><?php endif; ?>
+    <?php if ($databaseError): ?>
+      <p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Activity records are unavailable until the connection is restored.</p>
+    <?php elseif (!$activityLogs): ?>
+      <p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">No activity logs match the selected filters.</p>
+    <?php else: ?>
+      <div class="log-results-card">
+        <div class="log-table-shell overflow-x-auto">
+          <table class="w-full min-w-[640px] text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr><th class="px-5 py-3">Time</th><th class="px-5 py-3">User</th><th class="px-5 py-3">Action</th><th class="px-5 py-3">IP address</th><th class="px-5 py-3">Details</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <?php foreach ($activityLogs as $log): ?>
+                <tr>
+                  <td class="whitespace-nowrap px-5 py-3 text-slate-500"><?php echo htmlspecialchars($formatLogDate($log['created_at']), ENT_QUOTES, 'UTF-8'); ?></td>
+                  <td class="px-5 py-3 font-medium"><?php echo htmlspecialchars($log['full_name'] ?? 'System', ENT_QUOTES, 'UTF-8'); ?></td>
+                  <td class="px-5 py-3"><?php echo htmlspecialchars($formatLogLabel($log['action']), ENT_QUOTES, 'UTF-8'); ?></td>
+                  <td class="px-5 py-3 text-slate-500"><?php echo htmlspecialchars($log['ip_address'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
+                  <td class="px-5 py-3"><button type="button" class="log-detail-button font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900" data-log-detail="<?php echo htmlspecialchars(json_encode(['type' => 'Activity', 'time' => $formatLogDate($log['created_at']), 'user' => $log['full_name'] ?? 'System', 'action' => $formatLogLabel($log['action']), 'ip' => $log['ip_address'] ?? '-', 'entity' => ($log['entity_type'] ?? '-') . (($log['entity_id'] ?? null) ? ' #' . $log['entity_id'] : ''), 'agent' => '-'], JSON_THROW_ON_ERROR), ENT_QUOTES, 'UTF-8'); ?>">View</button></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+        <?php $renderLogPagination('activity', $activityPage, $activityPages); ?>
+      </div>
+    <?php endif; ?>
   </section>
   <section id="securityLogPanel" role="tabpanel" aria-labelledby="securityLogTab" <?php echo $activeTab === 'security' ? '' : 'hidden'; ?> class="log-panel <?php echo $activeTab === 'security' ? 'is-active' : ''; ?>">
-    <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-bold">Security logs</h3><p class="text-sm text-slate-500">Authentication activity, blocked attempts, and suspicious events.</p></div>
     <form id="securityLogFilterForm" data-log-filter-form="security" method="get" action="app.php" class="log-filter-form p-4">
       <input type="hidden" name="page" value="logs"><input type="hidden" name="log_tab" value="security">
       <input type="hidden" name="activity_start_date" value="<?php echo htmlspecialchars($activityStartDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="activity_end_date" value="<?php echo htmlspecialchars($activityEndDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="activity_search" value="<?php echo htmlspecialchars($activitySearch, ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="activity_user_id" value="<?php echo $activityUserId ?? ''; ?>">
@@ -179,9 +214,34 @@ $renderLogPagination = static function (string $type, int $currentPage, int $pag
       </div>
       <p class="mt-3 flex flex-wrap gap-3 text-xs text-slate-500"><span><?php echo number_format($securityTotal); ?> security records match this range.</span><a href="pages/logs_export.php?<?php echo htmlspecialchars(http_build_query($queryParams), ENT_QUOTES, 'UTF-8'); ?>" class="font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900">Export filtered logs</a></p>
     </form>
-    <?php if ($databaseError): ?><p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Security records are unavailable until the connection is restored.</p><?php elseif (!$securityLogs): ?><p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">No security logs match the selected filters.</p><?php else: ?><div class="log-results-card"><div class="log-table-shell overflow-x-auto"><table class="w-full min-w-[900px] text-left text-sm"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="px-5 py-3">Time</th><th class="px-5 py-3">Event</th><th class="px-5 py-3">Severity</th><th class="px-5 py-3">User</th><th class="px-5 py-3">Description</th><th class="px-5 py-3">IP address</th><th class="px-5 py-3">Details</th></tr></thead><tbody class="divide-y divide-slate-100"><?php foreach ($securityLogs as $log): ?><tr><td class="whitespace-nowrap px-5 py-3 text-slate-500"><?php echo htmlspecialchars($formatLogDate($log['created_at']), ENT_QUOTES, 'UTF-8'); ?></td><td class="px-5 py-3 font-medium"><?php echo htmlspecialchars($formatLogLabel($log['event_type']), ENT_QUOTES, 'UTF-8'); ?></td><td class="px-5 py-3">
-      <span class="rounded-full px-2 py-1 text-xs font-semibold <?php echo $log['severity'] === 'critical' ? 'bg-red-100 text-red-700' : ($log['severity'] === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'); ?>"><?php echo htmlspecialchars($formatLogLabel($log['severity']), ENT_QUOTES, 'UTF-8'); ?></span>
-      </td><td class="px-5 py-3"><?php echo htmlspecialchars($log['full_name'] ?? $log['username'] ?? 'Unknown', ENT_QUOTES, 'UTF-8'); ?></td><td class="max-w-[32rem] px-5 py-3 text-slate-600"><?php echo htmlspecialchars($log['description'], ENT_QUOTES, 'UTF-8'); ?></td><td class="px-5 py-3 text-slate-500"><?php echo htmlspecialchars($log['ip_address'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td><td class="px-5 py-3"><button type="button" class="log-detail-button font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900" data-log-detail="<?php echo htmlspecialchars(json_encode(['type' => 'Security', 'time' => $formatLogDate($log['created_at']), 'user' => $log['full_name'] ?? $log['username'] ?? 'Unknown', 'action' => $formatLogLabel($log['event_type']), 'severity' => $formatLogLabel($log['severity']), 'description' => $log['description'], 'ip' => $log['ip_address'] ?? '-', 'entity' => '-', 'agent' => $log['user_agent'] ?? '-'], JSON_THROW_ON_ERROR), ENT_QUOTES, 'UTF-8'); ?>">View</button></td></tr><?php endforeach; ?></tbody></table></div><?php $renderLogPagination('security', $securityPage, $securityPages); ?></div><?php endif; ?>
+    <?php if ($databaseError): ?>
+      <p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Security records are unavailable until the connection is restored.</p>
+    <?php elseif (!$securityLogs): ?>
+      <p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">No security logs match the selected filters.</p>
+    <?php else: ?>
+      <div class="log-results-card">
+        <div class="log-table-shell overflow-x-auto">
+          <table class="w-full min-w-[760px] text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr><th class="px-5 py-3">Time</th><th class="px-5 py-3">Event</th><th class="px-5 py-3">Severity</th><th class="px-5 py-3">User</th><th class="px-5 py-3">IP address</th><th class="px-5 py-3">Details</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <?php foreach ($securityLogs as $log): ?>
+                <tr>
+                  <td class="whitespace-nowrap px-5 py-3 text-slate-500"><?php echo htmlspecialchars($formatLogDate($log['created_at']), ENT_QUOTES, 'UTF-8'); ?></td>
+                  <td class="px-5 py-3 font-medium"><?php echo htmlspecialchars($formatLogLabel($log['event_type']), ENT_QUOTES, 'UTF-8'); ?></td>
+                  <td class="px-5 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold <?php echo $log['severity'] === 'critical' ? 'bg-red-100 text-red-700' : ($log['severity'] === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'); ?>"><?php echo htmlspecialchars($formatLogLabel($log['severity']), ENT_QUOTES, 'UTF-8'); ?></span></td>
+                  <td class="px-5 py-3"><?php echo htmlspecialchars($log['full_name'] ?? $log['username'] ?? 'Unknown', ENT_QUOTES, 'UTF-8'); ?></td>
+                  <td class="px-5 py-3 text-slate-500"><?php echo htmlspecialchars($log['ip_address'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
+                  <td class="px-5 py-3"><button type="button" class="log-detail-button font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900" data-log-detail="<?php echo htmlspecialchars(json_encode(['type' => 'Security', 'time' => $formatLogDate($log['created_at']), 'user' => $log['full_name'] ?? $log['username'] ?? 'Unknown', 'action' => $formatLogLabel($log['event_type']), 'severity' => $formatLogLabel($log['severity']), 'ip' => $log['ip_address'] ?? '-', 'entity' => '-', 'agent' => $log['user_agent'] ?? '-'], JSON_THROW_ON_ERROR), ENT_QUOTES, 'UTF-8'); ?>">View</button></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+        <?php $renderLogPagination('security', $securityPage, $securityPages); ?>
+      </div>
+    <?php endif; ?>
   </section>
   </div>
 </div>
