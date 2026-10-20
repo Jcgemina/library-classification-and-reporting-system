@@ -6,8 +6,8 @@ require_once __DIR__ . '/includes/functions.php';
 requireLogin();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'report', 'user', 'logs', 'configure'];
-$staffPages = ['dashboard', 'inventory', 'academics', 'course', 'report'];
+$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'user', 'logs', 'configure'];
+$staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report'];
 $restrictedPages = ['user', 'logs', 'configure'];
 
 $allowedPages = $userRole === 'admin' ? $adminPages : $staffPages;
@@ -55,8 +55,8 @@ $currentPage = $page;
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
-    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'report', 'user', 'logs', 'configure'];
-    const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'report'];
+    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'user', 'logs', 'configure'];
+    const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report'];
     const restrictedPages = ['user', 'logs', 'configure'];
     const allowedPages = currentUserRole === 'admin' ? adminPages : staffPages;
 
@@ -143,7 +143,12 @@ $currentPage = $page;
 
       const pageParams = new URLSearchParams(window.location.search);
       pageParams.delete('page');
-      const pageQuery = safePage === 'logs' && pageParams.toString() ? '?' + pageParams.toString() : '';
+      const preservedParams = safePage === 'logs'
+        ? pageParams
+        : safePage === 'inventory' && pageParams.has('book_id')
+          ? new URLSearchParams([...pageParams].filter(([key]) => ['book_id', 'inventory_action'].includes(key)))
+          : new URLSearchParams();
+      const pageQuery = preservedParams.toString() ? '?' + preservedParams.toString() : '';
 
       const pageFile = safePage === 'academics' ? 'organization' : safePage;
 
@@ -177,7 +182,9 @@ $currentPage = $page;
         updateActiveTab(safePage);
         const pageTitle = safePage === 'configure'
           ? 'Library Settings'
-          : safePage.charAt(0).toUpperCase() + safePage.slice(1);
+          : safePage === 'reference_analyzer'
+            ? 'Reference Analyzer'
+            : safePage.charAt(0).toUpperCase() + safePage.slice(1);
         document.title = 'AppSys Library - ' + pageTitle;
       })
       .catch(() => {

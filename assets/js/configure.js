@@ -8,6 +8,46 @@
     const button = document.getElementById('saveConfigureButton');
     const message = document.getElementById('configureMessage');
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        }[character]));
+    }
+
+    function showToast(text, type = 'success') {
+        const container = document.getElementById('configureToastContainer');
+        const toast = document.createElement('div');
+        const isError = type === 'error';
+        const duration = 3000;
+
+        toast.className = `pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl border px-4 py-3 pb-4 text-sm shadow-lg ${isError ? 'border-red-300 bg-red-50 text-red-800' : 'border-green-300 bg-green-50 text-green-800'}`;
+        toast.innerHTML = `
+            <i data-lucide="${isError ? 'circle-alert' : 'circle-check'}" class="mt-0.5 h-4 w-4 flex-shrink-0"></i>
+            <span class="flex-1">${escapeHtml(text)}</span>
+            <button type="button" class="text-current opacity-60 transition hover:opacity-100" aria-label="Dismiss notification">
+                <i data-lucide="x" class="h-4 w-4"></i>
+            </button>
+            <span class="absolute bottom-0 left-0 h-1 w-full origin-left ${isError ? 'bg-red-500' : 'bg-green-500'}" data-toast-progress></span>
+        `;
+
+        container.appendChild(toast);
+        lucide.createIcons();
+
+        const progress = toast.querySelector('[data-toast-progress]');
+        requestAnimationFrame(() => {
+            progress.style.transition = `width ${duration}ms linear`;
+            progress.style.width = '0%';
+        });
+
+        const dismiss = () => toast.remove();
+        toast.querySelector('button').addEventListener('click', dismiss);
+        setTimeout(dismiss, duration);
+    }
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         message.textContent = '';
@@ -20,6 +60,21 @@
             message.textContent = 'Enter three unique copyright ranges in ascending order, from 1 to 1,000 years.';
             message.className = 'text-sm text-rose-700';
             form.elements.copyright_range_1.focus();
+            return;
+        }
+
+        const referenceDirection = form.elements.reference_policy_direction.value;
+        const referenceYears = form.elements.reference_policy_years.value.trim();
+        if (referenceDirection && (!Number.isInteger(Number(referenceYears)) || Number(referenceYears) < 1 || Number(referenceYears) > 1000)) {
+            message.textContent = 'Choose a reference-age rule and enter a threshold from 1 to 1,000 years, or leave both unset.';
+            message.className = 'text-sm text-rose-700';
+            form.elements.reference_policy_years.focus();
+            return;
+        }
+        if (!referenceDirection && referenceYears) {
+            message.textContent = 'Choose a reference-age rule or clear the threshold to leave it unconfigured.';
+            message.className = 'text-sm text-rose-700';
+            form.elements.reference_policy_direction.focus();
             return;
         }
 
@@ -43,11 +98,9 @@
                 throw new Error(result.message || 'Settings could not be saved.');
             }
 
-            message.textContent = result.message;
-            message.className = 'text-sm font-semibold text-emerald-700';
+            showToast(result.message);
         } catch (error) {
-            message.textContent = error.message || 'Settings could not be saved. Try again.';
-            message.className = 'text-sm font-semibold text-rose-700';
+            showToast(error.message || 'Settings could not be saved. Try again.', 'error');
         } finally {
             button.disabled = false;
             button.textContent = 'Save settings';

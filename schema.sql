@@ -273,6 +273,8 @@ CREATE TABLE IF NOT EXISTS library_configuration (
     id TINYINT UNSIGNED PRIMARY KEY,
     minimum_books_per_course SMALLINT UNSIGNED NOT NULL DEFAULT 1,
     default_curriculum_year VARCHAR(30) NOT NULL DEFAULT '',
+    reference_policy_direction ENUM('within', 'at_least') DEFAULT NULL,
+    reference_policy_years SMALLINT UNSIGNED DEFAULT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -291,6 +293,32 @@ SET @add_default_curriculum_year_column = IF(
 PREPARE add_default_curriculum_year_column FROM @add_default_curriculum_year_column;
 EXECUTE add_default_curriculum_year_column;
 DEALLOCATE PREPARE add_default_curriculum_year_column;
+
+SET @reference_policy_direction_column_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'reference_policy_direction'
+);
+SET @add_reference_policy_direction_column = IF(
+    @reference_policy_direction_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN reference_policy_direction ENUM(''within'', ''at_least'') DEFAULT NULL AFTER default_curriculum_year',
+    'SELECT 1'
+);
+PREPARE add_reference_policy_direction_column FROM @add_reference_policy_direction_column;
+EXECUTE add_reference_policy_direction_column;
+DEALLOCATE PREPARE add_reference_policy_direction_column;
+
+SET @reference_policy_years_column_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'reference_policy_years'
+);
+SET @add_reference_policy_years_column = IF(
+    @reference_policy_years_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN reference_policy_years SMALLINT UNSIGNED DEFAULT NULL AFTER reference_policy_direction',
+    'SELECT 1'
+);
+PREPARE add_reference_policy_years_column FROM @add_reference_policy_years_column;
+EXECUTE add_reference_policy_years_column;
+DEALLOCATE PREPARE add_reference_policy_years_column;
 
 UPDATE library_configuration
 SET default_curriculum_year = CONCAT(YEAR(CURRENT_DATE), '-', YEAR(CURRENT_DATE) + 1)

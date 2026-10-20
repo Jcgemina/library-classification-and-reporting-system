@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -103,6 +103,31 @@ if ($action !== null) {
                         'meetsBookMinimum' => (int) $course['book_count'] >= $minimumBooksPerCourse,
                     ];
                 }, $stmt->fetchAll());
+
+                if ($courses) {
+                    $courseIds = array_column($courses, 'id');
+                    $placeholders = implode(',', array_fill(0, count($courseIds), '?'));
+                    $bookStatement = $pdo->prepare(
+                        "SELECT bc.course_id, b.book_id, b.title, b.author, b.publication_year
+                         FROM book_courses bc
+                         INNER JOIN books b ON b.book_id = bc.book_id AND b.deleted_at IS NULL
+                         WHERE bc.course_id IN ({$placeholders})
+                         ORDER BY b.title, b.book_id"
+                    );
+                    $bookStatement->execute($courseIds);
+                    $booksByCourse = [];
+                    foreach ($bookStatement->fetchAll(PDO::FETCH_ASSOC) as $book) {
+                        $booksByCourse[(int) $book['course_id']][] = [
+                            'id' => (int) $book['book_id'],
+                            'title' => $book['title'],
+                            'author' => $book['author'],
+                            'year' => $book['publication_year'] !== null ? (int) $book['publication_year'] : null,
+                        ];
+                    }
+                    foreach ($courses as $index => $course) {
+                        $courses[$index]['referencedBooks'] = $booksByCourse[$course['id']] ?? [];
+                    }
+                }
 
                 $counts = [
                     'total' => (int) $pdo->query('SELECT COUNT(*) FROM courses')->fetchColumn(),
@@ -442,15 +467,24 @@ if ($action !== null) {
 
     <div class="grid grid-cols-3 gap-2 sm:gap-3">
         <div class="min-w-0 rounded-xl border border-slate-200 bg-white p-2.5 sm:p-4">
-            <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Total courses</p>
+            <div class="flex items-center justify-between gap-1">
+                <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Total courses</p>
+                <i data-lucide="book-open" class="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true"></i>
+            </div>
             <p id="totalCount" class="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">0</p>
         </div>
         <div class="min-w-0 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 sm:p-4">
-            <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-emerald-700 sm:text-xs">Active</p>
+            <div class="flex items-center justify-between gap-1">
+                <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-emerald-700 sm:text-xs">Active</p>
+                <i data-lucide="circle-check" class="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true"></i>
+            </div>
             <p id="activeCount" class="mt-1 text-xl font-bold text-emerald-900 sm:text-2xl">0</p>
         </div>
         <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-4">
-            <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Inactive</p>
+            <div class="flex items-center justify-between gap-1">
+                <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Inactive</p>
+                <i data-lucide="circle-minus" class="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true"></i>
+            </div>
             <p id="inactiveCount" class="mt-1 text-xl font-bold text-slate-700 sm:text-2xl">0</p>
         </div>
     </div>
@@ -571,4 +605,4 @@ if ($action !== null) {
 
 <div id="courseToastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" role="status"></div>
 
-<script src="assets/js/course.js?v=20261008-2"></script>
+<script src="assets/js/course.js?v=20261020-3"></script>

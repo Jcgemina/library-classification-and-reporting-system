@@ -251,11 +251,25 @@ if ($pdo instanceof PDO) {
     $archiveQuery = str_replace('WHERE b.deleted_at IS NULL', 'WHERE b.deleted_at IS NOT NULL', $bookQuery);
     $archiveQuery .= ' ORDER BY b.deleted_at DESC';
     $archivedBooks = $pdo->query($archiveQuery)->fetchAll();
-    $courseReferenceRows = $pdo->query('SELECT bc.book_id, c.id AS course_id, c.code, c.name FROM book_courses bc INNER JOIN courses c ON c.id = bc.course_id ORDER BY c.code, c.name')->fetchAll();
+    $courseReferenceRows = $pdo->query(
+      'SELECT bc.book_id, c.id AS course_id, c.code, c.name, c.status, p.name AS program_name, col.name AS college_name
+       FROM book_courses bc
+       INNER JOIN courses c ON c.id = bc.course_id
+       LEFT JOIN programs p ON p.id = c.program_id
+       LEFT JOIN colleges col ON col.id = p.college_id
+       ORDER BY c.code, c.name'
+    )->fetchAll();
     $activeCourses = $pdo->query('SELECT id, code, name FROM courses WHERE status = \'active\' ORDER BY code, name')->fetchAll();
     $courseReferencesByBook = [];
     foreach ($courseReferenceRows as $reference) {
-      $courseReferencesByBook[(int)$reference['book_id']][] = ['course_id' => (int)$reference['course_id'], 'code' => $reference['code'], 'name' => $reference['name']];
+      $courseReferencesByBook[(int)$reference['book_id']][] = [
+        'course_id' => (int)$reference['course_id'],
+        'code' => $reference['code'],
+        'name' => $reference['name'],
+        'status' => $reference['status'],
+        'program_name' => $reference['program_name'],
+        'college_name' => $reference['college_name'],
+      ];
     }
     foreach ($activeBooks as $bookIndex => $book) {
       $activeBooks[$bookIndex]['course_references'] = $courseReferencesByBook[(int)$book['book_id']] ?? [];
@@ -278,6 +292,7 @@ $copyrightMetricStyles = [
 ];
 ?>
 <div id="inventoryPage" class="min-h-[calc(100vh-5rem)] p-1 text-slate-900 sm:p-2">
+  <div data-inventory-list-view>
   <div class="mb-5">
     <div>
       <h2 class="text-2xl font-bold text-slate-900">Inventory Management</h2>
@@ -389,6 +404,9 @@ $copyrightMetricStyles = [
       </table>
     </div>
   </section>
+  </div>
+
+  <section class="hidden space-y-6" data-inventory-book-detail aria-live="polite" aria-label="Book information"></section>
 
   <div id="inventoryBookActionsMenu" popover="auto" aria-label="Book actions" class="fixed inset-auto z-[105] m-0 w-[calc(100vw-1rem)] max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-2xl">
     <div class="border-b border-slate-200 px-4 py-3">
@@ -431,22 +449,6 @@ $copyrightMetricStyles = [
         <button type="submit" data-book-form-submit class="inline-flex items-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="save" class="h-4 w-4"></i><span>Save Book</span></button>
       </div>
     </form>
-  </dialog>
-
-  <dialog id="inventoryBookInfoModal" aria-labelledby="inventoryBookInfoTitle" class="fixed z-[100] m-auto max-h-[90vh] w-[calc(100%-1.5rem)] max-w-2xl overflow-hidden rounded-xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/50">
-    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-      <div><h3 id="inventoryBookInfoTitle" data-book-info="title" class="text-base font-bold text-slate-900">Book Information</h3><p data-book-info="author" class="mt-1 text-sm text-slate-600"></p></div>
-      <button type="button" data-book-info-close aria-label="Close book information" class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"><i data-lucide="x" class="h-5 w-5"></i></button>
-    </div>
-    <dl class="grid grid-cols-1 gap-x-6 gap-y-4 p-5 text-sm sm:grid-cols-2">
-      <div><dt class="text-xs font-semibold uppercase text-slate-500">ISBN</dt><dd data-book-info="isbn" class="mt-1 text-slate-900"></dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-slate-500">Publisher</dt><dd data-book-info="publisher" class="mt-1 text-slate-900"></dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-slate-500">Publication Year</dt><dd data-book-info="publication_year" class="mt-1 text-slate-900"></dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-slate-500">Copyright Year</dt><dd data-book-info="copyright_year" class="mt-1 text-slate-900"></dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-slate-500">Number of Copies</dt><dd data-book-info="copy_count" class="mt-1 text-slate-900"></dd></div>
-      <div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase text-slate-500">Course References</dt><dd data-book-info="references" class="mt-1 text-slate-900"></dd></div>
-      <div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase text-slate-500">Description</dt><dd data-book-info="description" class="mt-1 whitespace-pre-wrap text-slate-900"></dd></div>
-    </dl>
   </dialog>
 
   <dialog id="inventoryAiCourseModal" aria-labelledby="inventoryAiCourseTitle" class="fixed z-[100] m-auto max-h-[90vh] w-[calc(100%-1.5rem)] max-w-xl overflow-hidden rounded-xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/50">
@@ -635,8 +637,10 @@ $copyrightMetricStyles = [
   const bookActionsMenu = document.getElementById('inventoryBookActionsMenu');
   const bookActionsTitle = document.querySelector('[data-book-actions-title]');
   let bookActionsTrigger = null;
-  const bookInfoModal = document.getElementById('inventoryBookInfoModal');
-  const bookInfoCloseButton = document.querySelector('[data-book-info-close]');
+  const inventoryListView = document.querySelector('[data-inventory-list-view]');
+  const inventoryBookDetail = document.querySelector('[data-inventory-book-detail]');
+  let activeBookInfoId = null;
+  let inventoryListScrollPosition = 0;
   const aiCourseModal = document.getElementById('inventoryAiCourseModal');
   const aiCourseGenerateButton = document.querySelector('[data-ai-course-generate]');
   const aiCourseStatus = document.querySelector('[data-ai-course-status]');
@@ -685,6 +689,78 @@ $copyrightMetricStyles = [
     if (dialog?.open) dialog.close();
   }
 
+  function escapeInventoryHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+    })[character]);
+  }
+
+  function showInventoryBookInfo(book) {
+    activeBookInfoId = String(book.book_id);
+    inventoryListScrollPosition = window.scrollY;
+    const courseReferences = book.course_references.length
+      ? `<ul class="mt-3 divide-y divide-slate-200 rounded-lg border border-slate-200">${book.course_references.map((reference) => `
+          <li class="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0">
+              <p class="font-semibold text-slate-900">${escapeInventoryHtml(reference.code)} — ${escapeInventoryHtml(reference.name)}</p>
+              <p class="mt-1 text-xs leading-5 text-slate-600">${escapeInventoryHtml(reference.college_name || 'College not assigned')} · ${escapeInventoryHtml(reference.program_name || 'Program not assigned')} · ${escapeInventoryHtml(reference.status || 'Status unavailable')}</p>
+            </div>
+            <a href="app.php?page=course&course_id=${encodeURIComponent(reference.course_id)}" class="inline-flex w-fit shrink-0 items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">Open course<i data-lucide="arrow-up-right" class="h-4 w-4" aria-hidden="true"></i></a>
+          </li>
+        `).join('')}</ul>`
+      : '<p class="mt-3 rounded-lg bg-slate-50 px-4 py-4 text-sm text-slate-600">No courses currently reference this book.</p>';
+    inventoryBookDetail.innerHTML = `
+      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <button type="button" data-inventory-book-back class="mb-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Back to books</button>
+        <div class="min-w-0"><h3 id="inventoryBookDetailTitle" class="text-2xl font-bold text-slate-900">${escapeInventoryHtml(book.title)}</h3><p class="mt-1 text-sm text-slate-600">by ${escapeInventoryHtml(book.author || 'Author not recorded')}</p></div>
+      </section>
+      <div class="grid gap-6 xl:grid-cols-2">
+      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="inventoryBookInformationHeading">
+          <h4 id="inventoryBookInformationHeading" class="text-sm font-bold text-slate-900">Book information</h4>
+          <dl class="mt-3 divide-y divide-slate-200 rounded-lg border border-slate-200">
+            <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Title</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeInventoryHtml(book.title)}</dd></div>
+            <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Author(s)</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeInventoryHtml(book.author || 'Not recorded')}</dd></div>
+            <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">ISBN</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeInventoryHtml(book.isbn || 'Not recorded')}</dd></div>
+            <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Publisher</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeInventoryHtml(book.publisher || 'Not recorded')}</dd></div>
+            <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Publication year</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeInventoryHtml(book.publication_year || 'Not recorded')}</dd></div>
+            <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Edition</dt><dd class="text-right text-sm font-medium text-slate-900">Not recorded in catalog</dd></div>
+            <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Copyright year</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeInventoryHtml(book.copyright_year || book.publication_year || 'Not recorded')}</dd></div>
+            <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Copies</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeInventoryHtml(book.copy_count)}</dd></div>
+            <div class="flex flex-col gap-1 px-4 py-3"><dt class="text-sm text-slate-600">Description</dt><dd class="text-sm leading-5 text-slate-900">${escapeInventoryHtml(book.description || 'Not recorded')}</dd></div>
+          </dl>
+      </section>
+      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="inventoryBookCoursesHeading">
+        <div class="flex items-center justify-between gap-3"><h4 id="inventoryBookCoursesHeading" class="text-sm font-bold text-slate-900">Linked courses</h4><span class="text-xs text-slate-600">${book.course_references.length} course${book.course_references.length === 1 ? '' : 's'}</span></div>
+        ${courseReferences}
+      </section>
+      </div>
+      <section class="flex flex-wrap justify-end gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Book actions">
+        <a href="app.php?page=inventory&book_id=${encodeURIComponent(book.book_id)}&inventory_action=edit" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="pencil" class="h-4 w-4" aria-hidden="true"></i>Edit book</a>
+        <a href="app.php?page=inventory&book_id=${encodeURIComponent(book.book_id)}&inventory_action=manage-references" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-500">Manage links</a>
+      </section>
+    `;
+    inventoryListView.classList.add('hidden');
+    inventoryBookDetail.classList.remove('hidden');
+    window.scrollTo(0, 0);
+    window.lucide?.createIcons({ nodes: [inventoryBookDetail] });
+  }
+
+  function returnToInventoryList() {
+    inventoryBookDetail.classList.add('hidden');
+    inventoryListView.classList.remove('hidden');
+    inventoryBookDetail.replaceChildren();
+    const previousBookId = activeBookInfoId;
+    activeBookInfoId = null;
+    window.scrollTo(0, inventoryListScrollPosition);
+    if (previousBookId) {
+      document.querySelector(`[data-book-actions-open][data-book-id="${CSS.escape(previousBookId)}"]`)?.focus();
+    }
+  }
+
   addBookButton?.addEventListener('click', () => {
     addBookForm.reset();
     addBookForm.elements.action.value = 'create_book';
@@ -698,7 +774,6 @@ $copyrightMetricStyles = [
   addBookCancelButton?.addEventListener('click', () => closeDialog(addBookDialog));
   archiveOpenButton?.addEventListener('click', () => archiveModal.showModal());
   archiveCloseButton?.addEventListener('click', () => closeDialog(archiveModal));
-  bookInfoCloseButton?.addEventListener('click', () => closeDialog(bookInfoModal));
   document.querySelectorAll('[data-ai-course-close]').forEach((button) => {
     button.addEventListener('click', () => closeDialog(aiCourseModal));
   });
@@ -1068,6 +1143,12 @@ $copyrightMetricStyles = [
   }
 
   inventoryPage?.addEventListener('click', async (event) => {
+    const inventoryBackButton = event.target.closest('[data-inventory-book-back]');
+    if (inventoryBackButton) {
+      returnToInventoryList();
+      return;
+    }
+
     const actionsOpenButton = event.target.closest('[data-book-actions-open]');
     if (actionsOpenButton) {
       const book = inventoryBooks[actionsOpenButton.dataset.bookId];
@@ -1098,6 +1179,12 @@ $copyrightMetricStyles = [
     if (!actionButton) return;
     if (bookActionsMenu.matches(':popover-open')) bookActionsMenu.hidePopover();
 
+    if (actionButton.dataset.bookAction === 'view') {
+      const book = inventoryBooks[actionButton.dataset.bookId];
+      if (book) showInventoryBookInfo(book);
+      return;
+    }
+
     if (actionButton.dataset.bookAction === 'restore') {
       const formData = new FormData();
       formData.set('action', 'restore_book');
@@ -1113,34 +1200,6 @@ $copyrightMetricStyles = [
 
     const book = inventoryBooks[actionButton.dataset.bookId];
     if (!book) return;
-
-    if (actionButton.dataset.bookAction === 'view') {
-      document.querySelector('[data-book-info="title"]').textContent = book.title;
-      document.querySelector('[data-book-info="author"]').textContent = `by ${book.author}`;
-      document.querySelector('[data-book-info="isbn"]').textContent = book.isbn || '—';
-      document.querySelector('[data-book-info="publisher"]').textContent = book.publisher || '—';
-      document.querySelector('[data-book-info="publication_year"]').textContent = book.publication_year || '—';
-      document.querySelector('[data-book-info="copyright_year"]').textContent = book.copyright_year || book.publication_year || '—';
-      document.querySelector('[data-book-info="copy_count"]').textContent = book.copy_count;
-      document.querySelector('[data-book-info="description"]').textContent = book.description || 'No description provided.';
-      const references = document.querySelector('[data-book-info="references"]');
-      references.replaceChildren();
-      if (book.course_references.length) {
-        const referenceGrid = document.createElement('div');
-        referenceGrid.className = 'flex flex-wrap items-center gap-1';
-        book.course_references.forEach((reference) => {
-          const item = document.createElement('span');
-          item.className = 'inline-flex max-w-full items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs text-rose-800';
-          item.textContent = `${reference.code} ${reference.name}`;
-          referenceGrid.append(item);
-        });
-        references.append(referenceGrid);
-      } else {
-        references.textContent = 'No courses linked yet';
-      }
-      bookInfoModal.showModal();
-      return;
-    }
 
     if (actionButton.dataset.bookAction === 'ai-course') {
       resetAiCoursePanel(book);
@@ -1268,5 +1327,18 @@ $copyrightMetricStyles = [
       deleteBookSubmit.disabled = false;
     }
   });
+
+  const inventoryQuery = new URLSearchParams(window.location.search);
+  const requestedBookId = inventoryQuery.get('book_id');
+  const requestedInventoryAction = inventoryQuery.get('inventory_action');
+  const validInventoryActions = ['view', 'edit', 'reference', 'manage-references'];
+  if (requestedBookId && inventoryBooks[requestedBookId] && validInventoryActions.includes(requestedInventoryAction)) {
+    const bookActionTrigger = [...document.querySelectorAll('[data-book-actions-open]')]
+      .find((button) => button.dataset.bookId === requestedBookId);
+    if (bookActionTrigger) {
+      bookActionTrigger.click();
+      bookActionsMenu.querySelector(`[data-book-action="${requestedInventoryAction}"]`)?.click();
+    }
+  }
 })();
 </script>

@@ -6,7 +6,6 @@
 
     const admin = coursePage.dataset.courseAdmin === 'true';
     const state = { courses: [], colleges: [], programs: [], majors: [] };
-
     const $ = (id) => document.getElementById(id);
     const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
         '&': '&amp;',
@@ -203,11 +202,31 @@
                             <dd class="text-right text-sm font-medium text-slate-800">${esc(course.status)}</dd>
                         </div>
                     </dl>
+
+                    <section class="mt-7" aria-labelledby="courseReferencedBooksTitle">
+                        <div class="flex items-center justify-between gap-3">
+                            <h4 id="courseReferencedBooksTitle" class="text-sm font-semibold text-slate-800">Referenced books</h4>
+                            <span class="text-xs text-slate-500">${Array.isArray(course.referencedBooks) ? course.referencedBooks.length : 0} titles</span>
+                        </div>
+                        ${Array.isArray(course.referencedBooks) && course.referencedBooks.length
+                            ? `<ul class="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200">
+                                ${course.referencedBooks.map((book) => `
+                                    <li class="flex items-start gap-3 px-4 py-3">
+                                        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-700"><i data-lucide="book-open" class="h-4 w-4" aria-hidden="true"></i></span>
+                                        <span class="min-w-0">
+                                            <span class="block text-sm font-semibold text-slate-900">${esc(book.title)}</span>
+                                            <span class="mt-1 block text-xs text-slate-600">${esc(book.author || 'Author not recorded')}${book.year !== null && book.year !== undefined ? ` · ${esc(book.year)}` : ' · Year not recorded'}</span>
+                                        </span>
+                                    </li>
+                                `).join('')}
+                            </ul>`
+                            : '<p class="mt-3 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">No referenced books are available for this course.</p>'}
+                    </section>
                 </div>
 
                 <div class="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
                     <button type="button" data-close-course-details class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Close</button>
-                    ${admin ? `<button type="button" data-details-delete="${course.id}" class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100">Delete</button>` : ''}
+                    ${admin && Number.isInteger(Number(course.id)) && Number(course.id) > 0 ? `<button type="button" data-details-delete="${course.id}" class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100">Delete</button>` : ''}
                 </div>
             </aside>
         `;
@@ -357,6 +376,7 @@
     };
 
     let latestCourseRequest = 0;
+    let requestedCourseOpened = false;
 
     async function loadCourses() {
         syncCourseProgramOptions();
@@ -374,6 +394,14 @@
             $('inactiveCount').textContent = data.counts.inactive;
             render();
             $('courseStatusMessage').textContent = `${state.courses.length} shown`;
+            if (!requestedCourseOpened) {
+                const requestedCourseId = Number(new URLSearchParams(window.location.search).get('course_id'));
+                const requestedCourse = state.courses.find((course) => course.id === requestedCourseId);
+                if (requestedCourse) {
+                    requestedCourseOpened = true;
+                    openCourseDetails(requestedCourse);
+                }
+            }
         } catch (error) {
             if (requestId !== latestCourseRequest) {
                 return;

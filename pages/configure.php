@@ -45,6 +45,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     );
     $minimumBooks = filter_var($_POST['minimum_books_per_course'] ?? null, FILTER_VALIDATE_INT);
     $defaultCurriculumYear = trim((string) ($_POST['default_curriculum_year'] ?? ''));
+    $referencePolicyDirectionInput = trim((string) ($_POST['reference_policy_direction'] ?? ''));
+    $referencePolicyYearsInput = trim((string) ($_POST['reference_policy_years'] ?? ''));
+    $referencePolicyDirection = $referencePolicyDirectionInput !== '' ? $referencePolicyDirectionInput : null;
+    $referencePolicyYears = $referencePolicyYearsInput !== '' ? filter_var($referencePolicyYearsInput, FILTER_VALIDATE_INT) : null;
 
     if (
         in_array(false, $copyrightRanges, true)
@@ -71,6 +75,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'message' => 'Enter a default curriculum year using no more than 30 characters.',
         ], 422);
     }
+    if (
+        ($referencePolicyDirection !== null && !in_array($referencePolicyDirection, ['within', 'at_least'], true))
+        || ($referencePolicyDirection !== null && ($referencePolicyYears === false || $referencePolicyYears === null || $referencePolicyYears < 1 || $referencePolicyYears > 1000))
+        || ($referencePolicyDirection === null && $referencePolicyYearsInput !== '')
+    ) {
+        configureJsonResponse([
+            'success' => false,
+            'message' => 'Choose a reference-age rule and enter a threshold from 1 to 1,000 years, or leave both unset.',
+        ], 422);
+    }
 
     try {
         $pdo->beginTransaction();
@@ -86,15 +100,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
 
         $configurationStatement = $pdo->prepare(
-            'INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year)
-             VALUES (1, :minimum_books_per_course, :default_curriculum_year)
+            'INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year, reference_policy_direction, reference_policy_years)
+             VALUES (1, :minimum_books_per_course, :default_curriculum_year, :reference_policy_direction, :reference_policy_years)
              ON DUPLICATE KEY UPDATE
                 minimum_books_per_course = VALUES(minimum_books_per_course),
-                default_curriculum_year = VALUES(default_curriculum_year)'
+                default_curriculum_year = VALUES(default_curriculum_year),
+                reference_policy_direction = VALUES(reference_policy_direction),
+                reference_policy_years = VALUES(reference_policy_years)'
         );
         $configurationStatement->execute([
             ':minimum_books_per_course' => $minimumBooks,
             ':default_curriculum_year' => $defaultCurriculumYear,
+            ':reference_policy_direction' => $referencePolicyDirection,
+            ':reference_policy_years' => $referencePolicyDirection !== null ? $referencePolicyYears : null,
         ]);
         $pdo->commit();
 
@@ -114,6 +132,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $copyrightRanges = [5, 10, 20];
 $minimumBooks = 1;
 $defaultCurriculumYear = date('Y') . '-' . ((int) date('Y') + 1);
+$referencePolicyDirection = null;
+$referencePolicyYears = null;
 $loadError = null;
 if (!$pdo instanceof PDO) {
     $loadError = 'The database connection is unavailable. Settings cannot be loaded or changed.';
@@ -123,7 +143,7 @@ if (!$pdo instanceof PDO) {
             'SELECT years_threshold FROM copyright_year_ranges WHERE is_active = 1 ORDER BY sort_order, years_threshold'
         )->fetchAll(PDO::FETCH_COLUMN);
         $configuration = $pdo->query(
-            'SELECT minimum_books_per_course, default_curriculum_year FROM library_configuration WHERE id = 1'
+            'SELECT minimum_books_per_course, default_curriculum_year, reference_policy_direction, reference_policy_years FROM library_configuration WHERE id = 1'
         )->fetch(PDO::FETCH_ASSOC);
 
         if (count($rangeRows) !== 3 || $configuration === false) {
@@ -133,6 +153,10 @@ if (!$pdo instanceof PDO) {
         $copyrightRanges = array_map('intval', $rangeRows);
         $minimumBooks = (int) $configuration['minimum_books_per_course'];
         $defaultCurriculumYear = (string) $configuration['default_curriculum_year'];
+        $referencePolicyDirection = $configuration['reference_policy_direction'];
+        $referencePolicyYears = $configuration['reference_policy_years'] !== null
+            ? (int) $configuration['reference_policy_years']
+            : null;
         if ($defaultCurriculumYear === '') {
             $defaultCurriculumYear = date('Y') . '-' . ((int) date('Y') + 1);
         }
@@ -149,7 +173,7 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
 <div class="mx-auto w-full max-w-6xl space-y-6 p-1 text-slate-900 sm:p-2" data-configure-page data-csrf-token="<?php echo $escapeConfigureValue($csrfToken); ?>">
     <header>
         <h2 class="text-2xl font-bold text-slate-900">Library Settings</h2>
-        <p class="mt-1 text-sm text-slate-600">Set copyright reporting windows, course book coverage, and the default curriculum year for new prospectus records.</p>
+        <p class="mt-1 text-sm text-slate-600">Set reporting windows, reference-age policy, course book coverage, and the default curriculum year for new prospectus records.</p>
     </header>
 
     <?php if ($loadError !== null): ?>
@@ -228,6 +252,43 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
             </label>
         </section>
 
+        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2" aria-labelledby="referencePolicyHeading">
+            <div class="border-b border-slate-200 pb-4">
+                <h3 id="referencePolicyHeading" class="text-lg font-bold text-slate-900">Reference-age policy</h3>
+                <p class="mt-1 text-sm text-slate-600">Set the institution’s reference recency rule. This is separate from copyright reporting and does not determine legal copyright status. Leave it unconfigured until the school’s policy is confirmed.</p>
+            </div>
+            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                <label for="referencePolicyDirection" class="text-sm font-semibold text-slate-700">
+                    Policy direction
+                    <select
+                        id="referencePolicyDirection"
+                        name="reference_policy_direction"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
+                    >
+                        <option value="" <?php echo $referencePolicyDirection === null ? 'selected' : ''; ?>>Not configured</option>
+                        <option value="within" <?php echo $referencePolicyDirection === 'within' ? 'selected' : ''; ?>>Published within the threshold</option>
+                        <option value="at_least" <?php echo $referencePolicyDirection === 'at_least' ? 'selected' : ''; ?>>At least the threshold age</option>
+                    </select>
+                </label>
+                <label for="referencePolicyYears" class="text-sm font-semibold text-slate-700">
+                    Threshold (years)
+                    <input
+                        id="referencePolicyYears"
+                        name="reference_policy_years"
+                        type="number"
+                        min="1"
+                        max="1000"
+                        step="1"
+                        value="<?php echo $referencePolicyYears ?? ''; ?>"
+                        placeholder="Set only after confirming policy"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
+                    >
+                </label>
+            </div>
+        </section>
+
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between lg:col-span-2">
             <p id="configureMessage" class="text-sm text-slate-600" role="status" aria-live="polite"></p>
             <button
@@ -239,5 +300,6 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
         </div>
     </form>
 </div>
+<div id="configureToastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" role="status" aria-live="polite" aria-relevant="additions"></div>
 
 <script src="assets/js/configure.js"></script>

@@ -90,6 +90,5 @@ if (!empty($_POST['remember'])) {
     setcookie('remember_device', bin2hex(random_bytes(16)), time() + (30 * 24 * 60 * 60), '/', '', false, true);
 }
 
-// --- Functional: Provide access to the main system after successful authentication ---
 header('Location: app.php?page=dashboard');
 exit;
