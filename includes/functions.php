@@ -287,3 +287,78 @@ function getCopyrightYearMetrics(PDO $pdo): array {
 
     return $stmt->fetchAll();
 }
+
+function getReferenceAgePolicy(PDO $pdo): array
+{
+    $configuration = $pdo->query(
+        'SELECT reference_policy_direction, reference_policy_years FROM library_configuration WHERE id = 1'
+    )->fetch(PDO::FETCH_ASSOC);
+
+    if ($configuration === false) {
+        throw new PDOException('Reference-age policy settings are unavailable.');
+    }
+
+    $direction = $configuration['reference_policy_direction'];
+    $years = $configuration['reference_policy_years'];
+    if (!in_array($direction, ['within', 'at_least'], true) || $years === null || (int) $years < 1) {
+        return ['direction' => null, 'years' => null];
+    }
+
+    return ['direction' => $direction, 'years' => (int) $years];
+}
+
+function assessReferenceAge(?int $publicationYear, array $policy, ?int $currentYear = null): array
+{
+    $currentYear ??= (int) date('Y');
+    if ($publicationYear === null) {
+        return [
+            'status' => 'missing_publication_data',
+            'label' => 'Missing Publication Data',
+            'age' => null,
+            'threshold' => $policy['years'] ?? null,
+            'policy_direction' => $policy['direction'] ?? null,
+            'explanation' => 'A publication year is not recorded, so the reference age cannot be assessed.',
+        ];
+    }
+
+    if ($publicationYear < 1450 || $publicationYear > $currentYear) {
+        return [
+            'status' => 'needs_verification',
+            'label' => 'Needs Verification',
+            'age' => null,
+            'threshold' => $policy['years'] ?? null,
+            'policy_direction' => $policy['direction'] ?? null,
+            'explanation' => 'The recorded publication year is outside the valid range and should be checked.',
+        ];
+    }
+
+    $age = $currentYear - $publicationYear;
+    $direction = $policy['direction'] ?? null;
+    $threshold = $policy['years'] ?? null;
+    if (!in_array($direction, ['within', 'at_least'], true) || !is_int($threshold) || $threshold < 1) {
+        return [
+            'status' => 'needs_verification',
+            'label' => 'Needs Verification',
+            'age' => $age,
+            'threshold' => null,
+            'policy_direction' => null,
+            'explanation' => 'The institution’s reference-age policy has not been configured.',
+        ];
+    }
+
+    $meetsPolicy = $direction === 'within' ? $age <= $threshold : $age >= $threshold;
+    $policyDescription = $direction === 'within'
+        ? "published within the last {$threshold} years"
+        : "at least {$threshold} years old";
+
+    return [
+        'status' => $meetsPolicy ? 'meets_policy' : 'outside_policy',
+        'label' => $meetsPolicy ? 'Meets Policy' : 'Outside Policy',
+        'age' => $age,
+        'threshold' => $threshold,
+        'policy_direction' => $direction,
+        'explanation' => $meetsPolicy
+            ? "The book is {$policyDescription}, as required by the configured reference-age policy."
+            : "The book is not {$policyDescription}, as required by the configured reference-age policy.",
+    ];
+}

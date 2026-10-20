@@ -63,6 +63,21 @@
             return;
         }
 
+        const referenceDirection = form.elements.reference_policy_direction.value;
+        const referenceYears = form.elements.reference_policy_years.value.trim();
+        if (referenceDirection && (!Number.isInteger(Number(referenceYears)) || Number(referenceYears) < 1 || Number(referenceYears) > 1000)) {
+            message.textContent = 'Choose a reference-age rule and enter a threshold from 1 to 1,000 years, or leave both unset.';
+            message.className = 'text-sm text-rose-700';
+            form.elements.reference_policy_years.focus();
+            return;
+        }
+        if (!referenceDirection && referenceYears) {
+            message.textContent = 'Choose a reference-age rule or clear the threshold to leave it unconfigured.';
+            message.className = 'text-sm text-rose-700';
+            form.elements.reference_policy_direction.focus();
+            return;
+        }
+
         if (!form.reportValidity()) {
             return;
         }

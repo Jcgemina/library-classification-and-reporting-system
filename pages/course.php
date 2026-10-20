@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -103,6 +103,31 @@ if ($action !== null) {
                         'meetsBookMinimum' => (int) $course['book_count'] >= $minimumBooksPerCourse,
                     ];
                 }, $stmt->fetchAll());
+
+                if ($courses) {
+                    $courseIds = array_column($courses, 'id');
+                    $placeholders = implode(',', array_fill(0, count($courseIds), '?'));
+                    $bookStatement = $pdo->prepare(
+                        "SELECT bc.course_id, b.book_id, b.title, b.author, b.publication_year
+                         FROM book_courses bc
+                         INNER JOIN books b ON b.book_id = bc.book_id AND b.deleted_at IS NULL
+                         WHERE bc.course_id IN ({$placeholders})
+                         ORDER BY b.title, b.book_id"
+                    );
+                    $bookStatement->execute($courseIds);
+                    $booksByCourse = [];
+                    foreach ($bookStatement->fetchAll(PDO::FETCH_ASSOC) as $book) {
+                        $booksByCourse[(int) $book['course_id']][] = [
+                            'id' => (int) $book['book_id'],
+                            'title' => $book['title'],
+                            'author' => $book['author'],
+                            'year' => $book['publication_year'] !== null ? (int) $book['publication_year'] : null,
+                        ];
+                    }
+                    foreach ($courses as $index => $course) {
+                        $courses[$index]['referencedBooks'] = $booksByCourse[$course['id']] ?? [];
+                    }
+                }
 
                 $counts = [
                     'total' => (int) $pdo->query('SELECT COUNT(*) FROM courses')->fetchColumn(),
@@ -580,4 +605,4 @@ if ($action !== null) {
 
 <div id="courseToastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" role="status"></div>
 
-<script src="assets/js/course.js?v=20261008-2"></script>
+<script src="assets/js/course.js?v=20261020-3"></script>
