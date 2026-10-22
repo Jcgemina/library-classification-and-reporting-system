@@ -1,12 +1,13 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/session.php';
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
 $message = null;
 $error = null;
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim((string)($_POST['email'] ?? ''));
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $emailInput = $_POST['email'] ?? '';
+    $email = is_string($emailInput) ? trim($emailInput) : '';
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Enter a valid email address.';
     } elseif ($pdo) {

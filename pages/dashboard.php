@@ -1,9 +1,9 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=dashboard');
     exit;
 }
@@ -102,7 +102,7 @@ if ($dashboardDataAvailable) {
   foreach ($quarterActualCounts as $index => $completedCount) {
     $quarterMetrics[$index] = [
       'completed' => $completedCount,
-      'percent' => $progressScopeCount > 0 ? (int)round($completedCount / $progressScopeCount * 100) : 0,
+      'percent' => $progressScopeCount > 0 ? (int)round(((float)$completedCount / (float)$progressScopeCount) * 100.0) : 0,
     ];
   }
   ksort($upcomingDeadlines);
@@ -114,7 +114,7 @@ $currentQuarterStartMonth = (($currentQuarterNumber - 1) * 3) + 1;
 $currentQuarterStart = new DateTimeImmutable(sprintf('%d-%02d-01', $currentYear, $currentQuarterStartMonth));
 $currentQuarterEnd = $currentQuarterStart->modify('+3 months')->modify('-1 day');
 $currentQuarterMetric = $quarterMetrics[$currentQuarterNumber - 1];
-$escapeDashboardValue = static fn ($value): string => htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
+$escapeDashboardValue = static fn (mixed $value): string => htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 $copyrightMetricStyles = [
   ['icon' => 'calendar-check', 'iconBorder' => 'border-emerald-200', 'iconBg' => 'bg-emerald-100', 'iconColor' => 'text-emerald-600', 'labelColor' => 'text-emerald-800', 'valueColor' => 'text-emerald-600'],
   ['icon' => 'calendar-clock', 'iconBorder' => 'border-amber-200', 'iconBg' => 'bg-amber-100', 'iconColor' => 'text-amber-600', 'labelColor' => 'text-amber-800', 'valueColor' => 'text-amber-600'],
@@ -137,7 +137,7 @@ $copyrightMetricStyles = [
       <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-rose-800">Total Titles</p></div>
       <p class="text-3xl font-bold leading-none text-slate-950"><?php echo $dashboardDataAvailable ? $totalBookTitles : '&mdash;'; ?></p>
     </a>
-    <?php foreach ($copyrightYearMetrics as $index => $metric): ?>
+    <?php foreach (array_values($copyrightYearMetrics) as $index => $metric): ?>
       <?php $style = $copyrightMetricStyles[$index % count($copyrightMetricStyles)]; ?>
       <a href="app.php?page=inventory" data-page="inventory" class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300">
         <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border <?php echo $style['iconBorder']; ?> <?php echo $style['iconBg']; ?> <?php echo $style['iconColor']; ?>"><i data-lucide="<?php echo $style['icon']; ?>" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight <?php echo $style['labelColor']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> Yrs</p></div>
@@ -168,10 +168,10 @@ $copyrightMetricStyles = [
           <?php foreach ($quarterMetrics as $index => $metric): ?>
             <div>
               <div class="mb-1.5 flex items-center justify-between text-sm">
-                <span class="font-semibold text-slate-700"><?php echo $quarterLabels[$index]; ?></span>
+                <span class="font-semibold text-slate-700">Q<?php echo $index + 1; ?></span>
                 <span class="text-slate-500"><?php echo $metric['completed']; ?> / <?php echo $progressScopeCount; ?> scopes</span>
               </div>
-              <div class="h-2.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="<?php echo $quarterLabels[$index]; ?> verification progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo $metric['percent']; ?>">
+              <div class="h-2.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Q<?php echo $index + 1; ?> verification progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo $metric['percent']; ?>">
                 <div class="h-full rounded-full bg-rose-500 transition-all" style="width: <?php echo $metric['percent']; ?>%"></div>
               </div>
             </div>

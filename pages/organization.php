@@ -1,9 +1,9 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=academics');
     exit;
 }
@@ -16,8 +16,8 @@ function organizationJson(array $payload, int $status = 200): never {
     exit;
 }
 
-$action = $_GET['action'] ?? $_POST['action'] ?? null;
-if ($action !== null) {
+$action = requestString($_GET, 'action', requestString($_POST, 'action'));
+if ($action !== '') {
     if (!$pdo) organizationJson(['success' => false, 'message' => 'Database unavailable.'], 503);
     if (!in_array(strtolower((string)($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)) {
         organizationJson(['success' => false, 'message' => 'Academic access required.'], 403);
@@ -46,8 +46,10 @@ if ($action !== null) {
                 $collegeId = (int) $college['id'];
 
                 $collegeMap[$collegeId] = [
-                    ...$college,
                     'id' => $collegeId,
+                    'name' => $college['name'],
+                    'status' => $college['status'],
+                    'created_at' => $college['created_at'],
                     'programs' => []
                 ];
 
@@ -69,9 +71,11 @@ if ($action !== null) {
                 $collegeId = (int) $program['college_id'];
 
                 $programMap[$programId] = [
-                    ...$program,
                     'id' => $programId,
                     'college_id' => $collegeId,
+                    'name' => $program['name'],
+                    'status' => $program['status'],
+                    'created_at' => $program['created_at'],
                     'majors' => [],
                 ];
 
@@ -109,7 +113,7 @@ if ($action !== null) {
                 ];
             }
 
-            foreach ($programMap as $programId => $program) {
+            foreach ($programMap as $program) {
                 $collegeId = $program['college_id'];
 
                 if (!isset($collegeMap[$collegeId])) {
@@ -153,10 +157,11 @@ if ($action !== null) {
         }
 
         if ($action === 'save_prospectus') {
-            $id = (int)($_POST['id'] ?? 0);
-            $programId = (int)($_POST['program_id'] ?? 0);
-            $majorId = (int)($_POST['major_id'] ?? 0) ?: null;
-            $curriculumYear = trim((string)($_POST['curriculum_year'] ?? ''));
+            $id = requestInt($_POST, 'id');
+            $programId = requestInt($_POST, 'program_id');
+            $majorIdInput = requestInt($_POST, 'major_id');
+            $majorId = $majorIdInput !== 0 ? $majorIdInput : null;
+            $curriculumYear = trim(requestString($_POST, 'curriculum_year'));
             if (!$programId || $curriculumYear === '') organizationJson(['success' => false, 'message' => 'Program and curriculum year are required.'], 422);
             $programCheck = $pdo->prepare('SELECT id FROM programs WHERE id = :id LIMIT 1');
             $programCheck->execute([':id' => $programId]);
@@ -183,14 +188,15 @@ if ($action !== null) {
         if ($action === 'delete_prospectus_record') {
             $passwordStmt = $pdo->prepare('SELECT password FROM users WHERE id = :id AND is_active = 1 LIMIT 1');
             $passwordStmt->execute([':id' => (int)$_SESSION['user_id']]);
-            if (!password_verify((string)($_POST['current_password'] ?? ''), (string)$passwordStmt->fetchColumn())) organizationJson(['success' => false, 'message' => 'The current password is incorrect. Nothing was deleted.'], 403);
+            $storedPassword = $passwordStmt->fetchColumn();
+            if (!is_string($storedPassword) || !password_verify(requestString($_POST, 'current_password'), $storedPassword)) organizationJson(['success' => false, 'message' => 'The current password is incorrect. Nothing was deleted.'], 403);
             $stmt = $pdo->prepare('DELETE FROM prospectuses WHERE id = :id');
-            $stmt->execute([':id' => (int)($_POST['id'] ?? 0)]);
+            $stmt->execute([':id' => requestInt($_POST, 'id')]);
             organizationJson(['success' => true, 'message' => 'Prospectus deleted successfully.']);
         }
 
         if ($action === 'upload_prospectus') {
-            $prospectusId = (int)($_POST['prospectus_id'] ?? 0);
+            $prospectusId = requestInt($_POST, 'prospectus_id');
             $file = $_FILES['prospectus'] ?? null;
             if (!$prospectusId || !$file || $file['error'] !== UPLOAD_ERR_OK || $file['size'] > 10 * 1024 * 1024 || strtolower(pathinfo($file['name'], PATHINFO_EXTENSION)) !== 'pdf') {
                 organizationJson(['success' => false, 'message' => 'Please select a PDF prospectus no larger than 10 MB.'], 422);
@@ -215,7 +221,7 @@ if ($action !== null) {
         }
 
         if ($action === 'delete_prospectus_document') {
-            $prospectusId = (int)($_POST['prospectus_id'] ?? 0);
+            $prospectusId = requestInt($_POST, 'prospectus_id');
             $stmt = $pdo->prepare('SELECT file_path FROM prospectus_documents WHERE prospectus_id = :prospectus_id LIMIT 1');
             $stmt->execute([':prospectus_id' => $prospectusId]);
             $filePath = $stmt->fetchColumn();
@@ -228,8 +234,15 @@ if ($action !== null) {
         }
 
         if ($action === 'create_hierarchy') {
-            $hierarchy = json_decode((string)($_POST['hierarchy'] ?? ''), true);
-            $collegeName = trim((string)($hierarchy['name'] ?? ''));
+            $hierarchy = json_decode(requestString($_POST, 'hierarchy'), true);
+            if (!is_array($hierarchy)) {
+                organizationJson(['success' => false, 'message' => 'The college hierarchy is invalid.'], 422);
+            }
+            $collegeName = trim(is_string($hierarchy['name'] ?? null) ? $hierarchy['name'] : '');
+            $programs = $hierarchy['programs'] ?? [];
+            if (!is_array($programs)) {
+                organizationJson(['success' => false, 'message' => 'The college hierarchy is invalid.'], 422);
+            }
             if ($collegeName === '') organizationJson(['success' => false, 'message' => 'College name is required.'], 422);
 
             $pdo->beginTransaction();
@@ -238,19 +251,28 @@ if ($action !== null) {
                 $stmt->execute([':name' => $collegeName]);
                 $collegeId = (int)$pdo->lastInsertId();
 
-                foreach (($hierarchy['programs'] ?? []) as $program) {
-                        $programName = trim((string)($program['name'] ?? ''));
+                foreach ($programs as $program) {
+                        if (!is_array($program)) {
+                            continue;
+                        }
+                        $programName = trim(is_string($program['name'] ?? null) ? $program['name'] : '');
                         if ($programName === '') continue;
                         $stmt = $pdo->prepare('INSERT INTO programs (college_id, name) VALUES (:college_id, :name)');
                         $stmt->execute([':college_id' => $collegeId, ':name' => $programName]);
                         $programId = (int)$pdo->lastInsertId();
 
-                        foreach (($program['majors'] ?? []) as $major) {
-                            $majorName = trim((string)($major['name'] ?? ''));
+                        $majors = $program['majors'] ?? [];
+                        if (!is_array($majors)) {
+                            continue;
+                        }
+                        foreach ($majors as $major) {
+                            if (!is_array($major)) {
+                                continue;
+                            }
+                            $majorName = trim(is_string($major['name'] ?? null) ? $major['name'] : '');
                             if ($majorName === '') continue;
                             $stmt = $pdo->prepare('INSERT INTO majors (program_id, name) VALUES (:program_id, :name)');
                             $stmt->execute([':program_id' => $programId, ':name' => $majorName]);
-                            $majorId = (int)$pdo->lastInsertId();
                         }
                 }
                 $pdo->commit();
@@ -266,13 +288,16 @@ if ($action !== null) {
             'program' => ['table' => 'programs', 'parent' => 'college_id'],
             'major' => ['table' => 'majors', 'parent' => 'program_id'],
         ];
-        $entity = preg_replace('/^(add|edit|delete|archive)_/', '', $action);
-        $operation = substr($action, 0, strpos($action, '_'));
+        if (preg_match('/\A(add|edit|delete|archive)_(college|program|major|course)\z/', $action, $actionParts) !== 1) {
+            organizationJson(['success' => false, 'message' => 'Unknown organization action.'], 400);
+        }
+        $operation = $actionParts[1];
+        $entity = $actionParts[2];
         if ($entity === 'course') {
             organizationJson(['success' => false, 'message' => 'Courses are managed in the Courses tab.'], 422);
         }
         if ($operation === 'delete') {
-            $currentPassword = (string)($_POST['current_password'] ?? '');
+            $currentPassword = requestString($_POST, 'current_password');
             $passwordStmt = $pdo->prepare('SELECT password FROM users WHERE id = :id AND is_active = 1 LIMIT 1');
             $passwordStmt->execute([':id' => (int)$_SESSION['user_id']]);
             $userPassword = (string)($passwordStmt->fetchColumn() ?: '');
@@ -280,35 +305,9 @@ if ($action !== null) {
                 organizationJson(['success' => false, 'message' => 'The current password is incorrect. Nothing was deleted.'], 403);
             }
         }
-        if ($entity === 'course') {
-            $table = 'courses';
-            $id = (int)($_POST['id'] ?? 0);
-            if ($operation === 'delete') {
-                $stmt = $pdo->prepare('DELETE FROM courses WHERE id = :id');
-                $stmt->execute([':id' => $id]);
-            } else {
-                $name = trim((string)($_POST['name'] ?? ''));
-                $code = strtoupper(trim((string)($_POST['organization_code'] ?? $_POST['code'] ?? '')));
-                $programId = (int)($_POST['program_id'] ?? $_POST['parent_id'] ?? 0);
-                $majorId = (int)($_POST['major_id'] ?? 0) ?: null;
-                if ($name === '' || $code === '' || !$programId) organizationJson(['success' => false, 'message' => 'Course name, code, and program are required.'], 422);
-                if ($operation === 'add') {
-                    $stmt = $pdo->prepare('INSERT INTO courses (program_id, major_id, code, name, description) VALUES (:program_id, :major_id, :code, :name, :description)');
-                } else {
-                    $stmt = $pdo->prepare('UPDATE courses SET program_id = :program_id, major_id = :major_id, code = :code, name = :name, description = :description WHERE id = :id');
-                    $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-                }
-                $stmt->bindValue(':program_id', $programId, PDO::PARAM_INT);
-                $stmt->bindValue(':major_id', $majorId, $majorId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
-                $stmt->bindValue(':code', $code);
-                $stmt->bindValue(':name', $name);
-                $description = trim((string)($_POST['description'] ?? ''));
-                $stmt->bindValue(':description', $description !== '' ? $description : null, $description !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
-                $stmt->execute();
-            }
-        } elseif (isset($entityActions[$entity])) {
+        if (isset($entityActions[$entity])) {
             $config = $entityActions[$entity];
-            $id = (int)($_POST['id'] ?? 0);
+            $id = requestInt($_POST, 'id');
             if ($operation === 'archive') {
                 $stmt = $pdo->prepare("UPDATE {$config['table']} SET status = CASE WHEN status = 'archived' THEN 'active' ELSE 'archived' END WHERE id = :id");
                 $stmt->execute([':id' => $id]);
@@ -334,8 +333,8 @@ if ($action !== null) {
                 $stmt = $pdo->prepare("DELETE FROM {$config['table']} WHERE id = :id");
                 $stmt->execute([':id' => $id]);
             } else {
-                $name = trim((string)($_POST['name'] ?? ''));
-                $status = ($_POST['status'] ?? 'active') === 'archived' ? 'archived' : 'active';
+                $name = trim(requestString($_POST, 'name'));
+                $status = requestString($_POST, 'status', 'active') === 'archived' ? 'archived' : 'active';
                 if ($name === '') organizationJson(['success' => false, 'message' => 'A name is required.'], 422);
                 if ($operation === 'add') {
                     $sql = "INSERT INTO {$config['table']} (" . ($config['parent'] ? $config['parent'] . ', ' : '') . "name, status) VALUES (" . ($config['parent'] ? ':parent_id, ' : '') . ':name, :status)';
@@ -345,7 +344,7 @@ if ($action !== null) {
                 $stmt = $pdo->prepare($sql);
                 $stmt->bindValue(':name', $name);
                 $stmt->bindValue(':status', $status);
-                if ($config['parent']) $stmt->bindValue(':parent_id', (int)($_POST['parent_id'] ?? 0), PDO::PARAM_INT);
+                if ($config['parent']) $stmt->bindValue(':parent_id', requestInt($_POST, 'parent_id'), PDO::PARAM_INT);
                 if ($operation === 'edit') $stmt->bindValue(':id', $id, PDO::PARAM_INT);
                 $stmt->execute();
             }
@@ -533,11 +532,27 @@ if ($action !== null) {
   let organizationData = { colleges: [] };
   function closeDialog(dialog) { dialog?.classList.add('hidden'); dialog?.classList.remove('flex'); }
   function openDialog(dialog) { dialog?.classList.remove('hidden'); dialog?.classList.add('flex'); }
-  function loadProspectusData() {
-      return fetch('pages/organization.php?action=prospectus_data', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(response => response.json()).then(result => {
+  let prospectusDataLoaded = false;
+  let prospectusDataRequest = null;
+  function loadProspectusData(forceRefresh = false) {
+      if (prospectusDataLoaded && !forceRefresh) return Promise.resolve(prospectusData);
+      if (prospectusDataRequest !== null) return prospectusDataRequest;
+
+      prospectusDataRequest = fetch('pages/organization.php?action=prospectus_data', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(response => response.json()).then(result => {
           if (!result.success) throw new Error(result.message);
           prospectusData = result;
+          prospectusDataLoaded = true;
           renderProspectusRecords();
+          return prospectusData;
+      }).finally(() => {
+          prospectusDataRequest = null;
+      });
+  }
+  function refreshLoadedProspectusData() {
+      if (!prospectusDataLoaded) return;
+      loadProspectusData(true).catch(error => {
+          document.getElementById('prospectusStatus').textContent = error.message;
+          toast(`Prospectuses could not be loaded. ${error.message}`, true);
       });
   }
   function renderProspectusRecords() {
@@ -891,9 +906,14 @@ if ($action !== null) {
             lucide.createIcons();
     }
     let organizationLoadToken = 0;
-    function load() {
+    let organizationDataLoaded = false;
+    let organizationDataRequest = null;
+    function load(forceReload = false) {
+        if (organizationDataLoaded && !forceReload) return Promise.resolve(organizationData);
+        if (organizationDataRequest !== null) return organizationDataRequest;
+
         const requestToken = ++organizationLoadToken;
-        fetch(
+        const request = fetch(
             'pages/organization.php?action=list',
             { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
         ).then(response => response.json())
@@ -902,8 +922,10 @@ if ($action !== null) {
                 if (!result.success) throw new Error(result.message);
                 render(result);
                 organizationRecords = result.records || [];
+                organizationDataLoaded = true;
                 renderRecords();
                 setOrganizationStatus(defaultHierarchyStatus);
+                return result;
             })
             .catch(error => {
                 if (requestToken !== organizationLoadToken) return;
@@ -917,6 +939,13 @@ if ($action !== null) {
                     true
                 );
             });
+        const trackedRequest = request.finally(() => {
+            if (organizationDataRequest === trackedRequest) {
+                organizationDataRequest = null;
+            }
+        });
+        organizationDataRequest = trackedRequest;
+        return trackedRequest;
     }
     document.getElementById('addCollegeBtn').onclick = openHierarchyForm;
     tree.onclick = event => {
@@ -1023,6 +1052,7 @@ if ($action !== null) {
   };
   const submit = data => {
       const submitButton = form.querySelector('button[type="submit"]');
+      const submittedAction = data instanceof FormData ? data.get('action') : data.action;
       setBusy(submitButton, true, 'Saving...');
       return fetch('pages/organization.php', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body: data instanceof FormData ? new URLSearchParams(data) : new URLSearchParams(data)})
           .then(r => r.json())
@@ -1030,8 +1060,10 @@ if ($action !== null) {
               if (!result.success) throw new Error(result.message);
               closeOrganizationModal();
               toast(result.message);
-              load();
-              loadProspectusData();
+              if (submittedAction !== 'delete_prospectus_record' && organizationDataLoaded) {
+                  load(true);
+              }
+              refreshLoadedProspectusData();
               return result;
           })
           .catch(e => { toast(e.message, true); throw e; })
@@ -1046,7 +1078,7 @@ if ($action !== null) {
         }
         submit(new FormData(form));
     };
-    retryOrganizationBtn.onclick = load;
+    retryOrganizationBtn.onclick = () => load(true);
         document.getElementById('prospectusSearch').oninput = renderProspectusRecords;
         document.getElementById('prospectusRecordProgram').onchange = event => fillProspectusMajors(event.target.value);
         document.getElementById('addProspectusBtn').onclick = () => { prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = ''; document.getElementById('prospectusRecordFile').required = true; document.getElementById('prospectusRecordYear').value = prospectusData.defaultCurriculumYear; fillProspectusPrograms(); fillProspectusMajors(''); document.getElementById('prospectusModalTitle').textContent = 'Upload Prospectus'; openDialog(document.getElementById('prospectusModal')); };
@@ -1059,7 +1091,7 @@ if ($action !== null) {
             data.append('prospectus', file);
             setBusy(button, true, 'Uploading...');
             fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data })
-                .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)).finally(() => setBusy(button, false));
+                .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(true); }).catch(error => toast(error.message, true)).finally(() => setBusy(button, false));
         };
         prospectusRecordsBody.addEventListener('click', event => {
             const replaceButton = event.target.closest('[data-row-replace]');
@@ -1077,7 +1109,7 @@ if ($action !== null) {
             const removeButton = event.target.closest('[data-delete-prospectus-pdf]');
             if (removeButton && window.confirm('Remove this prospectus PDF?')) {
                 fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_document', prospectus_id: removeButton.dataset.deleteProspectusPdf }) })
-                    .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true));
+                    .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(true); }).catch(error => toast(error.message, true));
             }
         });
             prospectusRecordsBody.addEventListener('change', event => {
@@ -1098,7 +1130,7 @@ if ($action !== null) {
             const button = uploadForm.querySelector('button[type="submit"]');
             setBusy(button, true, 'Uploading...');
             fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data })
-                .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(); }).catch(error => toast(error.message, true)).finally(() => setBusy(button, false));
+                .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(true); }).catch(error => toast(error.message, true)).finally(() => setBusy(button, false));
         });
         prospectusRecordForm.onsubmit = event => {
             event.preventDefault();
@@ -1118,10 +1150,9 @@ if ($action !== null) {
                     upload.append('prospectus', file);
                     return fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: upload }).then(response => response.json()).then(uploadResult => { if (!uploadResult.success) throw new Error(uploadResult.message); return uploadResult; });
                 })
-                .then(result => { closeDialog(document.getElementById('prospectusModal')); toast(result.message); return loadProspectusData(); })
+                .then(result => { closeDialog(document.getElementById('prospectusModal')); toast(result.message); return loadProspectusData(true); })
                 .catch(error => toast(error.message, true));
         };
-        loadProspectusData().catch(error => { document.getElementById('prospectusStatus').textContent = error.message; toast(`Prospectuses could not be loaded. ${error.message}`, true); });
 
     // Academics Tabbing UI logic
     const tabNav = document.getElementById('academicsTabNav');
@@ -1149,6 +1180,15 @@ if ($action !== null) {
                 sessionStorage.setItem('academics_active_tab', tabName);
             } catch (e) {}
 
+            if (tabName === 'prospectus') {
+                loadProspectusData().catch(error => {
+                    document.getElementById('prospectusStatus').textContent = error.message;
+                    toast(`Prospectuses could not be loaded. ${error.message}`, true);
+                });
+            } else {
+                load();
+            }
+
         }
 
         tabButtons.forEach(btn => {
@@ -1168,6 +1208,5 @@ if ($action !== null) {
         activateTab(initialTab);
     }
 
-  load();
 })();
 </script>

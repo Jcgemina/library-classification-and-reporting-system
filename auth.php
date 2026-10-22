@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/session.php';
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
@@ -11,13 +11,21 @@ if (!$pdo) {
 }
 
 // Only accept POST requests
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     header('Location: login.php');
     exit;
 }
 
-$username = trim($_POST['username'] ?? '');
-$password = $_POST['password'] ?? '';
+$usernameInput = $_POST['username'] ?? '';
+$passwordInput = $_POST['password'] ?? '';
+if (!is_string($usernameInput) || !is_string($passwordInput)) {
+    setFlash('Please enter both username and password.');
+    header('Location: login.php');
+    exit;
+}
+
+$username = trim($usernameInput);
+$password = $passwordInput;
 $ip       = getClientIp();
 
 // Basic input validation
@@ -50,7 +58,7 @@ $stmt->execute([':username' => $username]);
 $user = $stmt->fetch();
 
 // Validate password and user status
-if (!$user || !password_verify($password, $user['password']) || (int)$user['is_active'] !== 1) {
+if (!$user || !is_string($user['password'] ?? null) || !password_verify($password, $user['password']) || (int)$user['is_active'] !== 1) {
     recordAttempt($pdo, $username, $ip, false);
     $failedCount = getFailedAttemptCount($pdo, $username, $ip);
     $message = 'Invalid username or password.';
@@ -84,11 +92,6 @@ $_SESSION['username']  = $user['username'];
 $_SESSION['full_name'] = $user['full_name'];
 $_SESSION['role']      = $user['role'];
 $_SESSION['authenticated'] = true;
-
-if (!empty($_POST['remember'])) {
-    // Remember this device
-    setcookie('remember_device', bin2hex(random_bytes(16)), time() + (30 * 24 * 60 * 60), '/', '', false, true);
-}
 
 header('Location: app.php?page=dashboard');
 exit;

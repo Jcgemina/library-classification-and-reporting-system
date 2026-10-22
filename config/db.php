@@ -2,12 +2,20 @@
 $envFile = dirname(__DIR__) . '/.env';
 $environment = [];
 if (is_file($envFile)) {
-    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($lines === false) {
+        throw new RuntimeException('Unable to read the environment configuration file.');
+    }
+    foreach ($lines as $line) {
         $line = trim($line);
         if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
             continue;
         }
-        [$name, $value] = explode('=', $line, 2);
+        $parts = explode('=', $line, 2);
+        if (count($parts) !== 2) {
+            continue;
+        }
+        [$name, $value] = $parts;
         $name = trim($name);
         if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) === 1) {
             $environment[$name] = trim($value, " \t\r\n\"");
@@ -16,7 +24,7 @@ if (is_file($envFile)) {
 }
 $getConfig = static function (string $key, string $default = '') use ($environment): string {
     $value = getenv($key);
-    return $value !== false ? $value : (string) ($environment[$key] ?? $default);
+    return $value !== false ? $value : ($environment[$key] ?? $default);
 };
 
 $DB_HOST = $getConfig('DB_HOST', 'localhost');
@@ -43,4 +51,8 @@ try {
 } catch (PDOException $e) {
     error_log('DB connection error: ' . $e->getMessage());
     $dbConnectionError = 'Sorry, the system is temporarily unavailable. Please try again later.';
+}
+
+if ($pdo === null && $dbConnectionError === null) {
+    throw new RuntimeException('Database initialization did not produce a connection or an error.');
 }

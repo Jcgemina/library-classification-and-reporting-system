@@ -1,9 +1,9 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower((string) $_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=report');
     exit;
 }
@@ -65,7 +65,7 @@ $loadProgressData = static function (PDO $pdo, int $year): array {
             foreach (['Q1', 'Q2', 'Q3', 'Q4'] as $quarter) {
                 $quarterKey = strtolower($quarter);
                 $updatedValue = $progress[$quarterKey . '_updated_month'] ?? null;
-                $updatedMonths[$quarter] = $updatedValue ? substr((string) $updatedValue, 0, 7) : '';
+                $updatedMonths[$quarter] = $updatedValue !== null && $updatedValue !== '' ? substr((string) $updatedValue, 0, 7) : '';
                 $actuals[$quarter] = (bool) ($progress[$quarterKey . '_actual'] ?? false);
             }
 
@@ -93,7 +93,7 @@ $loadProgressData = static function (PDO $pdo, int $year): array {
     ];
 };
 
-$action = (string) ($_GET['action'] ?? '');
+$action = requestString($_GET, 'action');
 if ($action !== '') {
     header('Content-Type: application/json; charset=utf-8');
     if (!$pdo instanceof PDO) {
@@ -121,7 +121,7 @@ if ($action !== '') {
     }
 
     if ($action === 'save') {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
             http_response_code(405);
             header('Allow: POST');
             echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
@@ -243,7 +243,6 @@ if ($action !== '') {
     exit;
 }
 
-$escapeReportValue = static fn ($value): string => htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
 ?>
 
 <div class="space-y-5 p-1 text-slate-900 sm:p-2">

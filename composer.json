@@ -1,5 +1,11 @@
 {
     "require": {
         "phpmailer/phpmailer": "^7.1"
+    },
+    "require-dev": {
+        "laramint/php-security-scanner": "^0.1.0",
+        "enlightn/security-checker": "^2.0",
+        "vimeo/psalm": "^6.20",
+        "phpbench/phpbench": "^1.7"
     }
 }

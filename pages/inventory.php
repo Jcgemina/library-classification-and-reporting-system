@@ -1,9 +1,9 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=inventory');
     exit;
 }
@@ -29,18 +29,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
   if (!in_array(strtolower((string)($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)) {
     inventoryJsonResponse(['success' => false, 'message' => 'You do not have permission to add books.'], 403);
   }
-  if (!hash_equals($csrfToken, (string)($_POST['csrf_token'] ?? ''))) {
+  if (!hash_equals($csrfToken, requestString($_POST, 'csrf_token'))) {
     inventoryJsonResponse(['success' => false, 'message' => 'Your session has expired. Reload the page and try again.'], 403);
   }
 
-  $title = trim((string)($_POST['title'] ?? ''));
-  $author = trim((string)($_POST['author'] ?? ''));
-  $isbn = trim((string)($_POST['isbn'] ?? ''));
-  $publisher = trim((string)($_POST['publisher'] ?? ''));
-  $description = trim((string)($_POST['description'] ?? ''));
-  $publicationYearInput = trim((string)($_POST['publication_year'] ?? ''));
-  $copyrightYearInput = trim((string)($_POST['copyright_year'] ?? ''));
-  $copyCount = filter_var($_POST['copy_count'] ?? null, FILTER_VALIDATE_INT);
+  $title = trim(requestString($_POST, 'title'));
+  $author = trim(requestString($_POST, 'author'));
+  $isbn = trim(requestString($_POST, 'isbn'));
+  $publisher = trim(requestString($_POST, 'publisher'));
+  $description = trim(requestString($_POST, 'description'));
+  $publicationYearInput = trim(requestString($_POST, 'publication_year'));
+  $copyrightYearInput = trim(requestString($_POST, 'copyright_year'));
+  $copyCount = filter_var(requestString($_POST, 'copy_count'), FILTER_VALIDATE_INT);
   $currentYear = (int)date('Y');
   $publicationYear = $publicationYearInput === '' ? null : filter_var($publicationYearInput, FILTER_VALIDATE_INT);
   $copyrightYear = $copyrightYearInput === '' ? null : filter_var($copyrightYearInput, FILTER_VALIDATE_INT);
@@ -92,17 +92,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
   }
 }
 
-$inventoryAction = (string)($_POST['action'] ?? '');
+$inventoryAction = requestString($_POST, 'action');
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($inventoryAction, ['update_book', 'delete_book', 'restore_book', 'add_reference', 'edit_reference', 'remove_reference'], true)) {
   if (!$pdo instanceof PDO) inventoryJsonResponse(['success' => false, 'message' => 'The database is unavailable.'], 503);
   if (!in_array(strtolower((string)($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)) {
     inventoryJsonResponse(['success' => false, 'message' => 'You do not have permission to manage books.'], 403);
   }
-  if (!hash_equals($csrfToken, (string)($_POST['csrf_token'] ?? ''))) {
+  if (!hash_equals($csrfToken, requestString($_POST, 'csrf_token'))) {
     inventoryJsonResponse(['success' => false, 'message' => 'Your session has expired. Reload the page and try again.'], 403);
   }
 
-  $bookId = filter_var($_POST['book_id'] ?? null, FILTER_VALIDATE_INT);
+  $bookId = filter_var(requestString($_POST, 'book_id'), FILTER_VALIDATE_INT);
   if ($bookId === false || $bookId < 1) inventoryJsonResponse(['success' => false, 'message' => 'Choose a valid book.'], 422);
 
   try {
@@ -126,7 +126,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($inventoryActio
     }
 
     if ($inventoryAction === 'add_reference') {
-      $courseId = filter_var($_POST['course_id'] ?? null, FILTER_VALIDATE_INT);
+      $courseId = filter_var(requestString($_POST, 'course_id'), FILTER_VALIDATE_INT);
       if ($courseId === false || $courseId < 1) inventoryJsonResponse(['success' => false, 'message' => 'Choose a valid course.'], 422);
       $stmt = $pdo->prepare('INSERT INTO book_courses (book_id, course_id) SELECT b.book_id, c.id FROM books b INNER JOIN courses c ON c.id = :course_id AND c.status = \'active\' WHERE b.book_id = :book_id AND b.deleted_at IS NULL');
       $stmt->execute([':book_id' => $bookId, ':course_id' => $courseId]);
@@ -147,7 +147,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($inventoryActio
         inventoryJsonResponse(['success' => true, 'message' => 'Course reference removed.']);
       }
 
-      $newCourseId = filter_var($_POST['new_course_id'] ?? null, FILTER_VALIDATE_INT);
+      $newCourseId = filter_var(requestString($_POST, 'new_course_id'), FILTER_VALIDATE_INT);
       if ($newCourseId === false || $newCourseId < 1) inventoryJsonResponse(['success' => false, 'message' => 'Choose a new course.'], 422);
       $activeCourseStmt = $pdo->prepare('SELECT 1 FROM courses WHERE id = :course_id AND status = \'active\'');
       $activeCourseStmt->execute([':course_id' => $newCourseId]);
@@ -158,14 +158,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($inventoryActio
       inventoryJsonResponse(['success' => true, 'message' => 'Course reference updated.']);
     }
 
-    $title = trim((string)($_POST['title'] ?? ''));
-    $author = trim((string)($_POST['author'] ?? ''));
-    $isbn = trim((string)($_POST['isbn'] ?? ''));
-    $publisher = trim((string)($_POST['publisher'] ?? ''));
-    $description = trim((string)($_POST['description'] ?? ''));
-    $publicationYearInput = trim((string)($_POST['publication_year'] ?? ''));
-    $copyrightYearInput = trim((string)($_POST['copyright_year'] ?? ''));
-    $copyCount = filter_var($_POST['copy_count'] ?? null, FILTER_VALIDATE_INT);
+    $title = trim(requestString($_POST, 'title'));
+    $author = trim(requestString($_POST, 'author'));
+    $isbn = trim(requestString($_POST, 'isbn'));
+    $publisher = trim(requestString($_POST, 'publisher'));
+    $description = trim(requestString($_POST, 'description'));
+    $publicationYearInput = trim(requestString($_POST, 'publication_year'));
+    $copyrightYearInput = trim(requestString($_POST, 'copyright_year'));
+    $copyCount = filter_var(requestString($_POST, 'copy_count'), FILTER_VALIDATE_INT);
     $currentYear = (int)date('Y');
     $publicationYear = $publicationYearInput === '' ? null : filter_var($publicationYearInput, FILTER_VALIDATE_INT);
     $copyrightYear = $copyrightYearInput === '' ? null : filter_var($copyrightYearInput, FILTER_VALIDATE_INT);
@@ -230,9 +230,12 @@ $activeBooks = [];
 $archivedBooks = [];
 $activeCourses = [];
 $inventorySchemaAvailable = false;
-$escapeInventory = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$escapeInventory = static fn(mixed $value): string => htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $shortBookTitle = static function (string $title): string {
-  $words = preg_split('/\s+/', trim($title), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+  $words = preg_split('/\s+/', trim($title), -1, PREG_SPLIT_NO_EMPTY);
+  if ($words === false) {
+    return $title;
+  }
   $words = array_values(array_filter($words, static fn($word): bool => preg_match('/[\pL\pN]/u', $word) === 1));
   return count($words) > 3 ? implode(' ', array_slice($words, 0, 3)) . '...' : $title;
 };
@@ -309,7 +312,7 @@ $copyrightMetricStyles = [
       <div class="flex items-center gap-2"><span class="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700"><i data-lucide="library" class="h-4 w-4"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800">Total Volumes</p></div>
       <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-950"><?php echo $totalBookCopies; ?></p>
     </div>
-    <?php foreach ($copyrightYearMetrics as $index => $metric): ?>
+    <?php foreach (array_values($copyrightYearMetrics) as $index => $metric): ?>
       <?php $style = $copyrightMetricStyles[$index % count($copyrightMetricStyles)]; ?>
       <div class="flex h-[76px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm">
         <div class="flex items-center gap-2"><span class="flex h-7 w-7 items-center justify-center rounded-lg <?php echo $style['iconBg']; ?> <?php echo $style['iconColor']; ?>"><i data-lucide="<?php echo $style['icon']; ?>" class="h-4 w-4"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] <?php echo $style['labelColor']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> Yrs</p></div>

@@ -1,7 +1,5 @@
 <?php
-if (!isset($currentPage)) {
-    $currentPage = $_GET['page'] ?? 'dashboard';
-}
+$currentPage = $_GET['page'] ?? 'dashboard';
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $isValidatedUser = !empty($_SESSION['authenticated']) && !empty($_SESSION['user_id']);

@@ -38,6 +38,24 @@ function getClientIp(): string {
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 
+function requestString(array $source, string $key, string $fallback = ''): string {
+    $value = $source[$key] ?? null;
+    return is_string($value) ? $value : $fallback;
+}
+
+function requestInt(array $source, string $key, int $fallback = 0): int {
+    $value = $source[$key] ?? null;
+    if (is_int($value)) {
+        return $value;
+    }
+    if (!is_string($value)) {
+        return $fallback;
+    }
+
+    $validated = filter_var($value, FILTER_VALIDATE_INT);
+    return $validated === false ? $fallback : $validated;
+}
+
 function isRateLimited(PDO $pdo, string $username, string $ip): int {
     $stmt = $pdo->prepare('SELECT COUNT(*) AS failed_count, UNIX_TIMESTAMP(MAX(attempted_at)) AS last_attempt FROM login_attempts WHERE (username = :username OR ip_address = :ip) AND success = 0');
     $stmt->execute([':username' => $username, ':ip' => $ip]);
@@ -72,7 +90,7 @@ function recordAttempt(PDO $pdo, string $username, string $ip, bool $success): v
 
 function recordSecurityLog(PDO $pdo, ?int $userId, ?string $username, string $eventType, string $severity, string $description, string $ip): void {
     $stmt = $pdo->prepare('INSERT INTO security_logs (user_id, username, event_type, severity, description, ip_address, user_agent) VALUES (:user_id, :username, :event_type, :severity, :description, :ip_address, :user_agent)');
-    $stmt->execute([':user_id' => $userId, ':username' => $username, ':event_type' => $eventType, ':severity' => $severity, ':description' => $description, ':ip_address' => $ip, ':user_agent' => substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255)]);
+    $stmt->execute([':user_id' => $userId, ':username' => $username, ':event_type' => $eventType, ':severity' => $severity, ':description' => $description, ':ip_address' => $ip, ':user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255)]);
 }
 
 function hasRecentSecurityLog(PDO $pdo, string $ip, string $eventType, int $seconds): bool {
@@ -111,9 +129,18 @@ function setFlash(string $message, bool $isLockout = false, ?int $attemptCount =
     $_SESSION['flash_attempts'] = $attemptCount;
 }
 
+/**
+ * @return array{message: ?string, locked: bool, attempts: ?int}
+ */
 function getFlash(): array {
     if (!empty($_SESSION['flash_error'])) {
-        $result = ['message' => $_SESSION['flash_error'], 'locked' => !empty($_SESSION['flash_locked']), 'attempts' => $_SESSION['flash_attempts'] ?? null];
+        $message = $_SESSION['flash_error'];
+        $attempts = $_SESSION['flash_attempts'] ?? null;
+        $result = [
+            'message' => is_string($message) ? $message : null,
+            'locked' => !empty($_SESSION['flash_locked']),
+            'attempts' => is_int($attempts) ? $attempts : null,
+        ];
         unset($_SESSION['flash_error'], $_SESSION['flash_locked'], $_SESSION['flash_attempts']);
         return $result;
     }
@@ -128,10 +155,16 @@ function environmentValue(string $key, string $fallback = ''): string {
         $env = [];
         $envFile = dirname(__DIR__) . '/.env';
         if (is_file($envFile)) {
-            foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if ($lines === false) {
+                throw new RuntimeException('Unable to read the environment configuration file.');
+            }
+            foreach ($lines as $line) {
                 $line = trim($line);
                 if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) continue;
-                [$name, $setting] = explode('=', $line, 2);
+                $parts = explode('=', $line, 2);
+                if (count($parts) !== 2) continue;
+                [$name, $setting] = $parts;
                 $env[trim($name)] = trim($setting, " \t\r\n\"");
             }
         }

@@ -67,7 +67,7 @@ function aiCourseSourceHash(string $kind, string $text, string $model): string
     return hash('sha256', $kind . "\n" . $model . "\n" . $text);
 }
 
-function aiCourseValidateVector($values, ?int $expectedDimensions = null): array
+function aiCourseValidateVector(mixed $values, ?int $expectedDimensions = null): array
 {
     if (!is_array($values) || $values === [] || !array_is_list($values)) {
         throw new AiCourseException('invalid_embedding', 'The AI service returned an invalid embedding.');
@@ -104,6 +104,8 @@ function aiCourseCosineSimilarity(array $left, array $right): float
         if ((!is_int($leftValue) && !is_float($leftValue)) || (!is_int($rightValue) && !is_float($rightValue))) {
             throw new InvalidArgumentException('Embedding values must be numeric.');
         }
+        $leftValue = (float)$leftValue;
+        $rightValue = (float)$rightValue;
         $dot += $leftValue * $rightValue;
         $leftMagnitude += $leftValue * $leftValue;
         $rightMagnitude += $rightValue * $rightValue;
@@ -126,6 +128,9 @@ function aiCourseCallEmbedding(string $text, array $config): array
 
     $responseBody = '';
     $curl = curl_init($url);
+    if ($curl === false) {
+        throw new AiCourseException('provider_unavailable', 'The AI service could not be reached. Try again shortly.', true);
+    }
     curl_setopt_array($curl, [
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $payload,
@@ -137,7 +142,7 @@ function aiCourseCallEmbedding(string $text, array $config): array
         CURLOPT_TIMEOUT => $config['timeout'],
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-        CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use (&$responseBody): int {
+        CURLOPT_WRITEFUNCTION => static function (CurlHandle $handle, string $chunk) use (&$responseBody): int {
             if (strlen($responseBody) + strlen($chunk) > 2 * 1024 * 1024) {
                 return 0;
             }
@@ -175,7 +180,7 @@ function aiCourseCallEmbedding(string $text, array $config): array
     return aiCourseValidateVector($decoded['embedding']['values'] ?? null);
 }
 
-function aiCourseValidateRelevanceReviews($results, array $candidateIds): array
+function aiCourseValidateRelevanceReviews(mixed $results, array $candidateIds): array
 {
     if (!is_array($results) || !array_is_list($results) || count($results) !== count($candidateIds)) {
         throw new AiCourseException('relevance_response_invalid', 'The relevance check returned an incomplete result.', true);
@@ -248,6 +253,9 @@ function aiCourseReviewCandidates(array $book, array $candidates, array $config)
         . rawurlencode($config['relevance_model']) . ':generateContent';
     $responseBody = '';
     $curl = curl_init($url);
+    if ($curl === false) {
+        throw new AiCourseException('provider_unavailable', 'The relevance check could not reach the AI service.', true);
+    }
     curl_setopt_array($curl, [
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
@@ -259,7 +267,7 @@ function aiCourseReviewCandidates(array $book, array $candidates, array $config)
         CURLOPT_TIMEOUT => $config['timeout'],
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-        CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use (&$responseBody): int {
+        CURLOPT_WRITEFUNCTION => static function (CurlHandle $handle, string $chunk) use (&$responseBody): int {
             if (strlen($responseBody) + strlen($chunk) > 2 * 1024 * 1024) {
                 return 0;
             }
@@ -294,6 +302,9 @@ function aiCourseReviewCandidates(array $book, array $candidates, array $config)
         $content = $decoded['candidates'][0]['content']['parts'][0]['text'] ?? null;
         $review = is_string($content) ? json_decode($content, true, 64, JSON_THROW_ON_ERROR) : null;
     } catch (JsonException $exception) {
+        throw new AiCourseException('relevance_response_invalid', 'The relevance check returned invalid data.', true);
+    }
+    if (!is_array($review)) {
         throw new AiCourseException('relevance_response_invalid', 'The relevance check returned invalid data.', true);
     }
     return aiCourseValidateRelevanceReviews($review['results'] ?? null, $candidateIds);
@@ -393,7 +404,7 @@ function aiCourseClaimJob(PDO $pdo): ?array
     try {
         $stmt = $pdo->query("SELECT * FROM ai_jobs WHERE (status = 'queued' AND available_at <= NOW()) OR (status = 'processing' AND locked_until < NOW()) ORDER BY id LIMIT 1 FOR UPDATE");
         $job = $stmt->fetch();
-        if (!$job) {
+        if ($job === null) {
             $pdo->commit();
             return null;
         }
@@ -419,7 +430,8 @@ function aiCourseRecordJobFailure(PDO $pdo, array $job, AiCourseException $excep
         return;
     }
 
-    $delay = min(3600, 15 * (2 ** max(0, $attempts - 1))) + random_int(0, 10);
+    $backoffExponent = min(8, max(0, $attempts - 1));
+    $delay = min(3600, 15 * (1 << $backoffExponent)) + random_int(0, 10);
     $stmt = $pdo->prepare("UPDATE ai_jobs SET status = 'queued', available_at = DATE_ADD(NOW(), INTERVAL :delay SECOND), locked_until = NULL, last_error = :error WHERE id = :id");
     $stmt->bindValue(':delay', $delay, PDO::PARAM_INT);
     $stmt->bindValue(':error', $exception->errorKey, PDO::PARAM_STR);
@@ -443,7 +455,7 @@ function aiCourseGenerateEmbedding(PDO $pdo, string $kind, int $id, array $confi
 {
     if ($kind === 'book') {
         $record = aiCourseFetchBook($pdo, $id);
-        if (!$record) {
+        if ($record === null) {
             throw new AiCourseException('book_unavailable', 'The book is no longer available.');
         }
         $text = aiCourseBookText($record);
@@ -452,7 +464,7 @@ function aiCourseGenerateEmbedding(PDO $pdo, string $kind, int $id, array $confi
         $stmt = $pdo->prepare('SELECT id, code, name, description FROM courses WHERE id = :id');
         $stmt->execute([':id' => $id]);
         $record = $stmt->fetch();
-        if (!$record) {
+        if ($record === null) {
             throw new AiCourseException('course_unavailable', 'The course is no longer available.');
         }
         $text = aiCourseCourseText($record);
@@ -466,14 +478,14 @@ function aiCourseGenerateEmbedding(PDO $pdo, string $kind, int $id, array $confi
     $vector = aiCourseCallEmbedding($text, $config);
     if ($kind === 'book') {
         $latest = aiCourseFetchBook($pdo, $id);
-        $latestText = $latest ? aiCourseBookText($latest) : '';
+        $latestText = $latest !== null ? aiCourseBookText($latest) : '';
     } else {
         $latestStmt = $pdo->prepare('SELECT id, code, name, description FROM courses WHERE id = :id');
         $latestStmt->execute([':id' => $id]);
         $latest = $latestStmt->fetch() ?: null;
-        $latestText = $latest ? aiCourseCourseText($latest) : '';
+        $latestText = $latest !== null ? aiCourseCourseText($latest) : '';
     }
-    if (!$latest) {
+    if ($latest === null) {
         throw new AiCourseException($kind . '_unavailable', 'The catalog record is no longer available.');
     }
     $latestHash = aiCourseSourceHash($kind . '-v1', $latestText, $config['embedding_model']);
@@ -524,7 +536,7 @@ function aiCourseLoadRun(PDO $pdo, int $runId): ?array
     $runStmt = $pdo->prepare('SELECT id, book_id, embedding_model, book_source_hash, course_catalog_hash, created_at FROM book_course_suggestion_runs WHERE id = :id');
     $runStmt->execute([':id' => $runId]);
     $run = $runStmt->fetch();
-    if (!$run) {
+    if ($run === null) {
         return null;
     }
 
@@ -546,7 +558,7 @@ function aiCourseLoadRun(PDO $pdo, int $runId): ?array
 function aiCourseFindCurrentRun(PDO $pdo, int $bookId, array $config): ?array
 {
     $book = aiCourseFetchBook($pdo, $bookId);
-    if (!$book) {
+    if ($book === null) {
         return null;
     }
     $bookHash = aiCourseSourceHash('book-v1', aiCourseBookText($book), $config['embedding_model']);
@@ -587,7 +599,7 @@ function aiCourseProcessJob(PDO $pdo, array $job, array $config): void
 
     $bookId = (int)$job['book_id'];
     $book = aiCourseFetchBook($pdo, $bookId);
-    if (!$book) {
+    if ($book === null) {
         aiCourseCancelJob($pdo, $jobId, 'book_unavailable');
         return;
     }
@@ -645,12 +657,11 @@ function aiCourseProcessJob(PDO $pdo, array $job, array $config): void
     $reviews = aiCourseReviewCandidates($book, $reviewInput, $config);
     $filteredCandidates = aiCourseFilterRelevantCandidates($candidatePool, $reviews, $config['top_k']);
     $candidatePool = $filteredCandidates['reviewed'];
-    $ranked = $filteredCandidates['relevant'];
 
     $currentBook = aiCourseFetchBook($pdo, $bookId);
     $currentCourses = aiCourseFetchActiveCourses($pdo);
     $currentBookLinksHash = aiCourseBookReferenceFingerprint($pdo, $bookId);
-    if (!$currentBook
+    if ($currentBook === null
         || !hash_equals($bookHash, aiCourseSourceHash('book-v1', aiCourseBookText($currentBook), $config['embedding_model']))
         || !hash_equals($catalogHash, aiCourseCatalogFingerprint($currentCourses, $config['embedding_model']))
         || !hash_equals($bookLinksHash, $currentBookLinksHash)) {

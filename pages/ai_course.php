@@ -1,10 +1,10 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/ai_course_service.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=inventory');
     exit;
 }
@@ -27,14 +27,14 @@ if (!in_array(strtolower((string)($_SESSION['role'] ?? '')), ['admin', 'libraria
     aiCourseApiResponse(['success' => false, 'message' => 'You do not have permission to manage AI course suggestions.'], 403);
 }
 
-$action = (string)($_GET['action'] ?? $_POST['action'] ?? '');
-$method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+$action = requestString($_GET, 'action', requestString($_POST, 'action'));
+$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 if (in_array($action, ['request_suggestions', 'approve', 'dismiss'], true)) {
     if ($method !== 'POST') {
         aiCourseApiResponse(['success' => false, 'message' => 'Use POST for this action.'], 405);
     }
-    $expectedToken = (string)($_SESSION['inventory_csrf'] ?? '');
-    $submittedToken = (string)($_POST['csrf_token'] ?? '');
+    $expectedToken = is_string($_SESSION['inventory_csrf'] ?? null) ? $_SESSION['inventory_csrf'] : '';
+    $submittedToken = requestString($_POST, 'csrf_token');
     if ($expectedToken === '' || !hash_equals($expectedToken, $submittedToken)) {
         aiCourseApiResponse(['success' => false, 'message' => 'Your session has expired. Reload Inventory and try again.'], 403);
     }
@@ -47,7 +47,7 @@ try {
         if ($bookId === false || $bookId < 1) {
             aiCourseApiResponse(['success' => false, 'message' => 'Choose a valid book.'], 422);
         }
-        if (!aiCourseFetchBook($pdo, $bookId)) {
+        if (aiCourseFetchBook($pdo, $bookId) === null) {
             aiCourseApiResponse(['success' => false, 'message' => 'This book is unavailable for suggestions.'], 404);
         }
 
@@ -83,7 +83,7 @@ try {
         $stmt = $pdo->prepare('SELECT id, book_id, requested_by, result_run_id, status, attempts, last_error FROM ai_jobs WHERE id = :id AND requested_by = :user_id');
         $stmt->execute([':id' => $jobId, ':user_id' => (int)$_SESSION['user_id']]);
         $job = $stmt->fetch();
-        if (!$job) {
+        if ($job === null) {
             aiCourseApiResponse(['success' => false, 'message' => 'This suggestion request is unavailable.'], 404);
         }
 
@@ -117,7 +117,7 @@ try {
         }
 
         $run = aiCourseLoadRun($pdo, $runId);
-        if (!$run) {
+        if ($run === null) {
             aiCourseApiResponse(['success' => false, 'message' => 'This suggestion is no longer available.'], 404);
         }
         $config = aiCourseConfig();

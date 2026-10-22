@@ -1,15 +1,15 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower((string) $_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=course');
     exit;
 }
 
 requireLogin();
-$courseCsvEnabled = false;
+$courseCsvEnabled = filter_var(environmentValue('COURSE_CSV_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN);
 
 function courseJson(array $payload, int $status = 200): never
 {
@@ -40,10 +40,10 @@ if ($action !== null) {
                     courseJson(['success' => false, 'message' => 'Course readiness settings are unavailable. Check the latest schema.sql.'], 503);
                 }
 
-                $search = trim((string) ($_GET['search'] ?? ''));
-                $status = (string) ($_GET['status'] ?? 'all');
-                $collegeId = (int) ($_GET['college_id'] ?? 0);
-                $programId = (int) ($_GET['program_id'] ?? 0);
+                $search = trim(requestString($_GET, 'search'));
+                $status = requestString($_GET, 'status', 'all');
+                $collegeId = requestInt($_GET, 'college_id');
+                $programId = requestInt($_GET, 'program_id');
                 $where = [];
                 $params = [];
 
@@ -145,11 +145,13 @@ if ($action !== null) {
                 courseJson(['success' => true, 'colleges' => $colleges, 'programs' => $programs, 'majors' => $majors]);
 
             case 'delete':
-                $id = (int) ($_POST['id'] ?? 0);
+                $id = requestInt($_POST, 'id');
                 $passwordStmt = $pdo->prepare('SELECT password FROM users WHERE id = :id AND is_active = 1 LIMIT 1');
                 $passwordStmt->execute([':id' => (int) $_SESSION['user_id']]);
 
-                if (!password_verify((string) ($_POST['current_password'] ?? ''), (string) $passwordStmt->fetchColumn())) {
+                $storedPassword = $passwordStmt->fetchColumn();
+                $currentPassword = requestString($_POST, 'current_password');
+                if (!is_string($storedPassword) || !password_verify($currentPassword, $storedPassword)) {
                     courseJson(['success' => false, 'message' => 'The current password is incorrect. Nothing was deleted.'], 403);
                 }
 
@@ -159,7 +161,7 @@ if ($action !== null) {
                 courseJson(['success' => true, 'message' => 'Course deleted successfully.']);
 
             case 'toggle_status':
-                $id = (int) ($_POST['id'] ?? 0);
+                $id = requestInt($_POST, 'id');
                 $stmt = $pdo->prepare("UPDATE courses SET status = CASE WHEN status = 'active' THEN 'inactive' ELSE 'active' END WHERE id = :id");
                 $stmt->execute([':id' => $id]);
 
@@ -175,7 +177,7 @@ if ($action !== null) {
                     courseJson(['success' => false, 'message' => 'Choose a CSV file to import.'], 422);
                 }
 
-                $uploadError = (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE);
+                $uploadError = $upload['error'] ?? UPLOAD_ERR_NO_FILE;
                 if ($uploadError !== UPLOAD_ERR_OK) {
                     $message = match ($uploadError) {
                         UPLOAD_ERR_NO_FILE => 'Choose a CSV file to import.',
@@ -186,27 +188,27 @@ if ($action !== null) {
                     courseJson(['success' => false, 'message' => $message], 422);
                 }
 
-                if (($upload['size'] ?? 0) > 5 * 1024 * 1024 || !is_uploaded_file((string) ($upload['tmp_name'] ?? ''))) {
+                if (($upload['size'] ?? 0) > 5 * 1024 * 1024 || !is_uploaded_file($upload['tmp_name'] ?? '')) {
                     courseJson(['success' => false, 'message' => 'The CSV file is invalid or exceeds the 5 MB limit.'], 422);
                 }
 
-                $handle = fopen((string) $upload['tmp_name'], 'rb');
+                $handle = fopen($upload['tmp_name'], 'rb');
                 if ($handle === false) {
                     courseJson(['success' => false, 'message' => 'Unable to read the uploaded CSV file.'], 422);
                 }
 
                 $headers = fgetcsv($handle, null, ',', '"', '');
-                if ($headers === false || $headers === [null]) {
+                if (!is_array($headers) || $headers === [null]) {
                     fclose($handle);
                     courseJson(['success' => false, 'message' => 'The CSV file must include a header row.'], 422);
                 }
 
-                $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $headers[0]);
+                $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $headers[0]) ?? '';
                 $aliases = ['course_code' => 'code', 'course_name' => 'name'];
                 $indexes = [];
                 foreach ($headers as $index => $header) {
-                    $header = strtolower(trim((string) $header));
-                    $header = preg_replace('/[\s-]+/', '_', $header);
+                    $header = strtolower(trim(is_string($header) ? $header : ''));
+                    $header = preg_replace('/[\s-]+/', '_', $header) ?? '';
                     $header = $aliases[$header] ?? $header;
                     if ($header !== '' && isset($indexes[$header])) {
                         fclose($handle);
@@ -237,7 +239,7 @@ if ($action !== null) {
 
                 while (($values = fgetcsv($handle, null, ',', '"', '')) !== false) {
                     $rowNumber++;
-                    if ($values === [null] || count(array_filter($values, static fn ($value): bool => trim((string) $value) !== '')) === 0) {
+                    if ($values === null || $values === [null] || count(array_filter($values, static fn (mixed $value): bool => is_string($value) && trim($value) !== '')) === 0) {
                         continue;
                     }
 
@@ -247,7 +249,10 @@ if ($action !== null) {
                         break;
                     }
 
-                    $value = static fn (string $column): string => trim((string) ($values[$indexes[$column] ?? -1] ?? ''));
+                    $value = static function (string $column) use ($values, $indexes): string {
+                        $index = $indexes[$column] ?? null;
+                        return $index === null ? '' : trim($values[$index] ?? '');
+                    };
                     $code = strtoupper($value('code'));
                     $name = $value('name');
                     $programIdValue = $value('program_id');
@@ -363,13 +368,15 @@ if ($action !== null) {
                 courseJson(['success' => true, 'message' => count($rows) . ' courses imported successfully.']);
 
             case 'save':
-                $id = (int) ($_POST['id'] ?? 0);
-                $code = strtoupper(trim((string) ($_POST['code'] ?? '')));
-                $name = trim((string) ($_POST['name'] ?? ''));
-                $programId = (int) ($_POST['program_id'] ?? 0) ?: null;
-                $majorId = (int) ($_POST['major_id'] ?? 0) ?: null;
-                $status = ($_POST['status'] ?? 'active') === 'inactive' ? 'inactive' : 'active';
-                $description = trim((string) ($_POST['description'] ?? ''));
+                $id = requestInt($_POST, 'id');
+                $code = strtoupper(trim(requestString($_POST, 'code')));
+                $name = trim(requestString($_POST, 'name'));
+                $programIdInput = requestInt($_POST, 'program_id');
+                $programId = $programIdInput !== 0 ? $programIdInput : null;
+                $majorIdInput = requestInt($_POST, 'major_id');
+                $majorId = $majorIdInput !== 0 ? $majorIdInput : null;
+                $status = requestString($_POST, 'status', 'active') === 'inactive' ? 'inactive' : 'active';
+                $description = trim(requestString($_POST, 'description'));
 
                 if ($programId === null) {
                     courseJson(['success' => false, 'message' => 'A program assignment is required for every course.'], 422);
@@ -383,17 +390,11 @@ if ($action !== null) {
                     courseJson(['success' => false, 'message' => 'Course code must contain 1 to 30 letters or numbers.'], 422);
                 }
 
-                if ($majorId !== null && $programId === null) {
-                    courseJson(['success' => false, 'message' => 'A major requires a program assignment.'], 422);
-                }
+                $programCheck = $pdo->prepare('SELECT id FROM programs WHERE id = :id LIMIT 1');
+                $programCheck->execute([':id' => $programId]);
 
-                if ($programId !== null) {
-                    $programCheck = $pdo->prepare('SELECT id FROM programs WHERE id = :id LIMIT 1');
-                    $programCheck->execute([':id' => $programId]);
-
-                    if (!$programCheck->fetchColumn()) {
-                        courseJson(['success' => false, 'message' => 'The selected program does not exist.'], 422);
-                    }
+                if (!$programCheck->fetchColumn()) {
+                    courseJson(['success' => false, 'message' => 'The selected program does not exist.'], 422);
                 }
 
                 if ($majorId !== null) {
@@ -412,7 +413,7 @@ if ($action !== null) {
                     $stmt = $pdo->prepare('INSERT INTO courses (program_id, major_id, code, name, description, status) VALUES (:program_id, :major_id, :code, :name, :description, :status)');
                 }
 
-                $stmt->bindValue(':program_id', $programId, $programId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+                $stmt->bindValue(':program_id', $programId, PDO::PARAM_INT);
                 $stmt->bindValue(':major_id', $majorId, $majorId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
                 $stmt->bindValue(':code', $code);
                 $stmt->bindValue(':name', $name);

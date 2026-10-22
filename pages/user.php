@@ -1,10 +1,10 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/user_service.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=user');
     exit;
 }
@@ -50,9 +50,9 @@ if ((int) $seedCount === 0) {
 }
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$action = $_GET['action'] ?? $_POST['action'] ?? null;
+$action = requestString($_GET, 'action', requestString($_POST, 'action'));
 
-if ($action !== null) {
+if ($action !== '') {
     if ($userRole !== 'admin') {
         http_response_code(403);
         header('Content-Type: application/json');
@@ -61,7 +61,7 @@ if ($action !== null) {
     }
 
     if ($action === 'list') {
-    $search = trim((string)($_GET['search'] ?? ''));
+    $search = trim(requestString($_GET, 'search'));
     $listPayload = getUserListPayload($pdo, $search);
         header('Content-Type: application/json');
     echo json_encode(['success' => true, 'librarians' => $listPayload['librarians'], 'stats' => $listPayload['stats']]);
@@ -69,13 +69,14 @@ if ($action !== null) {
     }
 
     if ($action === 'save') {
-    $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int) $_POST['id'] : null;
-    $fullName = normalizeUserFullName((string)($_POST['fullName'] ?? ''));
-    $email = trim((string)($_POST['email'] ?? ''));
-    $username = trim((string)($_POST['username'] ?? ''));
-    $password = (string)($_POST['password'] ?? '');
-    $role = strtolower(trim((string)($_POST['role'] ?? '')));
-    $adminPassword = (string)($_POST['admin_password'] ?? '');
+    $idInput = requestString($_POST, 'id');
+    $id = $idInput !== '' ? requestInt($_POST, 'id') : null;
+    $fullName = normalizeUserFullName(requestString($_POST, 'fullName'));
+    $email = trim(requestString($_POST, 'email'));
+    $username = trim(requestString($_POST, 'username'));
+    $password = requestString($_POST, 'password');
+    $role = strtolower(trim(requestString($_POST, 'role')));
+    $adminPassword = requestString($_POST, 'admin_password');
 
     $result = saveUserRecord($pdo, $id, $fullName, $email, $username, $password, $role, (int) ($_SESSION['user_id'] ?? 0), $adminPassword);
     header('Content-Type: application/json');
@@ -84,8 +85,8 @@ if ($action !== null) {
     }
 
     if ($action === 'delete') {
-        $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int) $_POST['id'] : (isset($_GET['id']) ? (int) $_GET['id'] : 0);
-        $adminPassword = (string) ($_POST['admin_password'] ?? '');
+        $id = requestInt($_POST, 'id', requestInt($_GET, 'id'));
+        $adminPassword = requestString($_POST, 'admin_password');
 
     $result = deleteUserRecord($pdo, $id, (int) ($_SESSION['user_id'] ?? 0), $adminPassword);
         header('Content-Type: application/json');
@@ -94,8 +95,8 @@ if ($action !== null) {
     }
 
       if ($action === 'toggle_status') {
-        $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-        $adminPassword = (string) ($_POST['admin_password'] ?? '');
+        $id = requestInt($_POST, 'id');
+        $adminPassword = requestString($_POST, 'admin_password');
 
     $result = toggleUserStatusRecord($pdo, $id, (int) ($_SESSION['user_id'] ?? 0), $adminPassword);
         header('Content-Type: application/json');

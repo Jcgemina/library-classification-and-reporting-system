@@ -30,7 +30,7 @@ while ($processed < $batchSize) {
         exit(1);
     }
 
-    if (!$job) {
+    if ($job === null) {
         break;
     }
 

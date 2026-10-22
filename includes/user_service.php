@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/functions.php';
 
 function userJson(array $payload, int $status = 200): never
 {
@@ -54,19 +55,35 @@ function normalizeUserFullName(string $fullName): string
         return '';
     }
 
+    if ($normalized === null) {
+        throw new InvalidArgumentException('Full name must contain valid UTF-8 text.');
+    }
+
     $lowercased = mb_strtolower($normalized, 'UTF-8');
 
-    return preg_replace_callback(
+    $titleCased = preg_replace_callback(
         '/(^|[\s\'’\-])([^\s\'’\-])/u',
         static function (array $matches): string {
             return $matches[1] . mb_strtoupper($matches[2], 'UTF-8');
         },
         $lowercased
     );
+
+    if ($titleCased === null) {
+        throw new InvalidArgumentException('Full name must contain valid UTF-8 text.');
+    }
+
+    return $titleCased;
 }
 
 function normalizeUserRow(array $user): array
 {
+    $createdAt = $user['created_at'] ?? null;
+    $createdTimestamp = is_string($createdAt) ? strtotime($createdAt) : false;
+    if ($createdTimestamp === false) {
+        throw new UnexpectedValueException('User record has an invalid creation date.');
+    }
+
     return [
         'id' => (int) $user['id'],
         'fullName' => normalizeUserFullName((string) ($user['full_name'] ?? '')),
@@ -75,7 +92,7 @@ function normalizeUserRow(array $user): array
         'role' => strtolower((string) $user['role']),
         'status' => ((int) $user['is_active'] === 1) ? 'active' : 'inactive',
         'createdAt' => $user['created_at'],
-        'joinedAt' => date('M j, Y', strtotime($user['created_at'])),
+        'joinedAt' => date('M j, Y', $createdTimestamp),
     ];
 }
 
@@ -162,7 +179,7 @@ function saveUserRecord(PDO $pdo, ?int $id, string $fullName, string $email, str
     }
 
     $duplicateUser = findDuplicateUser($pdo, $id, $username, $fullName);
-    if ($duplicateUser) {
+    if ($duplicateUser !== null) {
         $message = strcasecmp((string) $duplicateUser['username'], $username) === 0
             ? 'That username is already in use.'
             : 'That full name is already in use.';
@@ -210,7 +227,7 @@ function saveUserRecord(PDO $pdo, ?int $id, string $fullName, string $email, str
         }
     }
 
-    $emailQueued = $id !== null && !isset($existingUser) && $password === '';
+    $emailQueued = !isset($existingUser) && $password === '';
 
     $selectStmt = $pdo->prepare('SELECT id, username, full_name, email, role, is_active, created_at FROM users WHERE id = :id LIMIT 1');
     $selectStmt->execute([':id' => $id]);

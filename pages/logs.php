@@ -1,9 +1,9 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=logs');
     exit;
 }
@@ -18,24 +18,27 @@ if (strtolower($_SESSION['role'] ?? '') !== 'admin') {
 $today = new DateTimeImmutable('today');
 $defaultStart = $today->modify('-6 days');
 $parseLogDate = static fn(string $value, DateTimeImmutable $fallback): DateTimeImmutable => DateTimeImmutable::createFromFormat('!Y-m-d', $value) ?: $fallback;
-$activityStartDate = $parseLogDate((string)($_GET['activity_start_date'] ?? $_GET['start_date'] ?? ''), $defaultStart);
-$activityEndDate = $parseLogDate((string)($_GET['activity_end_date'] ?? $_GET['end_date'] ?? ''), $today);
-$securityStartDate = $parseLogDate((string)($_GET['security_start_date'] ?? $_GET['start_date'] ?? ''), $defaultStart);
-$securityEndDate = $parseLogDate((string)($_GET['security_end_date'] ?? $_GET['end_date'] ?? ''), $today);
+$activityStartDate = $parseLogDate(requestString($_GET, 'activity_start_date', requestString($_GET, 'start_date')), $defaultStart);
+$activityEndDate = $parseLogDate(requestString($_GET, 'activity_end_date', requestString($_GET, 'end_date')), $today);
+$securityStartDate = $parseLogDate(requestString($_GET, 'security_start_date', requestString($_GET, 'start_date')), $defaultStart);
+$securityEndDate = $parseLogDate(requestString($_GET, 'security_end_date', requestString($_GET, 'end_date')), $today);
 if ($activityStartDate > $activityEndDate) [$activityStartDate, $activityEndDate] = [$activityEndDate, $activityStartDate];
 if ($securityStartDate > $securityEndDate) [$securityStartDate, $securityEndDate] = [$securityEndDate, $securityStartDate];
 
-$activitySearch = trim((string)($_GET['activity_search'] ?? $_GET['search'] ?? ''));
-$activityUserId = filter_var($_GET['activity_user_id'] ?? $_GET['user_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
-$securitySearch = trim((string)($_GET['security_search'] ?? $_GET['search'] ?? ''));
-$securityUserId = filter_var($_GET['security_user_id'] ?? $_GET['user_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
-$securitySeverity = in_array($_GET['security_severity'] ?? $_GET['severity'] ?? '', ['info', 'warning', 'critical'], true) ? (string)($_GET['security_severity'] ?? $_GET['severity']) : '';
-$activeTab = ($_GET['log_tab'] ?? '') === 'security' ? 'security' : 'activity';
+$activitySearch = trim(requestString($_GET, 'activity_search', requestString($_GET, 'search')));
+$activityUserIdInput = requestString($_GET, 'activity_user_id', requestString($_GET, 'user_id'));
+$activityUserId = filter_var($activityUserIdInput, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+$securitySearch = trim(requestString($_GET, 'security_search', requestString($_GET, 'search')));
+$securityUserIdInput = requestString($_GET, 'security_user_id', requestString($_GET, 'user_id'));
+$securityUserId = filter_var($securityUserIdInput, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+$securitySeverityInput = requestString($_GET, 'security_severity', requestString($_GET, 'severity'));
+$securitySeverity = in_array($securitySeverityInput, ['info', 'warning', 'critical'], true) ? $securitySeverityInput : '';
+$activeTab = requestString($_GET, 'log_tab') === 'security' ? 'security' : 'activity';
 $activeLogTabClasses = 'inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-rose-700';
 $inactiveLogTabClasses = 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900';
 $pageSize = 8;
-$activityPage = max(1, (int)($_GET['activity_page'] ?? 1));
-$securityPage = max(1, (int)($_GET['security_page'] ?? 1));
+$activityPage = max(1, requestInt($_GET, 'activity_page', 1));
+$securityPage = max(1, requestInt($_GET, 'security_page', 1));
 $activityFromTimestamp = $activityStartDate->format('Y-m-d 00:00:00');
 $activityUntilTimestamp = $activityEndDate->modify('+1 day')->format('Y-m-d 00:00:00');
 $securityFromTimestamp = $securityStartDate->format('Y-m-d 00:00:00');
@@ -190,7 +193,7 @@ $renderLogPagination = static function (string $type, int $currentPage, int $pag
                   <td class="px-5 py-3 font-medium"><?php echo htmlspecialchars($log['full_name'] ?? 'System', ENT_QUOTES, 'UTF-8'); ?></td>
                   <td class="px-5 py-3"><?php echo htmlspecialchars($formatLogLabel($log['action']), ENT_QUOTES, 'UTF-8'); ?></td>
                   <td class="px-5 py-3 text-slate-500"><?php echo htmlspecialchars($log['ip_address'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
-                  <td class="px-5 py-3"><button type="button" class="log-detail-button font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900" data-log-detail="<?php echo htmlspecialchars(json_encode(['type' => 'Activity', 'time' => $formatLogDate($log['created_at']), 'user' => $log['full_name'] ?? 'System', 'action' => $formatLogLabel($log['action']), 'ip' => $log['ip_address'] ?? '-', 'entity' => ($log['entity_type'] ?? '-') . (($log['entity_id'] ?? null) ? ' #' . $log['entity_id'] : ''), 'agent' => '-'], JSON_THROW_ON_ERROR), ENT_QUOTES, 'UTF-8'); ?>">View</button></td>
+                  <td class="px-5 py-3"><button type="button" class="log-detail-button font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900" data-log-detail="<?php echo htmlspecialchars(json_encode(['type' => 'Activity', 'time' => $formatLogDate($log['created_at']), 'user' => $log['full_name'] ?? 'System', 'action' => $formatLogLabel($log['action']), 'ip' => $log['ip_address'] ?? '-', 'entity' => ($log['entity_type'] ?? '-') . (($log['entity_id'] ?? null) !== null && $log['entity_id'] !== '' && $log['entity_id'] !== 0 && $log['entity_id'] !== '0' ? ' #' . $log['entity_id'] : ''), 'agent' => '-'], JSON_THROW_ON_ERROR), ENT_QUOTES, 'UTF-8'); ?>">View</button></td>
                 </tr>
               <?php endforeach; ?>
             </tbody>

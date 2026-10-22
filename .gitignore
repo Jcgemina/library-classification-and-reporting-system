@@ -10,6 +10,17 @@
 *.log
 /cache/
 /tmp/
+/coverage/
+/cachegrind.out.*
+*.tmp
+*.bak
+
+# Generated analysis reports
+/psalm-report.json
+/security-report.json
+
+# Uploaded prospectus documents are local application data
+/uploads/prospectuses/*.pdf
 
 # Markdown notes and documentation
 *.md

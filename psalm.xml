@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<psalm
+    errorLevel="4"
+    resolveFromConfigFile="true"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+    findUnusedBaselineEntry="true"
+    findUnusedCode="true"
+>
+    <projectFiles>
+        <file name="app.php" />
+        <file name="auth.php" />
+        <file name="create_admin.php" />
+        <file name="forgot_password.php" />
+        <file name="login.php" />
+        <file name="login2.php" />
+        <file name="logout.php" />
+        <file name="process_mail_queue.php" />
+        <file name="reset_password.php" />
+        <file name="bin/ai_worker.php" />
+        <file name="config/db.php" />
+        <file name="config/session.php" />
+        <file name="includes/ai_course_service.php" />
+        <file name="includes/functions.php" />
+        <file name="includes/nav.php" />
+        <file name="includes/user_service.php" />
+        <file name="pages/ai_course.php" />
+        <file name="pages/configure.php" />
+        <file name="pages/course.php" />
+        <file name="pages/dashboard.php" />
+        <file name="pages/inventory.php" />
+        <file name="pages/logs.php" />
+        <file name="pages/logs_export.php" />
+        <file name="pages/organization.php" />
+        <file name="pages/reference_analyzer.php" />
+        <file name="pages/report.php" />
+        <file name="pages/user.php" />
+        <file name="tests/ai_course_service_test.php" />
+        <file name="tests/reference_age_policy_test.php" />
+        <file name="vendor/autoload.php" />
+        <file name="vendor/composer/autoload_classmap.php" />
+        <file name="vendor/composer/autoload_files.php" />
+        <file name="vendor/composer/autoload_namespaces.php" />
+        <file name="vendor/composer/autoload_psr4.php" />
+        <file name="vendor/composer/autoload_real.php" />
+        <file name="vendor/composer/autoload_static.php" />
+        <file name="vendor/composer/ClassLoader.php" />
+        <file name="vendor/composer/installed.php" />
+        <file name="vendor/composer/InstalledVersions.php" />
+        <file name="vendor/composer/platform_check.php" />
+        <ignoreFiles>
+            <directory name="vendor" />
+        </ignoreFiles>
+    </projectFiles>
+</psalm>

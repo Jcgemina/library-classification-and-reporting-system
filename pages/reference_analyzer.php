@@ -1,9 +1,9 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower((string) $_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=reference_analyzer');
     exit;
 }
@@ -34,7 +34,7 @@ if (isset($_GET['action'])) {
 
     try {
         $policy = getReferenceAgePolicy($pdo);
-        $action = (string) $_GET['action'];
+        $action = requestString($_GET, 'action');
 
         if ($action === 'options') {
             $colleges = $pdo->query("SELECT id, name FROM colleges WHERE status = 'active' ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
@@ -44,12 +44,12 @@ if (isset($_GET['action'])) {
         }
 
         if ($action === 'list') {
-            $search = trim((string) ($_GET['search'] ?? ''));
-            $yearInput = trim((string) ($_GET['publication_year'] ?? ''));
-            $status = (string) ($_GET['status'] ?? 'all');
-            $collegeInput = trim((string) ($_GET['college_id'] ?? ''));
-            $programInput = trim((string) ($_GET['program_id'] ?? ''));
-            $courseInput = trim((string) ($_GET['course_id'] ?? ''));
+            $search = trim(requestString($_GET, 'search'));
+            $yearInput = trim(requestString($_GET, 'publication_year'));
+            $status = requestString($_GET, 'status', 'all');
+            $collegeInput = trim(requestString($_GET, 'college_id'));
+            $programInput = trim(requestString($_GET, 'program_id'));
+            $courseInput = trim(requestString($_GET, 'course_id'));
             $collegeId = $collegeInput === '' ? 0 : filter_var($collegeInput, FILTER_VALIDATE_INT);
             $programId = $programInput === '' ? 0 : filter_var($programInput, FILTER_VALIDATE_INT);
             $courseId = $courseInput === '' ? 0 : filter_var($courseInput, FILTER_VALIDATE_INT);

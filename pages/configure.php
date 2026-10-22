@@ -1,9 +1,9 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=configure');
     exit;
 }
@@ -31,12 +31,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         configureJsonResponse(['success' => false, 'message' => 'The database connection is unavailable.'], 503);
     }
 
-    if (!hash_equals($csrfToken, (string) ($_POST['csrf_token'] ?? ''))) {
+    if (!hash_equals($csrfToken, requestString($_POST, 'csrf_token'))) {
         configureJsonResponse(['success' => false, 'message' => 'Your session has expired. Reload Library Settings and try again.'], 403);
     }
 
     $copyrightRanges = array_map(
-        static fn ($value) => filter_var($value, FILTER_VALIDATE_INT),
+        static fn (mixed $value): int|false => filter_var($value, FILTER_VALIDATE_INT),
         [
             $_POST['copyright_range_1'] ?? null,
             $_POST['copyright_range_2'] ?? null,
@@ -44,9 +44,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         ]
     );
     $minimumBooks = filter_var($_POST['minimum_books_per_course'] ?? null, FILTER_VALIDATE_INT);
-    $defaultCurriculumYear = trim((string) ($_POST['default_curriculum_year'] ?? ''));
-    $referencePolicyDirectionInput = trim((string) ($_POST['reference_policy_direction'] ?? ''));
-    $referencePolicyYearsInput = trim((string) ($_POST['reference_policy_years'] ?? ''));
+    $defaultCurriculumYear = trim(requestString($_POST, 'default_curriculum_year'));
+    $referencePolicyDirectionInput = trim(requestString($_POST, 'reference_policy_direction'));
+    $referencePolicyYearsInput = trim(requestString($_POST, 'reference_policy_years'));
     $referencePolicyDirection = $referencePolicyDirectionInput !== '' ? $referencePolicyDirectionInput : null;
     $referencePolicyYears = $referencePolicyYearsInput !== '' ? filter_var($referencePolicyYearsInput, FILTER_VALIDATE_INT) : null;
 
@@ -92,10 +92,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $rangeStatement = $pdo->prepare(
             'INSERT INTO copyright_year_ranges (years_threshold, sort_order) VALUES (:years_threshold, :sort_order)'
         );
-        foreach ($copyrightRanges as $index => $yearsThreshold) {
+        $sortOrder = 1;
+        foreach ($copyrightRanges as $yearsThreshold) {
             $rangeStatement->execute([
                 ':years_threshold' => $yearsThreshold,
-                ':sort_order' => $index + 1,
+                ':sort_order' => $sortOrder++,
             ]);
         }
 
@@ -166,7 +167,7 @@ if (!$pdo instanceof PDO) {
     }
 }
 
-$escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+$escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 
 ?>
 
@@ -189,7 +190,7 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
                 <p class="mt-1 text-sm text-slate-600">These rolling year windows are used for copyright counts on the dashboard and in Inventory. Keep them in ascending order.</p>
             </div>
             <div class="mt-5 grid gap-4 sm:grid-cols-3">
-                <?php foreach ($copyrightRanges as $index => $yearsThreshold): ?>
+                <?php foreach (array_values($copyrightRanges) as $index => $yearsThreshold): ?>
                     <label for="copyrightRange<?php echo $index + 1; ?>" class="text-sm font-semibold text-slate-700">
                         Range <?php echo $index + 1; ?> (years)
                         <input
@@ -199,7 +200,7 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
                             min="1"
                             max="1000"
                             step="1"
-                            value="<?php echo (int) $yearsThreshold; ?>"
+                            value="<?php echo $yearsThreshold; ?>"
                             required
                             <?php echo $loadError !== null ? 'disabled' : ''; ?>
                             class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
@@ -244,7 +245,7 @@ $escapeConfigureValue = static fn ($value): string => htmlspecialchars((string) 
                     min="1"
                     max="65535"
                     step="1"
-                    value="<?php echo (int) $minimumBooks; ?>"
+                    value="<?php echo $minimumBooks; ?>"
                     required
                     <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"

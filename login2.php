@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/session.php';
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
@@ -119,15 +119,15 @@ $isLocked = $lockSeconds > 0;
 
             <p class="mt-5 text-base text-slate-500">Log in to view your document requests and profile.</p>
 
-            <?php if ($isLocked || $errorMessage): ?>
+            <?php if ($isLocked || $errorMessage !== null): ?>
               <div id="lockBanner" class="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
                 <?php if ($isLocked): ?>
                   Sign-in is temporarily paused after repeated failed attempts. Please try again in
                   <span id="lockTimer" class="font-semibold"><?php echo htmlspecialchars(formatLockoutDuration($lockSeconds), ENT_QUOTES, 'UTF-8'); ?></span>.
                 <?php else: ?>
                   <?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?>
-                  <?php if ($flash['attempts'] && $flash['attempts'] > 0): ?>
-                    <span class="mt-2 block text-xs">Failed attempts: <?php echo htmlspecialchars($flash['attempts'], ENT_QUOTES, 'UTF-8'); ?>/<?php echo htmlspecialchars(MAX_ATTEMPTS, ENT_QUOTES, 'UTF-8'); ?></span>
+                  <?php if (is_int($flash['attempts']) && $flash['attempts'] > 0): ?>
+                    <span class="mt-2 block text-xs">Failed attempts: <?php echo htmlspecialchars((string)$flash['attempts'], ENT_QUOTES, 'UTF-8'); ?>/<?php echo MAX_ATTEMPTS; ?></span>
                   <?php endif; ?>
                 <?php endif; ?>
               </div>
@@ -207,7 +207,7 @@ $isLocked = $lockSeconds > 0;
 
   <script>
     const SERVER_TIME_MS = <?php echo time() * 1000; ?>;
-    const LOCK_SECONDS = <?php echo (int)$lockSeconds; ?>;
+    const LOCK_SECONDS = <?php echo $lockSeconds; ?>;
     const UNLOCK_TIME_MS = SERVER_TIME_MS + (LOCK_SECONDS * 1000);
 
     (function () {
