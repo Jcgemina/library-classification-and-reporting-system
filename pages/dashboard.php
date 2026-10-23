@@ -38,7 +38,8 @@ try {
   )->fetchColumn();
 
   $progressStatement = $pdo->prepare(
-    'SELECT p.id AS program_id, m.id AS major_id, m.name AS major_name,
+    'SELECT p.id AS program_id, p.name AS program_name, col.name AS college_name,
+            m.id AS major_id, m.name AS major_name,
             COALESCE(pp.target_quarter, \'Q1\') AS target_quarter,
             COALESCE(pp.q1_actual, 0) AS q1_actual,
             COALESCE(pp.q2_actual, 0) AS q2_actual,
@@ -68,11 +69,12 @@ try {
   $dashboardDataAvailable = true;
 } catch (PDOException $exception) {
   error_log('Dashboard data unavailable: ' . $exception->getMessage());
-  $dashboardDataError = 'Dashboard data could not be loaded. Check the database connection and apply the latest schema.sql.';
+  $dashboardDataError = 'Dashboard data is temporarily unavailable. Try again. If the problem continues, contact your administrator.';
 }
 
 $verifiedProgramIds = [];
 $upcomingDeadlines = [];
+$overdueScopes = [];
 $overdueDeadlineCount = 0;
 if ($dashboardDataAvailable) {
   $quarterActualCounts = array_fill(0, 4, 0);
@@ -94,6 +96,14 @@ if ($dashboardDataAvailable) {
     $targetActual = (bool)$scope[strtolower((string)$scope['target_quarter']) . '_actual'];
     if (!$targetActual && $targetQuarterNumber < $currentQuarterNumber) {
       $overdueDeadlineCount++;
+      $overdueScopes[] = [
+        'program_id' => (int)$scope['program_id'],
+        'major_id' => (int)($scope['major_id'] ?? 0),
+        'program_name' => (string)$scope['program_name'],
+        'college_name' => (string)$scope['college_name'],
+        'major_name' => (string)($scope['major_name'] ?? ''),
+        'target_quarter' => (string)$scope['target_quarter'],
+      ];
     } elseif (!$targetActual && $targetQuarterNumber >= $currentQuarterNumber) {
       $upcomingDeadlines[$targetQuarterNumber] = ($upcomingDeadlines[$targetQuarterNumber] ?? 0) + 1;
     }
@@ -126,21 +136,25 @@ $copyrightMetricStyles = [
   <div class="mb-6">
     <h2 class="text-2xl font-bold text-slate-900">Dashboard</h2>
     <p class="mt-1 text-sm text-slate-500">Overview of library books, copyright status, and quarterly progress.</p>
+    <p class="mt-2 max-w-3xl text-xs leading-relaxed text-slate-600">Copyright age uses the copyright year, or publication year when no copyright year is recorded. Thresholds are cumulative, so a title may appear in more than one count.</p>
   </div>
 
   <?php if ($dashboardDataError !== null): ?>
-    <div role="alert" class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><?php echo $escapeDashboardValue($dashboardDataError); ?></div>
+    <div role="alert" class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <p><?php echo $escapeDashboardValue($dashboardDataError); ?></p>
+      <button type="button" data-retry-page="dashboard" class="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400">Try again</button>
+    </div>
   <?php endif; ?>
 
   <div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
     <a href="app.php?page=inventory" data-page="inventory" class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300">
-      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-rose-800">Total Titles</p></div>
+      <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-rose-800">Total Book Titles</p></div>
       <p class="text-3xl font-bold leading-none text-slate-950"><?php echo $dashboardDataAvailable ? $totalBookTitles : '&mdash;'; ?></p>
     </a>
     <?php foreach (array_values($copyrightYearMetrics) as $index => $metric): ?>
       <?php $style = $copyrightMetricStyles[$index % count($copyrightMetricStyles)]; ?>
       <a href="app.php?page=inventory" data-page="inventory" class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300">
-        <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border <?php echo $style['iconBorder']; ?> <?php echo $style['iconBg']; ?> <?php echo $style['iconColor']; ?>"><i data-lucide="<?php echo $style['icon']; ?>" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight <?php echo $style['labelColor']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> Yrs</p></div>
+        <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border <?php echo $style['iconBorder']; ?> <?php echo $style['iconBg']; ?> <?php echo $style['iconColor']; ?>"><i data-lucide="<?php echo $style['icon']; ?>" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight <?php echo $style['labelColor']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> years</p></div>
         <p class="text-3xl font-bold leading-none <?php echo $style['valueColor']; ?>"><?php echo (int)$metric['title_count']; ?></p>
       </a>
     <?php endforeach; ?>
@@ -195,9 +209,35 @@ $copyrightMetricStyles = [
         <div class="mt-5 space-y-3">
           <?php if ($overdueDeadlineCount > 0): ?>
             <div class="flex items-center justify-between rounded-lg border border-rose-100 bg-rose-50 px-3 py-2.5">
-              <div><p class="text-sm font-semibold text-rose-800">Overdue targets</p><p class="text-xs text-rose-600">Earlier than <?php echo $quarterLabels[$currentQuarterNumber - 1]; ?></p></div>
+              <div><p class="text-sm font-semibold text-rose-800">Overdue scopes</p><p class="text-xs text-rose-700">Incomplete targets earlier than <?php echo $quarterLabels[$currentQuarterNumber - 1]; ?></p></div>
               <span class="text-lg font-bold text-rose-700"><?php echo $overdueDeadlineCount; ?></span>
             </div>
+            <ul class="max-h-56 space-y-1 overflow-y-auto pr-1" aria-label="Overdue program and major scopes">
+              <?php foreach ($overdueScopes as $scope): ?>
+                <?php
+                  $reportParams = [
+                    'page' => 'report',
+                    'year' => $currentYear,
+                    'program_id' => $scope['program_id'],
+                  ];
+                  if ($scope['major_id'] > 0) {
+                    $reportParams['major_id'] = $scope['major_id'];
+                  }
+                  $scopeDescription = $scope['major_name'] !== ''
+                    ? $scope['program_name'] . ' · ' . $scope['major_name']
+                    : $scope['program_name'] . ' · Program-level target';
+                ?>
+                <li>
+                  <a href="app.php?<?php echo $escapeDashboardValue(http_build_query($reportParams)); ?>" data-page="report" class="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-300">
+                    <span class="min-w-0">
+                      <span class="block truncate text-sm font-semibold text-slate-800"><?php echo $escapeDashboardValue($scopeDescription); ?></span>
+                      <span class="block truncate text-xs text-slate-600"><?php echo $escapeDashboardValue($scope['college_name']); ?> · <?php echo $escapeDashboardValue($scope['target_quarter']); ?> target</span>
+                    </span>
+                    <span class="flex-shrink-0 text-xs font-semibold text-rose-700">View report</span>
+                  </a>
+                </li>
+              <?php endforeach; ?>
+            </ul>
           <?php endif; ?>
           <?php foreach ($upcomingDeadlines as $quarterNumber => $scopeCount): ?>
             <?php
@@ -226,7 +266,7 @@ $copyrightMetricStyles = [
         <h2 class="text-base font-bold">Programs Overview</h2>
         <dl class="mt-4 space-y-2 text-sm">
           <div class="flex items-center justify-between border-b border-slate-100 pb-2"><dt class="text-slate-600">Total Programs</dt><dd class="font-semibold text-slate-900"><?php echo $dashboardDataAvailable ? $totalActivePrograms : '&mdash;'; ?></dd></div>
-          <div class="flex items-center justify-between border-b border-slate-100 pb-2"><dt class="text-slate-600">Verified (any Q)</dt><dd class="font-semibold text-emerald-600"><?php echo $dashboardDataAvailable ? $verifiedPrograms : '&mdash;'; ?></dd></div>
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2"><dt class="text-slate-600">Verified in any quarter</dt><dd class="font-semibold text-emerald-700"><?php echo $dashboardDataAvailable ? $verifiedPrograms : '&mdash;'; ?></dd></div>
           <div class="flex items-center justify-between"><dt class="text-slate-600">Pending</dt><dd class="font-semibold text-rose-600"><?php echo $dashboardDataAvailable ? $pendingPrograms : '&mdash;'; ?></dd></div>
         </dl>
         <a href="app.php?page=academics" data-page="academics" class="mt-5 flex items-center justify-center gap-1 border-t border-slate-100 pt-3 text-xs font-semibold text-rose-600"><i data-lucide="arrow-right" class="h-3.5 w-3.5"></i>View Academics</a>

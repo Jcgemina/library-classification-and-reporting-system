@@ -49,7 +49,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
   </script>
 
   <div class="<?php echo $userRole === 'admin' ? 'md:ml-64' : ''; ?>">
-    <main id="pageContent" class="mx-auto w-full max-w-[1440px] min-w-0 overflow-x-hidden p-6"></main>
+    <main id="pageContent" class="mx-auto w-full max-w-[1440px] min-w-0 overflow-x-hidden p-6" aria-busy="true"></main>
   </div>
 
   <script>
@@ -90,7 +90,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
             link.classList.toggle('text-white', isActive);
             link.classList.toggle('text-slate-600', !isActive);
             link.classList.toggle('hover:text-slate-900', !isActive);
-            link.classList.toggle('bg-rose-500', isActive && (isMobileLink || isAdminSidebarLink));
+            link.classList.toggle('bg-rose-700', isActive && (isMobileLink || isAdminSidebarLink));
 
             link.classList.remove('text-slate-900');
             link.classList.toggle('shadow-sm', isActive && Boolean(isAdminSidebarLink));
@@ -131,25 +131,79 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         }
     }
 
-    function loadPage(pageName, updateHistory = true) {
+    function getPageQueryParams(pageName, params) {
+      const requestedParams = new URLSearchParams(params);
+      requestedParams.delete('page');
+
+      if (pageName === 'logs') {
+        return requestedParams;
+      }
+
+      if (pageName === 'inventory') {
+        return new URLSearchParams(
+          [...requestedParams].filter(([key]) => ['book_id', 'inventory_action'].includes(key))
+        );
+      }
+
+      if (pageName === 'report') {
+        const reportParams = new URLSearchParams();
+        const programId = requestedParams.get('program_id');
+        const majorId = requestedParams.get('major_id');
+        const year = requestedParams.get('year');
+
+        if (programId && /^[1-9]\d*$/.test(programId)) {
+          reportParams.set('program_id', programId);
+        }
+        if (majorId && /^[1-9]\d*$/.test(majorId)) {
+          reportParams.set('major_id', majorId);
+        }
+        if (year && /^(20\d{2}|21\d{2}|2200)$/.test(year)) {
+          reportParams.set('year', year);
+        }
+
+        return reportParams;
+      }
+
+      return new URLSearchParams();
+    }
+
+    let activePageRequestId = 0;
+
+    function loadPage(pageName, updateHistory = true, requestedParams = new URLSearchParams(window.location.search)) {
       const safePage = normalizePage(pageName);
+      const pageLabels = {
+        dashboard: 'Dashboard',
+        inventory: 'Inventory',
+        academics: 'Academic Management',
+        course: 'Courses',
+        reference_analyzer: 'Reference Analyzer',
+        report: 'Report',
+        user: 'User Management',
+        logs: 'Logs',
+        configure: 'Library Settings',
+      };
+      const pageLabel = pageLabels[safePage] || 'requested';
+      const requestId = ++activePageRequestId;
+      const pageContainer = document.getElementById('pageContent');
+      const preservedParams = getPageQueryParams(safePage, requestedParams);
 
       if (updateHistory) {
         const url = new URL(window.location.href);
         url.searchParams.set('page', safePage);
+        [...url.searchParams.keys()].forEach((key) => {
+          if (key !== 'page') {
+            url.searchParams.delete(key);
+          }
+        });
+        preservedParams.forEach((value, key) => url.searchParams.set(key, value));
         history.pushState({ page: safePage }, '', url);
       }
 
-      const pageParams = new URLSearchParams(window.location.search);
-      pageParams.delete('page');
-      const preservedParams = safePage === 'logs'
-        ? pageParams
-        : safePage === 'inventory' && pageParams.has('book_id')
-          ? new URLSearchParams([...pageParams].filter(([key]) => ['book_id', 'inventory_action'].includes(key)))
-          : new URLSearchParams();
       const pageQuery = preservedParams.toString() ? '?' + preservedParams.toString() : '';
 
       const pageFile = safePage === 'academics' ? 'organization' : safePage;
+      pageContainer.setAttribute('aria-busy', 'true');
+      pageContainer.innerHTML = `<div class="rounded-2xl bg-white p-8 text-sm text-slate-600" role="status">Loading ${pageLabel}…</div>`;
 
       fetch('pages/' + pageFile + '.php' + pageQuery, {
         method: 'GET',
@@ -164,7 +218,10 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         return response.text();
       })
       .then((html) => {
-        const pageContainer = document.getElementById('pageContent');
+        if (requestId !== activePageRequestId) {
+          return;
+        }
+
         pageContainer.innerHTML = html;
         lucide.createIcons();
 
@@ -187,11 +244,27 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         document.title = 'AppSys Library - ' + pageTitle;
       })
       .catch(() => {
-        document.getElementById('pageContent').innerHTML = '<div class="bg-white rounded-2xl shadow-md p-8"><h2 class="text-2xl font-bold text-slate-900 mb-2">Page unavailable</h2><p class="text-slate-500">The requested module could not be loaded.</p></div>';
+        if (requestId !== activePageRequestId) {
+          return;
+        }
+
+        pageContainer.innerHTML = `<div class="rounded-2xl bg-white p-8 shadow-md" role="alert"><h2 class="mb-2 text-2xl font-bold text-slate-900">${pageLabel} could not be loaded</h2><p class="text-slate-600">Try again. If the problem continues, contact your administrator.</p><button type="button" data-retry-page="${safePage}" class="mt-5 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300">Try again</button></div>`;
+      })
+      .finally(() => {
+        if (requestId === activePageRequestId) {
+          pageContainer.setAttribute('aria-busy', 'false');
+        }
       });
     }
 
     document.addEventListener('click', function (event) {
+      const retryButton = event.target.closest('[data-retry-page]');
+      if (retryButton) {
+        event.preventDefault();
+        loadPage(retryButton.dataset.retryPage, false);
+        return;
+      }
+
       const link = event.target.closest('[data-page]');
       if (!link) {
         return;
@@ -203,7 +276,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         return;
       }
 
-      loadPage(link.dataset.page, true);
+      const targetUrl = new URL(link.href, window.location.href);
+      loadPage(link.dataset.page, true, targetUrl.searchParams);
     });
 
     window.addEventListener('popstate', function () {
