@@ -369,8 +369,16 @@ if ($action !== '') {
     const tableBody = document.getElementById('reportTableBody');
     const noMatches = document.getElementById('reportNoMatches');
     const emptyState = document.getElementById('reportEmptyState');
+    const pageParams = new URLSearchParams(window.location.search);
+    const initialProgramId = pageParams.get('program_id') || '';
+    const initialMajorId = pageParams.get('major_id') || '';
+    const requestedYear = pageParams.get('year') || '';
+    if (Array.from(yearFilter.options).some(option => option.value === requestedYear)) {
+        yearFilter.value = requestedYear;
+    }
     let reportRows = [];
     let reportYear = Number(yearFilter.value);
+    let shouldApplyInitialFilters = true;
 
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
         '&': '&amp;',
@@ -531,6 +539,17 @@ if ($action !== '') {
             }
             reportRows = result.data.rows || [];
             refreshFilterOptions();
+            if (shouldApplyInitialFilters) {
+                if (Array.from(programFilter.options).some(option => option.value === initialProgramId)) {
+                    programFilter.value = initialProgramId;
+                    updateDependentOptions();
+                }
+                if (Array.from(majorFilter.options).some(option => option.value === initialMajorId)) {
+                    majorFilter.value = initialMajorId;
+                    updateDependentOptions();
+                }
+                shouldApplyInitialFilters = false;
+            }
             renderRows();
             return true;
         } catch (error) {
@@ -591,6 +610,10 @@ if ($action !== '') {
         collegeFilter.value = '';
         programFilter.value = '';
         majorFilter.value = '';
+        const url = new URL(window.location.href);
+        url.searchParams.delete('program_id');
+        url.searchParams.delete('major_id');
+        history.replaceState(history.state, '', url);
         updateDependentOptions();
         renderRows();
         collegeFilter.focus();
