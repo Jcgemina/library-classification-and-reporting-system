@@ -35,32 +35,7 @@
     );
 
     const toast = (message, error = false) => {
-        const container = $('courseToastContainer');
-        const node = document.createElement('div');
-        const duration = 3000;
-
-        node.className = `pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl border px-4 py-3 pb-4 text-sm shadow-lg ${error ? 'border-red-300 bg-red-50 text-red-800' : 'border-green-300 bg-green-50 text-green-800'}`;
-        node.innerHTML = `
-            <i data-lucide="${error ? 'circle-alert' : 'circle-check'}" class="mt-0.5 h-4 w-4 flex-shrink-0"></i>
-            <span class="flex-1">${esc(message)}</span>
-            <button type="button" class="text-current opacity-60 transition hover:opacity-100" aria-label="Dismiss notification">
-                <i data-lucide="x" class="h-4 w-4"></i>
-            </button>
-            <span class="absolute bottom-0 left-0 h-1 w-full origin-left ${error ? 'bg-red-500' : 'bg-green-500'}" data-toast-progress></span>
-        `;
-
-        container.appendChild(node);
-        lucide.createIcons();
-
-        const progress = node.querySelector('[data-toast-progress]');
-        requestAnimationFrame(() => {
-            progress.style.transition = `width ${duration}ms linear`;
-            progress.style.width = '0%';
-        });
-
-        const dismiss = () => node.remove();
-        node.querySelector('button').addEventListener('click', dismiss);
-        setTimeout(dismiss, duration);
+        window.AppToast.show(message, error ? 'error' : 'success');
     };
 
     const request = async (url, options = {}) => {

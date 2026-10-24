@@ -75,7 +75,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     align-items: center;
     gap: 0.5rem;
     color: #64748b;
-    font-size: 0.5625rem;
+    font-size: 0.6875rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     line-height: 1;
@@ -264,7 +264,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     <?php foreach ($navItems as $item): ?>
       <?php if ($activeSection !== $item['section']): ?>
         <?php $activeSection = $item['section']; ?>
-        <p class="nav-section-label px-3 pb-1 pt-3 text-[10px] font-bold tracking-[0.12em] first:pt-0"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
+        <p class="nav-section-label px-3 pb-1 pt-3 text-[11px] font-bold tracking-[0.12em] first:pt-0"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
       <?php endif; ?>
       <?php $isActive = $item['page'] === $currentPage; ?>
       <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
@@ -300,7 +300,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     </div>
     <div class="min-w-0 leading-tight">
       <h1 class="truncate text-sm font-bold text-slate-900">AppSys Library</h1>
-      <p class="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">Admin Portal</p>
+      <p class="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Admin Portal</p>
     </div>
   </div>
 
@@ -309,7 +309,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     <?php foreach ($navItems as $item): ?>
       <?php if ($activeSection !== $item['section']): ?>
         <?php $activeSection = $item['section']; ?>
-        <p class="nav-section-label <?php echo $activeSection === 'overview' ? '' : 'mt-5'; ?> mb-2 px-3 text-[10px] font-bold tracking-[0.12em]"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
+        <p class="nav-section-label <?php echo $activeSection === 'overview' ? '' : 'mt-5'; ?> mb-2 px-3 text-[11px] font-bold tracking-[0.12em]"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
       <?php endif; ?>
       <?php $isActive = $item['page'] === $currentPage; ?>
       <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"

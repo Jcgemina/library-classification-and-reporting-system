@@ -560,8 +560,6 @@ $copyrightMetricStyles = [
     </div>
   </dialog>
 
-  <div data-inventory-toast hidden role="status" aria-live="polite" class="fixed bottom-5 left-1/2 z-[120] -translate-x-1/2 rounded-lg bg-[#191b1c] px-4 py-3 text-sm font-medium text-white shadow-lg"></div>
-
   <dialog id="inventoryArchiveModal" aria-labelledby="inventoryArchiveTitle" class="fixed z-[100] m-auto max-h-[90vh] w-[calc(100%-1.5rem)] max-w-7xl overflow-hidden rounded-xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/50">
     <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
       <div>
@@ -680,13 +678,11 @@ $copyrightMetricStyles = [
   const deleteBookError = document.querySelector('[data-delete-book-error]');
   const deleteBookSubmit = document.querySelector('[data-delete-book-submit]');
   const deleteBookCancel = document.querySelector('[data-delete-book-cancel]');
-  const inventoryToast = document.querySelector('[data-inventory-toast]');
   const inventoryPage = document.getElementById('inventoryPage');
   let managedBookId = null;
   let activeAiBookId = null;
   let activeAiRun = null;
   let aiPollTimer = null;
-  let toastTimer;
 
   function closeDialog(dialog) {
     if (dialog?.open) dialog.close();
@@ -812,12 +808,7 @@ $copyrightMetricStyles = [
   }
 
   function showInventoryToast(message) {
-    window.clearTimeout(toastTimer);
-    inventoryToast.textContent = message;
-    inventoryToast.hidden = false;
-    toastTimer = window.setTimeout(() => {
-      inventoryToast.hidden = true;
-    }, 3500);
+    window.AppToast.show(message, 'info');
   }
 
   function resetAiCoursePanel(book) {
