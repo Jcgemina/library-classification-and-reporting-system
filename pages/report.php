@@ -349,8 +349,6 @@ if ($action !== '') {
         </div>
     </section>
 </div>
-<div id="reportToastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" aria-live="polite"></div>
-
 <script>
 (() => {
     const yearFilter = document.getElementById('reportYearFilter');
@@ -365,7 +363,6 @@ if ($action !== '') {
     const previewClose = document.getElementById('reportPreviewClose');
     const previewPrint = document.getElementById('reportPreviewPrint');
     const resultCount = document.getElementById('reportResultCount');
-    const toastContainer = document.getElementById('reportToastContainer');
     const tableBody = document.getElementById('reportTableBody');
     const noMatches = document.getElementById('reportNoMatches');
     const emptyState = document.getElementById('reportEmptyState');
@@ -389,42 +386,7 @@ if ($action !== '') {
     })[character]);
 
     function toast(message, isError = false) {
-        const duration = 3000;
-        const notification = document.createElement('div');
-        notification.className = `pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-xl border px-4 py-3 pb-4 text-sm shadow-lg ${isError ? 'border-red-300 bg-red-50 text-red-800' : 'border-green-300 bg-green-50 text-green-800'}`;
-        notification.setAttribute('role', isError ? 'alert' : 'status');
-
-        const icon = document.createElement('i');
-        icon.dataset.lucide = isError ? 'circle-alert' : 'circle-check';
-        icon.className = 'mt-0.5 h-4 w-4 flex-shrink-0';
-        icon.setAttribute('aria-hidden', 'true');
-
-        const text = document.createElement('span');
-        text.className = 'flex-1';
-        text.textContent = message;
-
-        const dismiss = document.createElement('button');
-        dismiss.type = 'button';
-        dismiss.className = 'text-current opacity-60 transition hover:opacity-100';
-        dismiss.setAttribute('aria-label', 'Dismiss notification');
-        dismiss.addEventListener('click', () => notification.remove());
-        const dismissIcon = document.createElement('i');
-        dismissIcon.dataset.lucide = 'x';
-        dismissIcon.className = 'h-4 w-4';
-        dismiss.append(dismissIcon);
-
-        const progress = document.createElement('span');
-        progress.className = `absolute bottom-0 left-0 h-1 w-full origin-left ${isError ? 'bg-red-500' : 'bg-green-500'}`;
-        progress.dataset.toastProgress = '';
-
-        notification.append(icon, text, dismiss, progress);
-        toastContainer.appendChild(notification);
-        window.lucide?.createIcons({ root: notification });
-        requestAnimationFrame(() => {
-            progress.style.transition = `width ${duration}ms linear`;
-            progress.style.width = '0%';
-        });
-        setTimeout(() => notification.remove(), duration);
+        window.AppToast.show(message, isError ? 'error' : 'success');
     }
 
     function refreshFilterOptions() {

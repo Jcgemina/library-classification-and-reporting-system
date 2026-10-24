@@ -261,5 +261,4 @@ $_SESSION['inventory_csrf'] = $csrfToken;
     </section>
     <section class="hidden" data-book-detail-view aria-live="polite" aria-label="Book details"></section>
 </div>
-<div data-reference-toast class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" role="status" aria-live="polite"></div>
 <script src="assets/js/reference_analyzer.js?v=20261020-2"></script>

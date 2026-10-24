@@ -604,6 +604,4 @@ if ($action !== null) {
     </form>
 </div>
 
-<div id="courseToastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" role="status"></div>
-
-<script src="assets/js/course.js?v=20261020-3"></script>
+<script src="assets/js/course.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/course.js'); ?>"></script>

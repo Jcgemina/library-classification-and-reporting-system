@@ -43,6 +43,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <body class="min-h-screen overflow-x-hidden bg-[#dfdfdf]">
 
   <?php require_once __DIR__ . '/includes/nav.php'; ?>
+  <div id="appToastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" role="region" aria-label="Notifications"></div>
+  <script src="assets/js/toast.js?v=<?php echo (int) filemtime(__DIR__ . '/assets/js/toast.js'); ?>"></script>
 
   <script>
     lucide.createIcons();
