@@ -15,6 +15,10 @@
     const collegeFilter = page.querySelector('[data-filter-college]');
     const programFilter = page.querySelector('[data-filter-program]');
     const courseFilter = page.querySelector('[data-filter-course]');
+    const clearFiltersButton = page.querySelector('[data-reference-clear-filters]');
+    const activeFilters = page.querySelector('[data-reference-active-filters]');
+    const refreshButton = page.querySelector('[data-reference-refresh]');
+    const refreshLabel = refreshButton.querySelector('[data-refresh-label]');
     const state = { colleges: [], programs: [], courses: [], activeBookId: null, requestNumber: 0 };
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
         '&': '&amp;',
@@ -69,6 +73,35 @@
         })), 'All courses', programId);
     }
 
+    function updateActiveFilters() {
+        const active = [];
+        const search = filters.elements.search.value.trim();
+        const publicationYear = filters.elements.publication_year.value.trim();
+        const status = filters.elements.status;
+        const college = collegeFilter;
+        const program = programFilter;
+        const course = courseFilter;
+
+        if (search) {
+            active.push(`Title or author: “${search}”`);
+        }
+        if (publicationYear) {
+            active.push(`Publication year: ${publicationYear}`);
+        }
+        if (status.value !== 'all') {
+            active.push(`Policy status: ${status.selectedOptions[0].textContent}`);
+        }
+        for (const [label, select] of [['College', college], ['Program', program], ['Course', course]]) {
+            if (select.value) {
+                active.push(`${label}: ${select.selectedOptions[0].textContent}`);
+            }
+        }
+
+        activeFilters.textContent = active.length ? `Filters: ${active.join(' · ')}` : '';
+        activeFilters.hidden = active.length === 0;
+        clearFiltersButton.disabled = active.length === 0;
+    }
+
     function statusBadge(assessment) {
         const classes = {
             meets_policy: 'bg-emerald-100 text-emerald-900',
@@ -81,7 +114,7 @@
 
     function renderBooks(books) {
         if (!books.length) {
-            booksBody.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center"><p class="font-semibold text-slate-800">No matching books</p><p class="mt-1 text-sm text-slate-600">Adjust or clear your filters to see inventory titles.</p></td></tr>';
+            booksBody.innerHTML = '<tr><td colspan="6" class="px-4 py-12 text-center"><p class="font-semibold text-slate-800">No matching books</p><p class="mt-1 text-sm text-slate-600">Adjust or clear your filters to see inventory titles.</p></td></tr>';
             return;
         }
         booksBody.innerHTML = books.map((book) => `
@@ -89,7 +122,6 @@
                 <th scope="row" class="max-w-[22rem] px-4 py-4 font-semibold text-slate-900">${escapeHtml(book.title)}</th>
                 <td class="max-w-[15rem] px-4 py-4 text-slate-700">${escapeHtml(book.author || 'Not recorded')}</td>
                 <td class="whitespace-nowrap px-4 py-4 tabular-nums text-slate-800">${book.publication_year ?? 'Not recorded'}</td>
-                <td class="px-4 py-4 text-slate-600">Not recorded</td>
                 <td class="px-4 py-4 text-center tabular-nums text-slate-800">${book.linked_course_count}</td>
                 <td class="px-4 py-4">${statusBadge(book.assessment)}</td>
                 <td class="px-4 py-4 text-right"><button type="button" data-book-detail="${book.book_id}" class="inline-flex min-h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="eye" class="h-4 w-4" aria-hidden="true"></i>Details</button></td>
@@ -101,14 +133,19 @@
     function showError(message) {
         errorNode.textContent = message;
         errorNode.classList.remove('hidden');
-        booksBody.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-sm text-slate-700">Books could not be loaded. Check the message above and retry.</td></tr>';
+        booksBody.innerHTML = '<tr><td colspan="6" class="px-4 py-12 text-center text-sm text-slate-700">Books could not be loaded. Check the message above and retry.</td></tr>';
         resultCount.textContent = 'Unable to load books.';
     }
 
-    async function loadBooks() {
+    async function loadBooks({ refresh = false } = {}) {
         const requestNumber = ++state.requestNumber;
         errorNode.classList.add('hidden');
-        resultCount.textContent = 'Loading books…';
+        resultCount.textContent = refresh ? 'Refreshing assessment…' : 'Loading books…';
+        if (refresh) {
+            refreshButton.disabled = true;
+            refreshButton.setAttribute('aria-busy', 'true');
+            refreshLabel.textContent = 'Refreshing…';
+        }
         const params = Object.fromEntries(new FormData(filters).entries());
         try {
             const result = await request('list', params);
@@ -116,13 +153,14 @@
                 return;
             }
             renderBooks(result.books);
+            updateActiveFilters();
             Object.entries(result.summary).forEach(([key, value]) => {
                 const target = page.querySelector(`[data-summary="${key}"]`);
                 if (target) {
                     target.textContent = String(value);
                 }
             });
-            resultCount.textContent = `${result.summary.total} book${result.summary.total === 1 ? '' : 's'} analyzed with current filters`;
+            resultCount.textContent = `${result.summary.total} matching book${result.summary.total === 1 ? '' : 's'}`;
             const policy = result.policy;
             policyNote.textContent = policy.direction
                 ? `Configured reference-age policy: ${policy.direction === 'within' ? 'published within' : 'at least'} ${policy.years} years. Assessments use publication year and do not indicate copyright expiration.`
@@ -131,7 +169,26 @@
             if (requestNumber === state.requestNumber) {
                 showError(error.message);
             }
+        } finally {
+            if (refresh) {
+                refreshButton.disabled = false;
+                refreshButton.removeAttribute('aria-busy');
+                refreshLabel.textContent = 'Refresh assessment';
+            }
         }
+    }
+
+    function clearFilters() {
+        filters.elements.search.value = '';
+        filters.elements.publication_year.value = '';
+        filters.elements.status.value = 'all';
+        collegeFilter.value = '';
+        programFilter.value = '';
+        courseFilter.value = '';
+        syncAcademicFilters();
+        updateActiveFilters();
+        loadBooks();
+        filters.elements.search.focus();
     }
 
     function returnToBookList() {
@@ -168,7 +225,7 @@
                 <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                     <button type="button" data-book-back class="mb-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Back to books</button>
                     <div class="flex flex-wrap items-start justify-between gap-4">
-                        <div class="min-w-0"><h3 id="referenceBookDetailTitle" class="text-2xl font-bold text-slate-900">${escapeHtml(book.title)}</h3><p class="mt-1 text-sm text-slate-600">by ${escapeHtml(book.author || 'Author not recorded')}</p></div>
+                        <div class="min-w-0"><h3 id="referenceBookDetailTitle" tabindex="-1" class="text-2xl font-bold text-slate-900">${escapeHtml(book.title)}</h3><p class="mt-1 text-sm text-slate-600">by ${escapeHtml(book.author || 'Author not recorded')}</p></div>
                         ${statusBadge(assessment)}
                     </div>
                 </section>
@@ -181,7 +238,6 @@
                         <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">ISBN</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeHtml(book.isbn || 'Not recorded')}</dd></div>
                         <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Publisher</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeHtml(book.publisher || 'Not recorded')}</dd></div>
                         <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Publication year</dt><dd class="text-right text-sm font-medium text-slate-900">${book.publication_year ?? 'Not recorded'}</dd></div>
-                        <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Edition</dt><dd class="text-right text-sm font-medium text-slate-900">Not recorded in catalog</dd></div>
                         <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Copyright year</dt><dd class="text-right text-sm font-medium text-slate-900">${book.copyright_year ?? 'Not recorded'}</dd></div>
                         <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Copies</dt><dd class="text-right text-sm font-medium text-slate-900">${book.copy_count}</dd></div>
                         <div class="flex flex-col gap-1 px-4 py-3"><dt class="text-sm text-slate-600">Description</dt><dd class="text-sm leading-5 text-slate-900">${escapeHtml(book.description || 'Not recorded')}</dd></div>
@@ -215,20 +271,27 @@
         booksPanel.classList.add('hidden');
         overview.classList.add('hidden');
         detailView.classList.remove('hidden');
+        detailView.setAttribute('aria-busy', 'true');
         detailView.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white px-5 py-12 text-center text-sm text-slate-600" role="status">Loading book details…</div>';
+        detailView.focus();
         try {
             const result = await request('book_detail', { book_id: String(bookId) });
             if (state.activeBookId !== Number(bookId)) {
                 return;
             }
             detailView.innerHTML = bookDetailContent(result.book);
+            detailView.removeAttribute('aria-busy');
             lucide.createIcons({ nodes: [detailView] });
+            const title = detailView.querySelector('#referenceBookDetailTitle');
+            title?.focus();
         } catch (error) {
             if (state.activeBookId !== Number(bookId)) {
                 return;
             }
-            detailView.innerHTML = `<section class="rounded-xl border border-rose-200 bg-white p-5" aria-labelledby="bookDetailErrorTitle"><button type="button" data-book-back class="mb-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Back to books</button><h3 id="bookDetailErrorTitle" class="font-bold text-slate-900">Book details unavailable</h3><p class="mt-2 text-sm text-rose-800" role="alert">${escapeHtml(error.message)}</p><button type="button" data-refresh-book="${bookId}" class="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">Retry</button></section>`;
+            detailView.innerHTML = `<section class="rounded-xl border border-rose-200 bg-white p-5" aria-labelledby="bookDetailErrorTitle"><button type="button" data-book-back class="mb-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Back to books</button><h3 id="bookDetailErrorTitle" tabindex="-1" class="font-bold text-slate-900">Book details unavailable</h3><p class="mt-2 text-sm text-rose-800" role="alert">${escapeHtml(error.message)}</p><button type="button" data-refresh-book="${bookId}" class="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">Retry</button></section>`;
+            detailView.removeAttribute('aria-busy');
             lucide.createIcons({ nodes: [detailView] });
+            detailView.querySelector('#bookDetailErrorTitle')?.focus();
         }
     }
 
@@ -250,15 +313,21 @@
         }
         const refreshButton = event.target.closest('[data-reference-refresh]');
         if (refreshButton) {
-            loadBooks();
-            if (state.activeBookId !== null) {
-                openBookDetail(state.activeBookId);
+            const activeBookId = state.activeBookId;
+            loadBooks({ refresh: true });
+            if (activeBookId !== null) {
+                openBookDetail(activeBookId);
             }
+            return;
+        }
+        if (event.target.closest('[data-reference-clear-filters]')) {
+            clearFilters();
         }
     });
 
     let searchTimer;
     filters.addEventListener('input', (event) => {
+        updateActiveFilters();
         if (event.target.name === 'search') {
             window.clearTimeout(searchTimer);
             searchTimer = window.setTimeout(loadBooks, 250);
@@ -274,6 +343,7 @@
             courseFilter.value = '';
             syncAcademicFilters();
         }
+        updateActiveFilters();
         loadBooks();
     });
 
@@ -285,6 +355,7 @@
             state.courses = result.courses;
             fillSelect(collegeFilter, state.colleges.map((item) => ({ id: item.id, label: item.name })), 'All colleges');
             syncAcademicFilters();
+            updateActiveFilters();
             await loadBooks();
         } catch (error) {
             showError(error.message);

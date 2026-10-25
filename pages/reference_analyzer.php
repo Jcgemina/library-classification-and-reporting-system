@@ -131,7 +131,6 @@ if (isset($_GET['action'])) {
                 $book['publication_year'] = $book['publication_year'] !== null ? (int) $book['publication_year'] : null;
                 $book['copyright_year'] = $book['copyright_year'] !== null ? (int) $book['copyright_year'] : null;
                 $book['linked_course_count'] = (int) $book['linked_course_count'];
-                $book['edition'] = null;
                 $book['assessment'] = $assessment;
                 $books[] = $book;
                 $summary['total']++;
@@ -176,7 +175,6 @@ if (isset($_GET['action'])) {
             $book['publication_year'] = $book['publication_year'] !== null ? (int) $book['publication_year'] : null;
             $book['copyright_year'] = $book['copyright_year'] !== null ? (int) $book['copyright_year'] : null;
             $book['copy_count'] = (int) $book['copy_count'];
-            $book['edition'] = null;
             $book['assessment'] = assessReferenceAge($book['publication_year'], $policy);
             $book['courses'] = array_map(static function (array $course): array {
                 $course['id'] = (int) $course['id'];
@@ -207,18 +205,24 @@ $_SESSION['inventory_csrf'] = $csrfToken;
             <p class="mt-1 max-w-3xl text-sm leading-6 text-slate-600">Review inventory titles, their linked courses, and their assessment against the institution’s configured reference-age policy.</p>
         </div>
         <button type="button" data-reference-refresh class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">
-            <i data-lucide="refresh-cw" class="h-4 w-4" aria-hidden="true"></i>Refresh assessment
+            <i data-lucide="refresh-cw" class="h-4 w-4" aria-hidden="true"></i><span data-refresh-label>Refresh assessment</span>
         </button>
     </header>
 
     <div class="space-y-6" data-reference-overview>
-        <div class="grid grid-cols-2 gap-3 xl:grid-cols-5">
-            <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Books analyzed</p><p class="mt-2 text-2xl font-bold tabular-nums text-slate-900" data-summary="total">—</p></section>
-            <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-emerald-800">Meets policy</p><p class="mt-2 text-2xl font-bold tabular-nums text-emerald-900" data-summary="meets_policy">—</p></section>
-            <section class="rounded-xl border border-rose-200 bg-rose-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-rose-800">Outside policy</p><p class="mt-2 text-2xl font-bold tabular-nums text-rose-900" data-summary="outside_policy">—</p></section>
-            <section class="rounded-xl border border-amber-200 bg-amber-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-amber-900">Needs verification</p><p class="mt-2 text-2xl font-bold tabular-nums text-amber-950" data-summary="needs_verification">—</p></section>
-            <section class="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 xl:col-span-1"><p class="text-xs font-semibold uppercase tracking-wide text-slate-700">Missing publication data</p><p class="mt-2 text-2xl font-bold tabular-nums text-slate-900" data-summary="missing_publication_data">—</p></section>
-        </div>
+        <section aria-labelledby="referenceOverviewHeading">
+            <div class="mb-3">
+                <h3 id="referenceOverviewHeading" class="text-base font-semibold text-slate-900">Assessment overview</h3>
+                <p class="mt-1 text-sm text-slate-600">Counts reflect the current filters, including policy status.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3 xl:grid-cols-5">
+                <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Matching books</p><p class="mt-2 text-2xl font-bold tabular-nums text-slate-900" data-summary="total">—</p></section>
+                <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-emerald-800">Meets policy</p><p class="mt-2 text-2xl font-bold tabular-nums text-emerald-900" data-summary="meets_policy">—</p></section>
+                <section class="rounded-xl border border-rose-200 bg-rose-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-rose-800">Outside policy</p><p class="mt-2 text-2xl font-bold tabular-nums text-rose-900" data-summary="outside_policy">—</p></section>
+                <section class="rounded-xl border border-amber-200 bg-amber-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-amber-900">Needs verification</p><p class="mt-2 text-2xl font-bold tabular-nums text-amber-950" data-summary="needs_verification">—</p></section>
+                <section class="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 xl:col-span-1"><p class="text-xs font-semibold uppercase tracking-wide text-slate-700">Missing publication data</p><p class="mt-2 text-2xl font-bold tabular-nums text-slate-900" data-summary="missing_publication_data">—</p></section>
+            </div>
+        </section>
 
         <p class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm leading-5 text-slate-700" data-reference-policy-note role="status" aria-live="polite">Loading the configured reference-age policy…</p>
         <p class="hidden rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" data-reference-error role="alert"></p>
@@ -246,19 +250,21 @@ $_SESSION['inventory_csrf'] = $csrfToken;
             <label class="text-xs font-semibold text-slate-700 sm:col-span-2 xl:col-span-2">Course
                 <select name="course_id" data-filter-course class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"><option value="">All courses</option></select>
             </label>
-            <p class="self-end pb-2 text-xs text-slate-500 sm:col-span-2 xl:col-span-4" data-reference-result-count aria-live="polite">Loading books…</p>
+            <p class="self-end pb-2 text-xs text-slate-500 sm:col-span-2 xl:col-span-2" data-reference-result-count aria-live="polite">Loading books…</p>
+            <p class="self-end pb-2 text-xs text-slate-600 sm:col-span-2 xl:col-span-3" data-reference-active-filters aria-live="polite" hidden></p>
+            <button type="button" data-reference-clear-filters class="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">Clear filters</button>
         </form>
         <div class="overflow-x-auto">
             <table class="w-full min-w-[900px] text-left text-sm">
                 <thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                    <tr><th scope="col" class="px-4 py-3">Book</th><th scope="col" class="px-4 py-3">Author</th><th scope="col" class="px-4 py-3">Publication year</th><th scope="col" class="px-4 py-3">Edition</th><th scope="col" class="px-4 py-3 text-center">Linked courses</th><th scope="col" class="px-4 py-3">Reference policy</th><th scope="col" class="px-4 py-3 text-right">Details</th></tr>
+                    <tr><th scope="col" class="px-4 py-3">Book</th><th scope="col" class="px-4 py-3">Author</th><th scope="col" class="px-4 py-3">Publication year</th><th scope="col" class="px-4 py-3 text-center">Linked courses</th><th scope="col" class="px-4 py-3">Reference policy</th><th scope="col" class="px-4 py-3 text-right">Details</th></tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100" data-reference-books>
-                    <tr><td colspan="7" class="px-4 py-12 text-center text-sm text-slate-600">Loading books…</td></tr>
+                    <tr><td colspan="6" class="px-4 py-12 text-center text-sm text-slate-600">Loading books…</td></tr>
                 </tbody>
             </table>
         </div>
     </section>
-    <section class="hidden" data-book-detail-view aria-live="polite" aria-label="Book details"></section>
+    <section class="hidden" data-book-detail-view aria-label="Book details" tabindex="-1"></section>
 </div>
-<script src="assets/js/reference_analyzer.js?v=20261020-2"></script>
+<script src="assets/js/reference_analyzer.js?v=20261025-2"></script>
