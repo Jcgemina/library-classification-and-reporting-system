@@ -24,23 +24,15 @@ function inventoryJsonResponse(array $payload, int $status = 200): never {
   exit;
 }
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'create_book') {
-  if (!$pdo instanceof PDO) inventoryJsonResponse(['success' => false, 'message' => 'The database is unavailable.'], 503);
-  if (!in_array(strtolower((string)($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)) {
-    inventoryJsonResponse(['success' => false, 'message' => 'You do not have permission to add books.'], 403);
-  }
-  if (!hash_equals($csrfToken, requestString($_POST, 'csrf_token'))) {
-    inventoryJsonResponse(['success' => false, 'message' => 'Your session has expired. Reload the page and try again.'], 403);
-  }
-
-  $title = trim(requestString($_POST, 'title'));
-  $author = trim(requestString($_POST, 'author'));
-  $isbn = trim(requestString($_POST, 'isbn'));
-  $publisher = trim(requestString($_POST, 'publisher'));
-  $description = trim(requestString($_POST, 'description'));
-  $publicationYearInput = trim(requestString($_POST, 'publication_year'));
-  $copyrightYearInput = trim(requestString($_POST, 'copyright_year'));
-  $copyCount = filter_var(requestString($_POST, 'copy_count'), FILTER_VALIDATE_INT);
+function inventoryBookInput(array $input): array {
+  $title = trim(requestString($input, 'title'));
+  $author = trim(requestString($input, 'author'));
+  $isbn = trim(requestString($input, 'isbn'));
+  $publisher = trim(requestString($input, 'publisher'));
+  $description = trim(requestString($input, 'description'));
+  $publicationYearInput = trim(requestString($input, 'publication_year'));
+  $copyrightYearInput = trim(requestString($input, 'copyright_year'));
+  $copyCount = filter_var(requestString($input, 'copy_count'), FILTER_VALIDATE_INT);
   $currentYear = (int)date('Y');
   $publicationYear = $publicationYearInput === '' ? null : filter_var($publicationYearInput, FILTER_VALIDATE_INT);
   $copyrightYear = $copyrightYearInput === '' ? null : filter_var($copyrightYearInput, FILTER_VALIDATE_INT);
@@ -59,21 +51,44 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     inventoryJsonResponse(['success' => false, 'message' => 'The number of copies must be between 1 and 5,000.'], 422);
   }
 
+  return [
+    'title' => $title,
+    'author' => $author,
+    'isbn' => $isbn !== '' ? $isbn : null,
+    'publisher' => $publisher !== '' ? $publisher : null,
+    'description' => $description !== '' ? $description : null,
+    'publication_year' => $publicationYear,
+    'copyright_year' => $copyrightYear,
+    'copy_count' => $copyCount,
+  ];
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'create_book') {
+  if (!$pdo instanceof PDO) inventoryJsonResponse(['success' => false, 'message' => 'The database is unavailable.'], 503);
+  if (!in_array(strtolower((string)($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)) {
+    inventoryJsonResponse(['success' => false, 'message' => 'You do not have permission to add books.'], 403);
+  }
+  if (!hash_equals($csrfToken, requestString($_POST, 'csrf_token'))) {
+    inventoryJsonResponse(['success' => false, 'message' => 'Your session has expired. Reload the page and try again.'], 403);
+  }
+
+  $bookInput = inventoryBookInput($_POST);
+
   try {
     $pdo->beginTransaction();
     $bookStmt = $pdo->prepare('INSERT INTO books (isbn, title, author, publisher, publication_year, copyright_year, description) VALUES (:isbn, :title, :author, :publisher, :publication_year, :copyright_year, :description)');
     $bookStmt->execute([
-      ':isbn' => $isbn !== '' ? $isbn : null,
-      ':title' => $title,
-      ':author' => $author,
-      ':publisher' => $publisher !== '' ? $publisher : null,
-      ':publication_year' => $publicationYear,
-      ':copyright_year' => $copyrightYear,
-      ':description' => $description !== '' ? $description : null,
+      ':isbn' => $bookInput['isbn'],
+      ':title' => $bookInput['title'],
+      ':author' => $bookInput['author'],
+      ':publisher' => $bookInput['publisher'],
+      ':publication_year' => $bookInput['publication_year'],
+      ':copyright_year' => $bookInput['copyright_year'],
+      ':description' => $bookInput['description'],
     ]);
     $bookId = (int)$pdo->lastInsertId();
     $copyStmt = $pdo->prepare('INSERT INTO book_copies (book_id, copy_number) VALUES (:book_id, :copy_number)');
-    for ($copyNumber = 1; $copyNumber <= $copyCount; $copyNumber++) {
+    for ($copyNumber = 1; $copyNumber <= $bookInput['copy_count']; $copyNumber++) {
       $copyStmt->execute([':book_id' => $bookId, ':copy_number' => $copyNumber]);
     }
     $pdo->commit();
@@ -158,43 +173,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($inventoryActio
       inventoryJsonResponse(['success' => true, 'message' => 'Course reference updated.']);
     }
 
-    $title = trim(requestString($_POST, 'title'));
-    $author = trim(requestString($_POST, 'author'));
-    $isbn = trim(requestString($_POST, 'isbn'));
-    $publisher = trim(requestString($_POST, 'publisher'));
-    $description = trim(requestString($_POST, 'description'));
-    $publicationYearInput = trim(requestString($_POST, 'publication_year'));
-    $copyrightYearInput = trim(requestString($_POST, 'copyright_year'));
-    $copyCount = filter_var(requestString($_POST, 'copy_count'), FILTER_VALIDATE_INT);
-    $currentYear = (int)date('Y');
-    $publicationYear = $publicationYearInput === '' ? null : filter_var($publicationYearInput, FILTER_VALIDATE_INT);
-    $copyrightYear = $copyrightYearInput === '' ? null : filter_var($copyrightYearInput, FILTER_VALIDATE_INT);
-
-    if ($title === '' || strlen($title) > 255 || $author === '' || strlen($author) > 180) {
-      inventoryJsonResponse(['success' => false, 'message' => 'Enter a title and author within the allowed length.'], 422);
-    }
-    if (strlen($isbn) > 20 || strlen($publisher) > 180) {
-      inventoryJsonResponse(['success' => false, 'message' => 'ISBN or publisher is longer than allowed.'], 422);
-    }
-    if (($publicationYear !== null && ($publicationYear === false || $publicationYear < 1450 || $publicationYear > $currentYear))
-      || ($copyrightYear !== null && ($copyrightYear === false || $copyrightYear < 1450 || $copyrightYear > $currentYear))) {
-      inventoryJsonResponse(['success' => false, 'message' => 'Enter valid publication and copyright years.'], 422);
-    }
-    if ($copyCount === false || $copyCount < 1 || $copyCount > 5000) {
-      inventoryJsonResponse(['success' => false, 'message' => 'The number of copies must be between 1 and 5,000.'], 422);
-    }
+    $bookInput = inventoryBookInput($_POST);
 
     $pdo->beginTransaction();
     $bookStmt = $pdo->prepare('UPDATE books SET isbn = :isbn, title = :title, author = :author, publisher = :publisher, publication_year = :publication_year, copyright_year = :copyright_year, description = :description WHERE book_id = :book_id AND deleted_at IS NULL');
     $bookStmt->execute([
       ':book_id' => $bookId,
-      ':isbn' => $isbn !== '' ? $isbn : null,
-      ':title' => $title,
-      ':author' => $author,
-      ':publisher' => $publisher !== '' ? $publisher : null,
-      ':publication_year' => $publicationYear,
-      ':copyright_year' => $copyrightYear,
-      ':description' => $description !== '' ? $description : null,
+      ':isbn' => $bookInput['isbn'],
+      ':title' => $bookInput['title'],
+      ':author' => $bookInput['author'],
+      ':publisher' => $bookInput['publisher'],
+      ':publication_year' => $bookInput['publication_year'],
+      ':copyright_year' => $bookInput['copyright_year'],
+      ':description' => $bookInput['description'],
     ]);
     $existsStmt = $pdo->prepare('SELECT 1 FROM books WHERE book_id = :book_id AND deleted_at IS NULL');
     $existsStmt->execute([':book_id' => $bookId]);
@@ -202,9 +193,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($inventoryActio
       $pdo->rollBack();
       inventoryJsonResponse(['success' => false, 'message' => 'Book not found or archived.'], 404);
     }
-    $pdo->prepare('DELETE FROM book_copies WHERE book_id = :book_id AND copy_number > :copy_count')->execute([':book_id' => $bookId, ':copy_count' => $copyCount]);
+    $pdo->prepare('DELETE FROM book_copies WHERE book_id = :book_id AND copy_number > :copy_count')->execute([':book_id' => $bookId, ':copy_count' => $bookInput['copy_count']]);
     $copyStmt = $pdo->prepare('INSERT IGNORE INTO book_copies (book_id, copy_number) VALUES (:book_id, :copy_number)');
-    for ($copyNumber = 1; $copyNumber <= $copyCount; $copyNumber++) {
+    for ($copyNumber = 1; $copyNumber <= $bookInput['copy_count']; $copyNumber++) {
       $copyStmt->execute([':book_id' => $bookId, ':copy_number' => $copyNumber]);
     }
     $pdo->commit();
@@ -332,7 +323,7 @@ $copyrightMetricStyles = [
       </div>
     </div>
     <button type="button" data-inventory-archive-open aria-haspopup="dialog" aria-controls="inventoryArchiveModal" class="inline-flex h-9 items-center gap-2 rounded-lg bg-[#191b1c] px-4 text-xs font-semibold text-white transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
-      View Archive<i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
+      View Archive<span class="inline-flex min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums"><?php echo count($archivedBooks); ?></span><i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
     </button>
   </section>
 
@@ -807,8 +798,28 @@ $copyrightMetricStyles = [
     window.location.reload();
   }
 
+  async function submitInventoryForm(event, form, submitButton, errorElement, fallbackMessage = '') {
+    event.preventDefault();
+    submitButton.disabled = true;
+    errorElement.hidden = true;
+
+    try {
+      await postInventoryAction(new FormData(form));
+    } catch (error) {
+      errorElement.textContent = error.message || fallbackMessage;
+      errorElement.hidden = false;
+      submitButton.disabled = false;
+    }
+  }
+
   function showInventoryToast(message) {
     window.AppToast.show(message, 'info');
+  }
+
+  function formatCourseReferences(references) {
+    return references.length
+      ? references.map((reference) => `${reference.code} - ${reference.name}`).join(', ')
+      : 'No courses linked yet';
   }
 
   function resetAiCoursePanel(book) {
@@ -821,9 +832,7 @@ $copyrightMetricStyles = [
     const missingDescription = !book.description?.trim();
     aiCourseDescriptionWarning.hidden = !missingDescription;
     aiCourseDescriptionWarning.classList.toggle('flex', missingDescription);
-    document.querySelector('[data-ai-course-references]').textContent = book.course_references.length
-      ? book.course_references.map((reference) => `${reference.code} - ${reference.name}`).join(', ')
-      : 'No courses linked yet';
+    document.querySelector('[data-ai-course-references]').textContent = formatCourseReferences(book.course_references);
     aiCourseStatus.hidden = true;
     aiCourseError.hidden = true;
     aiCourseResults.hidden = true;
@@ -940,9 +949,7 @@ $copyrightMetricStyles = [
 
   function updateBookCourseReferences(book) {
     const references = book.course_references;
-    document.querySelector('[data-ai-course-references]').textContent = references.length
-      ? references.map((reference) => `${reference.code} - ${reference.name}`).join(', ')
-      : 'No courses linked yet';
+    document.querySelector('[data-ai-course-references]').textContent = formatCourseReferences(references);
 
     const actionsButton = [...document.querySelectorAll('[data-book-actions-open]')]
       .find((button) => button.dataset.bookId === String(book.book_id));
@@ -1255,71 +1262,25 @@ $copyrightMetricStyles = [
   });
 
   referenceEditForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    referenceEditSubmit.disabled = true;
-    referenceEditError.hidden = true;
-    try {
-      await postInventoryAction(new FormData(referenceEditForm));
-    } catch (error) {
-      referenceEditError.textContent = error.message;
-      referenceEditError.hidden = false;
-      referenceEditSubmit.disabled = false;
-    }
+    await submitInventoryForm(event, referenceEditForm, referenceEditSubmit, referenceEditError);
   });
 
   referenceRemoveForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    referenceRemoveSubmit.disabled = true;
-    referenceRemoveError.hidden = true;
-    try {
-      await postInventoryAction(new FormData(referenceRemoveForm));
-    } catch (error) {
-      referenceRemoveError.textContent = error.message;
-      referenceRemoveError.hidden = false;
-      referenceRemoveSubmit.disabled = false;
-    }
+    await submitInventoryForm(event, referenceRemoveForm, referenceRemoveSubmit, referenceRemoveError);
   });
 
   addBookForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
     const submitButton = addBookForm.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    formMessage.hidden = true;
-
-    try {
-      await postInventoryAction(new FormData(addBookForm));
-    } catch (error) {
-      formMessage.textContent = error.message || 'Unable to save this book. Please try again.';
-      formMessage.hidden = false;
-      submitButton.disabled = false;
-    }
+    await submitInventoryForm(event, addBookForm, submitButton, formMessage, 'Unable to save this book. Please try again.');
   });
 
   referenceForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
     const submitButton = referenceForm.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    referenceMessage.hidden = true;
-    try {
-      await postInventoryAction(new FormData(referenceForm));
-    } catch (error) {
-      referenceMessage.textContent = error.message;
-      referenceMessage.hidden = false;
-      submitButton.disabled = false;
-    }
+    await submitInventoryForm(event, referenceForm, submitButton, referenceMessage);
   });
 
   deleteBookForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    deleteBookSubmit.disabled = true;
-    deleteBookError.hidden = true;
-    try {
-      await postInventoryAction(new FormData(deleteBookForm));
-    } catch (error) {
-      deleteBookError.textContent = error.message;
-      deleteBookError.hidden = false;
-      deleteBookSubmit.disabled = false;
-    }
+    await submitInventoryForm(event, deleteBookForm, deleteBookSubmit, deleteBookError);
   });
 
   const inventoryQuery = new URLSearchParams(window.location.search);
