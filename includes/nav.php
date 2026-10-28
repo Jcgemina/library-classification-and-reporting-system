@@ -23,21 +23,10 @@ $navItems = [
 ];
 
 if (!$isValidatedUser || $userRole !== 'admin') {
-    $navItems = array_values(array_filter($navItems, static function ($item) {
-        return $item['page'] !== 'user';
+    $adminPages = ['user', 'logs', 'configure'];
+    $navItems = array_values(array_filter($navItems, static function ($item) use ($adminPages) {
+        return !in_array($item['page'], $adminPages, true);
     }));
-}
-
-if (!$isValidatedUser || $userRole !== 'admin') {
-  $navItems = array_values(array_filter($navItems, static function ($item) {
-    return $item['page'] !== 'logs';
-  }));
-}
-
-if (!$isValidatedUser || $userRole !== 'admin') {
-  $navItems = array_values(array_filter($navItems, static function ($item) {
-    return $item['page'] !== 'configure';
-  }));
 }
 
 if (!$isValidatedUser) {
