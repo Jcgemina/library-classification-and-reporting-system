@@ -18,36 +18,8 @@ if (!$pdo) {
     exit;
 }
 
-// Ensure email column exists
-try {
-    $pdo->query("SELECT email FROM users LIMIT 1");
-} catch (Exception $e) {
-    $pdo->exec("ALTER TABLE users ADD COLUMN email VARCHAR(100)");
-}
-
-$seedCount = $pdo->query("SELECT COUNT(*) FROM users WHERE role IN ('admin', 'librarian')")->fetchColumn();
-if ((int) $seedCount === 0) {
-    $seedAccounts = [
-        ['username' => 'admin', 'password' => '123', 'full_name' => 'System Admin', 'email' => 'admin@library.com', 'role' => 'admin'],
-        ['username' => 'librarian1', 'password' => '123', 'full_name' => 'Maria Santos', 'email' => 'maria@library.com', 'role' => 'librarian'],
-        ['username' => 'librarian2', 'password' => '123', 'full_name' => 'John Medina', 'email' => 'john@library.com', 'role' => 'librarian'],
-        ['username' => 'librarian3', 'password' => '123', 'full_name' => 'Angela Cruz', 'email' => 'angela@library.com', 'role' => 'librarian'],
-    ];
-
-    $seedStmt = $pdo->prepare(
-        "INSERT INTO users (username, password, full_name, email, role, is_active) VALUES (:username, :password, :full_name, :email, :role, 1)"
-    );
-
-    foreach ($seedAccounts as $account) {
-        $seedStmt->execute([
-            ':username' => $account['username'],
-            ':password' => password_hash($account['password'], PASSWORD_DEFAULT),
-            ':full_name' => $account['full_name'],
-            ':email' => $account['email'],
-            ':role' => $account['role'],
-        ]);
-    }
-}
+ensureUserModuleSchema($pdo);
+seedUserModuleAccounts($pdo);
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $action = requestString($_GET, 'action', requestString($_POST, 'action'));

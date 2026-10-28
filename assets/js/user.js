@@ -366,7 +366,7 @@
     }
   }
 
-  function fetchLibrarians(search = '') {
+  function fetchLibrarians() {
     const params = new URLSearchParams({ action: 'list' });
 
     return fetch('pages/user.php?' + params.toString(), {
@@ -483,7 +483,7 @@
           showToast(failedMessages[0] || 'Unable to delete selected librarians.', 'error');
         }
 
-        fetchLibrarians(document.getElementById('librarianSearch').value.trim())
+        fetchLibrarians()
           .finally(() => {
             closeDeleteConfirmation();
           });
@@ -586,7 +586,7 @@
       .then((result) => {
         if (!result.success) throw new Error(result.message || 'Unable to change account status.');
         showToast(result.message);
-        return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
+        return fetchLibrarians();
       })
       .catch((error) => showToast(error.message || 'Unable to change account status.', 'error'));
   }
@@ -646,7 +646,7 @@
           ? `${result.message} Password reset link queued for delivery.`
           : result.message;
         showToast(saveMessage);
-        return fetchLibrarians(document.getElementById('librarianSearch').value.trim());
+        return fetchLibrarians();
       })
       .then(() => {
         document.getElementById('bulkDeleteBtn').disabled = true;
@@ -707,7 +707,7 @@
     clearTimeout(state.searchTimer);
     state.searchTimer = setTimeout(() => {
       state.currentPage = 1;
-      fetchLibrarians(this.value.trim());
+      fetchLibrarians();
     }, 250);
   });
 

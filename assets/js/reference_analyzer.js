@@ -19,15 +19,21 @@
     const activeFilters = page.querySelector('[data-reference-active-filters]');
     const refreshButton = page.querySelector('[data-reference-refresh]');
     const refreshLabel = refreshButton.querySelector('[data-refresh-label]');
-    const state = { colleges: [], programs: [], courses: [], activeBookId: null, requestNumber: 0 };
-    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    const state = { programs: [], courses: [], activeBookId: null, requestNumber: 0 };
+    const htmlEscapes = {
         '&': '&amp;',
         '<': '&lt;',
         '>': '&gt;',
         '"': '&quot;',
         "'": '&#039;'
-    }[character]));
-    const $ = (selector, root = document) => root.querySelector(selector);
+    };
+    const statusClasses = {
+        meets_policy: 'bg-emerald-100 text-emerald-900',
+        outside_policy: 'bg-rose-100 text-rose-900',
+        needs_verification: 'bg-amber-100 text-amber-950',
+        missing_publication_data: 'bg-slate-100 text-slate-800'
+    };
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => htmlEscapes[character]);
 
     async function request(action, params = {}) {
         const query = new URLSearchParams({ action, ...params });
@@ -78,9 +84,6 @@
         const search = filters.elements.search.value.trim();
         const publicationYear = filters.elements.publication_year.value.trim();
         const status = filters.elements.status;
-        const college = collegeFilter;
-        const program = programFilter;
-        const course = courseFilter;
 
         if (search) {
             active.push(`Title or author: “${search}”`);
@@ -91,7 +94,7 @@
         if (status.value !== 'all') {
             active.push(`Policy status: ${status.selectedOptions[0].textContent}`);
         }
-        for (const [label, select] of [['College', college], ['Program', program], ['Course', course]]) {
+        for (const [label, select] of [['College', collegeFilter], ['Program', programFilter], ['Course', courseFilter]]) {
             if (select.value) {
                 active.push(`${label}: ${select.selectedOptions[0].textContent}`);
             }
@@ -103,13 +106,7 @@
     }
 
     function statusBadge(assessment) {
-        const classes = {
-            meets_policy: 'bg-emerald-100 text-emerald-900',
-            outside_policy: 'bg-rose-100 text-rose-900',
-            needs_verification: 'bg-amber-100 text-amber-950',
-            missing_publication_data: 'bg-slate-100 text-slate-800'
-        };
-        return `<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${classes[assessment.status] || classes.needs_verification}">${escapeHtml(assessment.label)}</span>`;
+        return `<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[assessment.status] || statusClasses.needs_verification}">${escapeHtml(assessment.label)}</span>`;
     }
 
     function renderBooks(books) {
@@ -350,10 +347,9 @@
     async function initialize() {
         try {
             const result = await request('options');
-            state.colleges = result.colleges;
             state.programs = result.programs;
             state.courses = result.courses;
-            fillSelect(collegeFilter, state.colleges.map((item) => ({ id: item.id, label: item.name })), 'All colleges');
+            fillSelect(collegeFilter, result.colleges.map((item) => ({ id: item.id, label: item.name })), 'All colleges');
             syncAcademicFilters();
             updateActiveFilters();
             await loadBooks();

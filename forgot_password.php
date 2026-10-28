@@ -25,10 +25,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
             }
         }
-        $message = 'If an active account uses that email, a password reset link has been sent.';
-    } else {
-        $message = 'If an active account uses that email, a password reset link has been sent.';
     }
+    $message = 'If an active account uses that email, a password reset link has been sent.';
 }
 ?>
 <!DOCTYPE html>
