@@ -53,3 +53,7 @@ package-lock.json
 
 # Migrations files
 /migrations/*
+
+# Scripts and tests
+/scripts/
+/tests/
