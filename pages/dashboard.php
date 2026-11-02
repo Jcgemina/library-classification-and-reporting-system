@@ -74,6 +74,7 @@ try {
 
 $verifiedProgramIds = [];
 $upcomingDeadlines = [];
+$upcomingScopes = [];
 $overdueScopes = [];
 $overdueDeadlineCount = 0;
 if ($dashboardDataAvailable) {
@@ -94,18 +95,20 @@ if ($dashboardDataAvailable) {
 
     $targetQuarterNumber = (int)substr((string)$scope['target_quarter'], 1);
     $targetActual = (bool)$scope[strtolower((string)$scope['target_quarter']) . '_actual'];
+    $deadlineScope = [
+      'program_id' => (int)$scope['program_id'],
+      'major_id' => (int)($scope['major_id'] ?? 0),
+      'program_name' => (string)$scope['program_name'],
+      'college_name' => (string)$scope['college_name'],
+      'major_name' => (string)($scope['major_name'] ?? ''),
+      'target_quarter' => (string)$scope['target_quarter'],
+    ];
     if (!$targetActual && $targetQuarterNumber < $currentQuarterNumber) {
       $overdueDeadlineCount++;
-      $overdueScopes[] = [
-        'program_id' => (int)$scope['program_id'],
-        'major_id' => (int)($scope['major_id'] ?? 0),
-        'program_name' => (string)$scope['program_name'],
-        'college_name' => (string)$scope['college_name'],
-        'major_name' => (string)($scope['major_name'] ?? ''),
-        'target_quarter' => (string)$scope['target_quarter'],
-      ];
+      $overdueScopes[] = $deadlineScope;
     } elseif (!$targetActual && $targetQuarterNumber >= $currentQuarterNumber) {
       $upcomingDeadlines[$targetQuarterNumber] = ($upcomingDeadlines[$targetQuarterNumber] ?? 0) + 1;
+      $upcomingScopes[$targetQuarterNumber][] = $deadlineScope;
     }
   }
 
@@ -147,19 +150,19 @@ $copyrightMetricStyles = [
   <?php endif; ?>
 
   <div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-    <a href="app.php?page=inventory" data-page="inventory" class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300">
+    <a href="app.php?page=inventory" data-page="inventory" class="flex h-36 flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-rose-300 hover:bg-rose-50/20 focus:outline-none focus:ring-2 focus:ring-rose-300">
       <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-100 text-rose-600"><i data-lucide="book-open" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight text-rose-800">Total Book Titles</p></div>
       <p class="text-3xl font-bold leading-none text-slate-950"><?php echo $dashboardDataAvailable ? $totalBookTitles : '&mdash;'; ?></p>
     </a>
     <?php foreach (array_values($copyrightYearMetrics) as $index => $metric): ?>
       <?php $style = $copyrightMetricStyles[$index % count($copyrightMetricStyles)]; ?>
-      <a href="app.php?page=inventory" data-page="inventory" class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-rose-300">
+      <a href="app.php?page=inventory" data-page="inventory" class="flex h-36 flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-rose-300 hover:bg-rose-50/20 focus:outline-none focus:ring-2 focus:ring-rose-300">
         <div class="flex items-center gap-3"><div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border <?php echo $style['iconBorder']; ?> <?php echo $style['iconBg']; ?> <?php echo $style['iconColor']; ?>"><i data-lucide="<?php echo $style['icon']; ?>" class="h-5 w-5"></i></div><p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] leading-tight <?php echo $style['labelColor']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> years</p></div>
         <p class="text-3xl font-bold leading-none <?php echo $style['valueColor']; ?>"><?php echo (int)$metric['title_count']; ?></p>
       </a>
     <?php endforeach; ?>
     <?php if (!$dashboardDataAvailable): ?>
-      <div class="flex h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+      <div class="flex h-36 flex-col justify-between rounded-xl border border-slate-200 bg-white p-4">
         <p class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Collection metrics</p>
         <p class="text-3xl font-bold leading-none text-slate-400">&mdash;</p>
       </div>
@@ -167,7 +170,7 @@ $copyrightMetricStyles = [
   </div>
 
   <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_1.15fr_0.72fr]">
-    <section class="min-h-[370px] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]" aria-labelledby="quarterlyProgressTitle">
+    <section class="min-h-[370px] rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="quarterlyProgressTitle">
       <div class="flex items-center justify-between">
         <h2 id="quarterlyProgressTitle" class="text-base font-bold">Quarterly Progress</h2>
         <a href="app.php?page=report" data-page="report" class="text-xs font-semibold text-rose-600 hover:text-rose-700">View report</a>
@@ -195,7 +198,7 @@ $copyrightMetricStyles = [
       <?php endif; ?>
     </section>
 
-    <section class="min-h-[370px] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]" aria-labelledby="upcomingDeadlinesTitle">
+    <section class="min-h-[370px] rounded-xl border border-slate-200 bg-white p-4" aria-labelledby="upcomingDeadlinesTitle">
       <div class="flex items-center justify-between">
         <h2 id="upcomingDeadlinesTitle" class="text-base font-bold">Upcoming Deadlines</h2>
         <a href="app.php?page=report" data-page="report" class="text-xs font-semibold text-rose-600 hover:text-rose-700">Update targets</a>
@@ -208,7 +211,7 @@ $copyrightMetricStyles = [
       <?php else: ?>
         <div class="mt-5 space-y-3">
           <?php if ($overdueDeadlineCount > 0): ?>
-            <div class="flex items-center justify-between rounded-lg border border-rose-100 bg-rose-50 px-3 py-2.5">
+            <div class="flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5">
               <div><p class="text-sm font-semibold text-rose-800">Overdue scopes</p><p class="text-xs text-rose-700">Incomplete targets earlier than <?php echo $quarterLabels[$currentQuarterNumber - 1]; ?></p></div>
               <span class="text-lg font-bold text-rose-700"><?php echo $overdueDeadlineCount; ?></span>
             </div>
@@ -245,10 +248,41 @@ $copyrightMetricStyles = [
               $deadlineDate = new DateTimeImmutable(sprintf('%d-%02d-01', $currentYear, $deadlineMonth));
               $deadlineDate = $deadlineDate->modify('+1 month')->modify('-1 day');
             ?>
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0">
-              <div><p class="text-sm font-semibold text-slate-800"><?php echo $quarterLabels[$quarterNumber - 1]; ?> target</p><p class="text-xs text-slate-500">Due <?php echo $deadlineDate->format('M j'); ?></p></div>
-              <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800"><?php echo $scopeCount; ?> pending</span>
-            </div>
+            <details class="group rounded-lg border border-slate-200 bg-slate-50/60" <?php echo $quarterNumber === array_key_first($upcomingDeadlines) ? 'open' : ''; ?>>
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-3 py-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300">
+                <span>
+                  <span class="block text-sm font-semibold text-slate-800"><?php echo $quarterLabels[$quarterNumber - 1]; ?> target</span>
+                  <span class="block text-xs text-slate-600">Due <?php echo $deadlineDate->format('M j'); ?></span>
+                </span>
+                <span class="flex flex-shrink-0 items-center gap-2">
+                  <span class="rounded-md bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800"><?php echo $scopeCount; ?> pending</span>
+                  <i data-lucide="chevron-down" class="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180"></i>
+                </span>
+              </summary>
+              <ul class="max-h-44 space-y-1 overflow-y-auto border-t border-slate-200 px-2 py-2" aria-label="<?php echo $escapeDashboardValue($quarterLabels[$quarterNumber - 1]); ?> target scopes">
+                <?php foreach ($upcomingScopes[$quarterNumber] as $scope): ?>
+                  <?php
+                    $reportParams = [
+                      'page' => 'report',
+                      'year' => $currentYear,
+                      'program_id' => $scope['program_id'],
+                    ];
+                    if ($scope['major_id'] > 0) {
+                      $reportParams['major_id'] = $scope['major_id'];
+                    }
+                    $scopeDescription = $scope['major_name'] !== ''
+                      ? $scope['program_name'] . ' · ' . $scope['major_name']
+                      : $scope['program_name'] . ' · Program-level target';
+                  ?>
+                  <li>
+                    <a href="app.php?<?php echo $escapeDashboardValue(http_build_query($reportParams)); ?>" data-page="report" class="block rounded-md px-2 py-2 transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-rose-300">
+                      <span class="block truncate text-sm font-semibold text-slate-800"><?php echo $escapeDashboardValue($scopeDescription); ?></span>
+                      <span class="block truncate text-xs text-slate-600"><?php echo $escapeDashboardValue($scope['college_name']); ?></span>
+                    </a>
+                  </li>
+                <?php endforeach; ?>
+              </ul>
+            </details>
           <?php endforeach; ?>
           <?php if ($overdueDeadlineCount === 0 && $upcomingDeadlines === []): ?>
             <div class="mt-10 text-center">
@@ -262,7 +296,7 @@ $copyrightMetricStyles = [
     </section>
 
     <div class="space-y-4">
-      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+      <section class="rounded-xl border border-slate-200 bg-white p-4">
         <h2 class="text-base font-bold">Programs Overview</h2>
         <dl class="mt-4 space-y-2 text-sm">
           <div class="flex items-center justify-between border-b border-slate-100 pb-2"><dt class="text-slate-600">Total Programs</dt><dd class="font-semibold text-slate-900"><?php echo $dashboardDataAvailable ? $totalActivePrograms : '&mdash;'; ?></dd></div>
@@ -272,7 +306,7 @@ $copyrightMetricStyles = [
         <a href="app.php?page=academics" data-page="academics" class="mt-5 flex items-center justify-center gap-1 border-t border-slate-100 pt-3 text-xs font-semibold text-rose-600"><i data-lucide="arrow-right" class="h-3.5 w-3.5"></i>View Academics</a>
       </section>
 
-      <section class="min-h-[150px] rounded-2xl bg-[#191b1c] p-5 text-white shadow-[0_2px_3px_rgba(15,23,42,0.18)]">
+      <section class="min-h-[150px] rounded-xl bg-[#191b1c] p-4 text-white">
         <p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-200">Current Quarter</p>
         <p class="mt-4 text-lg font-semibold"><?php echo $quarterLabels[$currentQuarterNumber - 1]; ?> · <?php echo $currentYear; ?></p>
         <p class="mt-1 text-sm text-slate-400"><?php echo $currentQuarterStart->format('M j'); ?> – <?php echo $currentQuarterEnd->format('M j'); ?></p>
