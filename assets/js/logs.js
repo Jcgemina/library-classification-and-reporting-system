@@ -121,6 +121,7 @@ function initializeLogs() {
       new FormData(this).forEach(function (value, key) {
         if (value !== '') url.searchParams.set(key, value);
       });
+      url.searchParams.set('per_page', String(window.AppPreferences?.get().rowsPerPage || 10));
       url.searchParams.delete('activity_page');
       url.searchParams.delete('security_page');
       history.pushState({page: 'logs'}, '', url);
@@ -150,6 +151,16 @@ function initializeLogs() {
     history.pushState({page: 'logs'}, '', url);
     refreshLogs(url);
   });
+
+  const preferredPageSize = window.AppPreferences?.get().rowsPerPage || 10;
+  const currentUrl = new URL(window.location.href);
+  if (Number(currentUrl.searchParams.get('per_page')) !== preferredPageSize) {
+    currentUrl.searchParams.set('per_page', String(preferredPageSize));
+    currentUrl.searchParams.delete('activity_page');
+    currentUrl.searchParams.delete('security_page');
+    history.replaceState({page: 'logs'}, '', currentUrl);
+    refreshLogs(currentUrl);
+  }
 }
 
 initializeLogs();

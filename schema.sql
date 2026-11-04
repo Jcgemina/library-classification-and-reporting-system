@@ -113,6 +113,25 @@ CREATE TABLE IF NOT EXISTS book_copies (
     CONSTRAINT fk_book_copies_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW vw_inventory_books AS
+SELECT
+    b.book_id,
+    b.isbn,
+    b.title,
+    b.author,
+    b.publisher,
+    b.publication_year,
+    b.copyright_year,
+    b.description,
+    b.deleted_at,
+    COALESCE(c.copy_count, 0) AS copy_count
+FROM books AS b
+LEFT JOIN (
+    SELECT book_id, COUNT(*) AS copy_count
+    FROM book_copies
+    GROUP BY book_id
+) AS c ON c.book_id = b.book_id;
+
 CREATE TABLE IF NOT EXISTS book_courses (
     book_id INT UNSIGNED NOT NULL,
     course_id INT NOT NULL,
@@ -273,10 +292,80 @@ CREATE TABLE IF NOT EXISTS library_configuration (
     id TINYINT UNSIGNED PRIMARY KEY,
     minimum_books_per_course SMALLINT UNSIGNED NOT NULL DEFAULT 1,
     default_curriculum_year VARCHAR(30) NOT NULL DEFAULT '',
+    institution_name VARCHAR(180) NOT NULL DEFAULT '',
+    library_name VARCHAR(180) NOT NULL DEFAULT '',
+    institution_address VARCHAR(255) NOT NULL DEFAULT '',
+    contact_email VARCHAR(254) NOT NULL DEFAULT '',
+    contact_phone VARCHAR(40) NOT NULL DEFAULT '',
     reference_policy_direction ENUM('within', 'at_least') DEFAULT NULL,
     reference_policy_years SMALLINT UNSIGNED DEFAULT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
+
+SET @institution_name_column_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'institution_name'
+);
+SET @add_institution_name_column = IF(
+    @institution_name_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN institution_name VARCHAR(180) NOT NULL DEFAULT '''' AFTER minimum_books_per_course',
+    'SELECT 1'
+);
+PREPARE add_institution_name_column FROM @add_institution_name_column;
+EXECUTE add_institution_name_column;
+DEALLOCATE PREPARE add_institution_name_column;
+
+SET @library_name_column_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'library_name'
+);
+SET @add_library_name_column = IF(
+    @library_name_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN library_name VARCHAR(180) NOT NULL DEFAULT '''' AFTER institution_name',
+    'SELECT 1'
+);
+PREPARE add_library_name_column FROM @add_library_name_column;
+EXECUTE add_library_name_column;
+DEALLOCATE PREPARE add_library_name_column;
+
+SET @institution_address_column_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'institution_address'
+);
+SET @add_institution_address_column = IF(
+    @institution_address_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN institution_address VARCHAR(255) NOT NULL DEFAULT '''' AFTER library_name',
+    'SELECT 1'
+);
+PREPARE add_institution_address_column FROM @add_institution_address_column;
+EXECUTE add_institution_address_column;
+DEALLOCATE PREPARE add_institution_address_column;
+
+SET @contact_email_column_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'contact_email'
+);
+SET @add_contact_email_column = IF(
+    @contact_email_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN contact_email VARCHAR(254) NOT NULL DEFAULT '''' AFTER institution_address',
+    'SELECT 1'
+);
+PREPARE add_contact_email_column FROM @add_contact_email_column;
+EXECUTE add_contact_email_column;
+DEALLOCATE PREPARE add_contact_email_column;
+
+SET @contact_phone_column_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'contact_phone'
+);
+SET @add_contact_phone_column = IF(
+    @contact_phone_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN contact_phone VARCHAR(40) NOT NULL DEFAULT '''' AFTER contact_email',
+    'SELECT 1'
+);
+PREPARE add_contact_phone_column FROM @add_contact_phone_column;
+EXECUTE add_contact_phone_column;
+DEALLOCATE PREPARE add_contact_phone_column;
 
 SET @default_curriculum_year_column_exists = (
     SELECT COUNT(*)

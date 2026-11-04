@@ -45,6 +45,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     );
     $minimumBooks = filter_var($_POST['minimum_books_per_course'] ?? null, FILTER_VALIDATE_INT);
     $defaultCurriculumYear = trim(requestString($_POST, 'default_curriculum_year'));
+    $institutionName = trim(requestString($_POST, 'institution_name'));
+    $libraryName = trim(requestString($_POST, 'library_name'));
+    $institutionAddress = trim(requestString($_POST, 'institution_address'));
+    $contactEmail = trim(requestString($_POST, 'contact_email'));
+    $contactPhone = trim(requestString($_POST, 'contact_phone'));
     $referencePolicyDirectionInput = trim(requestString($_POST, 'reference_policy_direction'));
     $referencePolicyYearsInput = trim(requestString($_POST, 'reference_policy_years'));
     $referencePolicyDirection = $referencePolicyDirectionInput !== '' ? $referencePolicyDirectionInput : null;
@@ -122,6 +127,30 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'field' => 'default_curriculum_year',
         ], 422);
     }
+    $profileFields = [
+        'institution_name' => [$institutionName, 180],
+        'library_name' => [$libraryName, 180],
+        'institution_address' => [$institutionAddress, 255],
+        'contact_email' => [$contactEmail, 254],
+        'contact_phone' => [$contactPhone, 40],
+    ];
+    foreach ($profileFields as $fieldName => [$fieldValue, $maximumLength]) {
+        $fieldLength = function_exists('mb_strlen') ? mb_strlen($fieldValue, 'UTF-8') : strlen($fieldValue);
+        if ($fieldLength > $maximumLength) {
+            configureJsonResponse([
+                'success' => false,
+                'message' => 'This profile field exceeds its maximum length of ' . $maximumLength . ' characters.',
+                'field' => $fieldName,
+            ], 422);
+        }
+    }
+    if ($contactEmail !== '' && !filter_var($contactEmail, FILTER_VALIDATE_EMAIL)) {
+        configureJsonResponse([
+            'success' => false,
+            'message' => 'Enter a valid contact email address.',
+            'field' => 'contact_email',
+        ], 422);
+    }
     if ($referencePolicyChanged && !in_array($referencePolicyDirection, ['within', 'at_least'], true)) {
         configureJsonResponse([
             'success' => false,
@@ -159,17 +188,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
 
         $configurationStatement = $pdo->prepare(
-            'INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year, reference_policy_direction, reference_policy_years)
-             VALUES (1, :minimum_books_per_course, :default_curriculum_year, :reference_policy_direction, :reference_policy_years)
+            'INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address, contact_email, contact_phone, reference_policy_direction, reference_policy_years)
+             VALUES (1, :minimum_books_per_course, :default_curriculum_year, :institution_name, :library_name, :institution_address, :contact_email, :contact_phone, :reference_policy_direction, :reference_policy_years)
              ON DUPLICATE KEY UPDATE
                 minimum_books_per_course = VALUES(minimum_books_per_course),
                 default_curriculum_year = VALUES(default_curriculum_year),
+                institution_name = VALUES(institution_name),
+                library_name = VALUES(library_name),
+                institution_address = VALUES(institution_address),
+                contact_email = VALUES(contact_email),
+                contact_phone = VALUES(contact_phone),
                 reference_policy_direction = VALUES(reference_policy_direction),
                 reference_policy_years = VALUES(reference_policy_years)'
         );
         $configurationStatement->execute([
             ':minimum_books_per_course' => $minimumBooks,
             ':default_curriculum_year' => $defaultCurriculumYear,
+            ':institution_name' => $institutionName,
+            ':library_name' => $libraryName,
+            ':institution_address' => $institutionAddress,
+            ':contact_email' => $contactEmail,
+            ':contact_phone' => $contactPhone,
             ':reference_policy_direction' => $referencePolicyDirection,
             ':reference_policy_years' => $referencePolicyDirection !== null ? $referencePolicyYears : null,
         ]);
@@ -191,6 +230,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $copyrightRanges = [5, 10, 20];
 $minimumBooks = 1;
 $defaultCurriculumYear = date('Y') . '-' . ((int) date('Y') + 1);
+$institutionName = '';
+$libraryName = '';
+$institutionAddress = '';
+$contactEmail = '';
+$contactPhone = '';
 $referencePolicyDirection = null;
 $referencePolicyYears = null;
 $loadError = null;
@@ -202,7 +246,7 @@ if (!$pdo instanceof PDO) {
             'SELECT years_threshold FROM copyright_year_ranges WHERE is_active = 1 ORDER BY sort_order, years_threshold'
         )->fetchAll(PDO::FETCH_COLUMN);
         $configuration = $pdo->query(
-            'SELECT minimum_books_per_course, default_curriculum_year, reference_policy_direction, reference_policy_years FROM library_configuration WHERE id = 1'
+            'SELECT minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address, contact_email, contact_phone, reference_policy_direction, reference_policy_years FROM library_configuration WHERE id = 1'
         )->fetch(PDO::FETCH_ASSOC);
 
         if (count($rangeRows) !== 3 || $configuration === false) {
@@ -212,6 +256,11 @@ if (!$pdo instanceof PDO) {
         $copyrightRanges = array_map('intval', $rangeRows);
         $minimumBooks = (int) $configuration['minimum_books_per_course'];
         $defaultCurriculumYear = (string) $configuration['default_curriculum_year'];
+        $institutionName = (string) $configuration['institution_name'];
+        $libraryName = (string) $configuration['library_name'];
+        $institutionAddress = (string) $configuration['institution_address'];
+        $contactEmail = (string) $configuration['contact_email'];
+        $contactPhone = (string) $configuration['contact_phone'];
         $referencePolicyDirection = $configuration['reference_policy_direction'];
         $referencePolicyYears = $configuration['reference_policy_years'] !== null
             ? (int) $configuration['reference_policy_years']
@@ -238,7 +287,7 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
 >
     <header>
         <h2 class="text-2xl font-bold text-slate-900">Library Settings</h2>
-        <p class="mt-1 text-sm text-slate-600">Set reporting windows, reference-age policy, course book coverage, and the default curriculum year for new prospectus records.</p>
+        <p class="mt-1 text-sm text-slate-600">Manage your institution profile, reporting windows, reference-age policy, course book coverage, and the default curriculum year for new prospectus records.</p>
     </header>
 
     <?php if ($loadError !== null): ?>
@@ -248,6 +297,75 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
     <?php endif; ?>
 
     <form id="configureForm" class="grid gap-6 lg:grid-cols-2" novalidate>
+        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2" aria-labelledby="institutionProfileHeading">
+            <div class="border-b border-slate-200 pb-4">
+                <h3 id="institutionProfileHeading" class="text-lg font-bold text-slate-900">Institution profile</h3>
+                <p class="mt-1 text-sm leading-6 text-slate-600">Add your institution and library details for identification in report previews. All fields are optional.</p>
+            </div>
+            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                <label for="institutionName" class="text-sm font-semibold text-slate-700">
+                    Institution name
+                    <input
+                        id="institutionName"
+                        name="institution_name"
+                        type="text"
+                        maxlength="180"
+                        value="<?php echo $escapeConfigureValue($institutionName); ?>"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
+                    >
+                </label>
+                <label for="libraryName" class="text-sm font-semibold text-slate-700">
+                    Library name
+                    <input
+                        id="libraryName"
+                        name="library_name"
+                        type="text"
+                        maxlength="180"
+                        value="<?php echo $escapeConfigureValue($libraryName); ?>"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
+                    >
+                </label>
+                <label for="institutionAddress" class="text-sm font-semibold text-slate-700 sm:col-span-2">
+                    Address
+                    <input
+                        id="institutionAddress"
+                        name="institution_address"
+                        type="text"
+                        maxlength="255"
+                        value="<?php echo $escapeConfigureValue($institutionAddress); ?>"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
+                    >
+                </label>
+                <label for="contactEmail" class="text-sm font-semibold text-slate-700">
+                    Contact email
+                    <input
+                        id="contactEmail"
+                        name="contact_email"
+                        type="email"
+                        maxlength="254"
+                        value="<?php echo $escapeConfigureValue($contactEmail); ?>"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
+                    >
+                </label>
+                <label for="contactPhone" class="text-sm font-semibold text-slate-700">
+                    Contact phone
+                    <input
+                        id="contactPhone"
+                        name="contact_phone"
+                        type="tel"
+                        maxlength="40"
+                        value="<?php echo $escapeConfigureValue($contactPhone); ?>"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
+                    >
+                </label>
+            </div>
+        </section>
+
         <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2" aria-labelledby="copyrightSettingsHeading">
             <div class="border-b border-slate-200 pb-4">
                 <h3 id="copyrightSettingsHeading" class="text-lg font-bold text-slate-900">Copyright year ranges</h3>

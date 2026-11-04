@@ -8,7 +8,7 @@
     pendingSavePayload: null,
     pendingStatusId: null,
     currentPage: 1,
-    pageSize: 5,
+    pageSize: window.AppPreferences?.get().rowsPerPage || 10,
     isDeleting: false,
     lastFocusedElement: null,
     activeDrawerUserId: null,

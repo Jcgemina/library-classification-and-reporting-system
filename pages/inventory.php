@@ -288,21 +288,20 @@ $copyrightMetricStyles = [
     </div>
   </div>
 
-  <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
-    <div class="flex h-[76px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm">
-      <div class="flex items-center gap-2"><span class="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-700"><i data-lucide="book-open" class="h-4 w-4"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-800">Total Titles</p></div>
-      <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-950"><?php echo $totalBookTitles; ?></p>
+  <div class="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-5">
+    <div class="flex h-[68px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-3 sm:px-4">
+      <div class="flex items-center gap-2"><span class="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-100 text-rose-700"><i data-lucide="book-open" class="h-3.5 w-3.5"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-800">Total Titles</p></div>
+      <p class="mt-1 text-xl font-bold leading-none tabular-nums text-slate-950"><?php echo $totalBookTitles; ?></p>
     </div>
-    <div class="flex h-[76px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-4 shadow-sm">
-      <div class="flex items-center gap-2"><span class="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700"><i data-lucide="library" class="h-4 w-4"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800">Total Volumes</p></div>
-      <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-950"><?php echo $totalBookCopies; ?></p>
+    <div class="flex h-[68px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-3 sm:px-4">
+      <div class="flex items-center gap-2"><span class="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-100 text-sky-700"><i data-lucide="library" class="h-3.5 w-3.5"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800">Total Volumes</p></div>
+      <p class="mt-1 text-xl font-bold leading-none tabular-nums text-slate-950"><?php echo $totalBookCopies; ?></p>
     </div>
     <?php foreach (array_values($copyrightYearMetrics) as $index => $metric): ?>
       <?php $style = $copyrightMetricStyles[$index % count($copyrightMetricStyles)]; ?>
-      <?php $isFinalCopyrightMetric = $index === count($copyrightYearMetrics) - 1; ?>
-      <div class="flex h-[76px] <?php echo $isFinalCopyrightMetric ? 'col-span-2 flex-row items-center justify-between xl:col-span-1 xl:flex-col xl:justify-center' : 'flex-col justify-center'; ?> rounded-xl border border-slate-200 bg-white px-4 shadow-sm">
-        <div class="flex items-center gap-2"><span class="flex h-7 w-7 items-center justify-center rounded-lg <?php echo $style['iconBg']; ?> <?php echo $style['iconColor']; ?>"><i data-lucide="<?php echo $style['icon']; ?>" class="h-4 w-4"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] <?php echo $style['labelColor']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> Yrs</p></div>
-        <p class="<?php echo $isFinalCopyrightMetric ? 'mt-0 xl:mt-1' : 'mt-1'; ?> text-2xl font-bold leading-none tabular-nums <?php echo $style['valueColor']; ?>"><?php echo (int)$metric['title_count']; ?></p>
+      <div class="flex h-[68px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-3 sm:px-4">
+        <div class="flex items-center gap-2"><span class="flex h-6 w-6 items-center justify-center rounded-lg <?php echo $style['iconBg']; ?> <?php echo $style['iconColor']; ?>"><i data-lucide="<?php echo $style['icon']; ?>" class="h-3.5 w-3.5"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] <?php echo $style['labelColor']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> Yrs</p></div>
+        <p class="mt-1 text-xl font-bold leading-none tabular-nums <?php echo $style['valueColor']; ?>"><?php echo (int)$metric['title_count']; ?></p>
       </div>
     <?php endforeach; ?>
   </div>
@@ -317,8 +316,8 @@ $copyrightMetricStyles = [
         </div>
       </div>
     </div>
-    <button type="button" data-inventory-archive-open aria-haspopup="dialog" aria-controls="inventoryArchiveModal" class="inline-flex h-9 items-center gap-2 rounded-lg bg-[#191b1c] px-4 text-xs font-semibold text-white transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
-      View Archive<span class="inline-flex min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums"><?php echo count($archivedBooks); ?></span><i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
+    <button type="button" data-inventory-archive-open aria-haspopup="dialog" aria-controls="inventoryArchiveModal" class="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">
+      View Archive<span class="inline-flex min-w-5 items-center justify-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600"><?php echo count($archivedBooks); ?></span><i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
     </button>
   </section>
 
@@ -334,7 +333,7 @@ $copyrightMetricStyles = [
     </div>
   </div>
 
-  <section class="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+  <section class="mt-2 hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm 2xl:block">
     <div class="overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-500" role="region" aria-label="Book inventory table. Scroll horizontally to view all columns." tabindex="0">
       <table class="w-full min-w-[1200px] text-left text-sm">
         <thead class="border-b border-slate-200 bg-slate-50 font-mono text-[10px] uppercase tracking-[0.1em] text-slate-600">
@@ -362,15 +361,15 @@ $copyrightMetricStyles = [
                 <td class="px-4 py-3"><p title="<?php echo $escapeInventory($book['title']); ?>" class="font-semibold text-slate-900"><?php echo $escapeInventory($shortBookTitle($book['title'])); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
                 <td class="px-4 py-3">
-                  <?php if (!empty($book['course_references'])): ?>
-                    <div class="flex flex-wrap items-center gap-1">
+                  <div class="flex flex-wrap items-center gap-1" data-book-references="<?php echo (int)$book['book_id']; ?>">
+                    <?php if (!empty($book['course_references'])): ?>
                       <?php foreach ($book['course_references'] as $reference): ?>
                         <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0"><?php echo $escapeInventory($reference['name']); ?></span></span>
                       <?php endforeach; ?>
-                    </div>
-                  <?php else: ?>
-                    <span class="text-xs text-slate-500">No courses linked yet</span>
-                  <?php endif; ?>
+                    <?php else: ?>
+                      <span class="text-xs text-slate-500">No courses linked yet</span>
+                    <?php endif; ?>
+                  </div>
                 </td>
                 <td class="px-4 py-3 text-slate-700"><?php echo $escapeInventory($book['publisher'] ?: '—'); ?></td>
                 <td class="px-4 py-3 text-center font-semibold tabular-nums text-slate-800"><?php echo (int)$book['copy_count']; ?></td>
@@ -389,6 +388,57 @@ $copyrightMetricStyles = [
         </tbody>
       </table>
     </div>
+  </section>
+
+  <section class="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white 2xl:hidden" aria-label="Book inventory">
+    <?php if (!$inventorySchemaAvailable): ?>
+      <div class="px-4 py-12 text-center"><p class="text-sm font-semibold text-rose-700">Inventory database tables are unavailable.</p><p class="mt-1 text-xs text-slate-600">Apply the latest schema.sql to enable book records and copyright ranges.</p></div>
+    <?php elseif (!$activeBooks): ?>
+      <div class="px-4 py-14 text-center"><i data-lucide="book-x" class="mx-auto h-8 w-8 text-slate-300"></i><p class="mt-3 text-sm font-semibold text-slate-700">No books in the catalog</p><p class="mt-1 text-xs text-slate-600">Add a book to see its copyright-year status here.</p></div>
+    <?php else: ?>
+      <div class="divide-y divide-slate-100">
+        <?php foreach ($activeBooks as $book): ?>
+          <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
+          <article class="p-4 sm:p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h4 class="break-words text-sm font-semibold text-slate-900"><?php echo $escapeInventory($book['title']); ?></h4>
+                <p class="mt-1 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p>
+              </div>
+              <button type="button" data-book-actions-open data-book-id="<?php echo (int)$book['book_id']; ?>" aria-controls="inventoryBookActionsMenu" aria-expanded="false" aria-label="More actions for <?php echo $escapeInventory($book['title']); ?>" title="More actions" class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="ellipsis" class="h-5 w-5"></i></button>
+            </div>
+            <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
+              <div><dt class="text-[11px] font-medium text-slate-500">Publication year</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></dd></div>
+              <div><dt class="text-[11px] font-medium text-slate-500">Copyright year</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo $escapeInventory($book['effective_copyright_year'] ?: '—'); ?></dd></div>
+              <div><dt class="text-[11px] font-medium text-slate-500">Copies</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo (int)$book['copy_count']; ?></dd></div>
+              <div><dt class="text-[11px] font-medium text-slate-500">ISBN</dt><dd class="mt-0.5 break-all font-mono text-xs text-slate-700"><?php echo $escapeInventory($book['isbn'] ?: '—'); ?></dd></div>
+              <div class="sm:col-span-4"><dt class="text-[11px] font-medium text-slate-500">Publisher</dt><dd class="mt-0.5 break-words text-sm text-slate-700"><?php echo $escapeInventory($book['publisher'] ?: '—'); ?></dd></div>
+            </dl>
+            <div class="mt-3 border-t border-slate-100 pt-3">
+              <p class="text-[11px] font-medium text-slate-500">Course references</p>
+              <div class="mt-2 flex flex-wrap items-center gap-1" data-book-references="<?php echo (int)$book['book_id']; ?>">
+                <?php if (!empty($book['course_references'])): ?>
+                  <?php foreach ($book['course_references'] as $reference): ?>
+                    <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0"><?php echo $escapeInventory($reference['name']); ?></span></span>
+                  <?php endforeach; ?>
+                <?php else: ?>
+                  <span class="text-xs text-slate-500">No courses linked yet</span>
+                <?php endif; ?>
+              </div>
+            </div>
+            <div class="mt-3 border-t border-slate-100 pt-3">
+              <p class="text-[11px] font-medium text-slate-500">Copyright ranges</p>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <?php foreach ($copyrightYearMetrics as $metric): ?>
+                  <?php $withinRange = $bookCopyrightYear > 0 && $bookCopyrightYear >= $currentYear - (int)$metric['years_threshold'] && $bookCopyrightYear <= $currentYear; ?>
+                  <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium <?php echo $withinRange ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'; ?>" aria-label="<?php echo $withinRange ? 'Within' : 'Outside'; ?> <?php echo (int)$metric['years_threshold']; ?> year range"><i data-lucide="<?php echo $withinRange ? 'check' : 'x'; ?>" class="h-3.5 w-3.5" aria-hidden="true"></i><?php echo $withinRange ? 'Within' : 'Outside'; ?> <?php echo (int)$metric['years_threshold']; ?> yrs</span>
+                <?php endforeach; ?>
+              </div>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
   </section>
   </div>
 

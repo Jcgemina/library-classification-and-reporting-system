@@ -16,7 +16,6 @@
     const programFilter = page.querySelector('[data-filter-program]');
     const courseFilter = page.querySelector('[data-filter-course]');
     const clearFiltersButton = page.querySelector('[data-reference-clear-filters]');
-    const activeFilters = page.querySelector('[data-reference-active-filters]');
     const refreshButton = page.querySelector('[data-reference-refresh]');
     const refreshLabel = refreshButton.querySelector('[data-refresh-label]');
     const state = { programs: [], courses: [], activeBookId: null, requestNumber: 0 };
@@ -72,37 +71,29 @@
         })), 'All programs', collegeId);
 
         const programId = programFilter.value;
-        fillSelect(courseFilter, state.courses.map((course) => ({
+        const courses = state.courses.filter((course) => {
+            if (programId) {
+                return String(course.program_id) === String(programId);
+            }
+            if (!collegeId) {
+                return true;
+            }
+            const courseProgram = state.programs.find((program) => String(program.id) === String(course.program_id));
+            return courseProgram && String(courseProgram.college_id) === String(collegeId);
+        });
+        fillSelect(courseFilter, courses.map((course) => ({
             id: course.id,
-            parentId: course.program_id,
             label: `${course.code} — ${course.name}`
-        })), 'All courses', programId);
+        })), 'All courses');
     }
 
     function updateActiveFilters() {
-        const active = [];
         const search = filters.elements.search.value.trim();
-        const publicationYear = filters.elements.publication_year.value.trim();
         const status = filters.elements.status;
-
-        if (search) {
-            active.push(`Title or author: “${search}”`);
-        }
-        if (publicationYear) {
-            active.push(`Publication year: ${publicationYear}`);
-        }
-        if (status.value !== 'all') {
-            active.push(`Policy status: ${status.selectedOptions[0].textContent}`);
-        }
-        for (const [label, select] of [['College', collegeFilter], ['Program', programFilter], ['Course', courseFilter]]) {
-            if (select.value) {
-                active.push(`${label}: ${select.selectedOptions[0].textContent}`);
-            }
-        }
-
-        activeFilters.textContent = active.length ? `Filters: ${active.join(' · ')}` : '';
-        activeFilters.hidden = active.length === 0;
-        clearFiltersButton.disabled = active.length === 0;
+        const hasActiveFilters = search !== ''
+            || status.value !== 'all'
+            || [collegeFilter, programFilter, courseFilter].some((select) => select.value !== '');
+        clearFiltersButton.disabled = !hasActiveFilters;
     }
 
     function statusBadge(assessment) {
@@ -177,7 +168,6 @@
 
     function clearFilters() {
         filters.elements.search.value = '';
-        filters.elements.publication_year.value = '';
         filters.elements.status.value = 'all';
         collegeFilter.value = '';
         programFilter.value = '';
@@ -328,19 +318,35 @@
         if (event.target.name === 'search') {
             window.clearTimeout(searchTimer);
             searchTimer = window.setTimeout(loadBooks, 250);
-        } else if (event.target.name === 'publication_year') {
-            loadBooks();
         }
     });
     filters.addEventListener('change', (event) => {
+        window.clearTimeout(searchTimer);
         if (event.target === collegeFilter) {
             programFilter.value = '';
             syncAcademicFilters();
         } else if (event.target === programFilter) {
             courseFilter.value = '';
             syncAcademicFilters();
+        } else if (event.target === courseFilter && courseFilter.value) {
+            const selectedCourse = state.courses.find((course) => String(course.id) === courseFilter.value);
+            const selectedProgram = selectedCourse
+                ? state.programs.find((program) => String(program.id) === String(selectedCourse.program_id))
+                : null;
+            if (selectedProgram) {
+                collegeFilter.value = String(selectedProgram.college_id);
+                syncAcademicFilters();
+                programFilter.value = String(selectedProgram.id);
+                syncAcademicFilters();
+                courseFilter.value = String(selectedCourse.id);
+            }
         }
         updateActiveFilters();
+        loadBooks();
+    });
+    filters.addEventListener('submit', (event) => {
+        event.preventDefault();
+        window.clearTimeout(searchTimer);
         loadBooks();
     });
 

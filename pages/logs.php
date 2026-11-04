@@ -36,7 +36,8 @@ $securitySeverity = in_array($securitySeverityInput, ['info', 'warning', 'critic
 $activeTab = requestString($_GET, 'log_tab') === 'security' ? 'security' : 'activity';
 $activeLogTabClasses = 'inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-rose-700';
 $inactiveLogTabClasses = 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900';
-$pageSize = 8;
+$requestedPageSize = filter_var($_GET['per_page'] ?? 10, FILTER_VALIDATE_INT);
+$pageSize = in_array($requestedPageSize, [5, 10, 20, 50], true) ? $requestedPageSize : 10;
 $activityPage = max(1, requestInt($_GET, 'activity_page', 1));
 $securityPage = max(1, requestInt($_GET, 'security_page', 1));
 $activityFromTimestamp = $activityStartDate->format('Y-m-d 00:00:00');
@@ -93,6 +94,12 @@ try {
   $countSecurity->execute($securityParams);
   $securityTotal = (int)$countSecurity->fetchColumn();
 
+  $totalPages = static fn(int $total): int => max(1, (int)ceil($total / $pageSize));
+  $activityPages = $totalPages($activityTotal);
+  $securityPages = $totalPages($securityTotal);
+  $activityPage = min($activityPage, $activityPages);
+  $securityPage = min($securityPage, $securityPages);
+
   $activityOffset = ($activityPage - 1) * $pageSize;
   $activityQuery = $pdo->prepare("SELECT a.*, u.full_name FROM activity_logs a LEFT JOIN users u ON u.id = a.user_id WHERE {$activityWhere} ORDER BY a.created_at DESC LIMIT {$pageSize} OFFSET {$activityOffset}");
   $activityQuery->execute($activityParams);
@@ -110,8 +117,6 @@ try {
 $totalPages = static fn(int $total): int => max(1, (int)ceil($total / $pageSize));
 $activityPages = $totalPages($activityTotal);
 $securityPages = $totalPages($securityTotal);
-$activityPage = min($activityPage, $activityPages);
-$securityPage = min($securityPage, $securityPages);
 $queryParams = $_GET;
 unset($queryParams['page'], $queryParams['activity_page'], $queryParams['security_page'], $queryParams['start_date'], $queryParams['end_date'], $queryParams['search'], $queryParams['user_id'], $queryParams['severity']);
 $queryParams['activity_start_date'] = $activityStartDate->format('Y-m-d');

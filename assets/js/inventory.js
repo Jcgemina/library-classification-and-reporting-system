@@ -137,7 +137,9 @@
     activeBookInfoId = null;
     window.scrollTo(0, inventoryListScrollPosition);
     if (previousBookId) {
-      document.querySelector(`[data-book-actions-open][data-book-id="${CSS.escape(previousBookId)}"]`)?.focus();
+      [...document.querySelectorAll('[data-book-actions-open]')]
+        .find((button) => button.dataset.bookId === previousBookId && button.getClientRects().length > 0)
+        ?.focus();
     }
   }
 
@@ -357,34 +359,30 @@
     const references = book.course_references;
     document.querySelector('[data-ai-course-references]').textContent = formatCourseReferences(references);
 
-    const actionsButton = [...document.querySelectorAll('[data-book-actions-open]')]
-      .find((button) => button.dataset.bookId === String(book.book_id));
-    const referenceCell = actionsButton?.closest('tr')?.cells[2];
-    if (!referenceCell) return;
-    referenceCell.replaceChildren();
-    if (!references.length) {
-      const empty = document.createElement('span');
-      empty.className = 'text-xs text-slate-500';
-      empty.textContent = 'No courses linked yet';
-      referenceCell.append(empty);
-      return;
-    }
+    document.querySelectorAll('[data-book-references]').forEach((referenceContainer) => {
+      if (referenceContainer.dataset.bookReferences !== String(book.book_id)) return;
+      referenceContainer.replaceChildren();
+      if (!references.length) {
+        const empty = document.createElement('span');
+        empty.className = 'text-xs text-slate-500';
+        empty.textContent = 'No courses linked yet';
+        referenceContainer.append(empty);
+        return;
+      }
 
-    const referenceList = document.createElement('div');
-    referenceList.className = 'flex flex-wrap items-center gap-1';
-    references.forEach((reference) => {
-      const item = document.createElement('span');
-      item.className = 'inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800';
-      const code = document.createElement('span');
-      code.className = 'flex-shrink-0 font-semibold';
-      code.textContent = reference.code;
-      const name = document.createElement('span');
-      name.className = 'min-w-0';
-      name.textContent = reference.name;
-      item.append(code, name);
-      referenceList.append(item);
+      references.forEach((reference) => {
+        const item = document.createElement('span');
+        item.className = 'inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800';
+        const code = document.createElement('span');
+        code.className = 'flex-shrink-0 font-semibold';
+        code.textContent = reference.code;
+        const name = document.createElement('span');
+        name.className = 'min-w-0';
+        name.textContent = reference.name;
+        item.append(code, name);
+        referenceContainer.append(item);
+      });
     });
-    referenceCell.append(referenceList);
   }
 
   async function pollAiCourseJob(jobId, attempt = 0) {
@@ -695,7 +693,7 @@
   const validInventoryActions = ['view', 'edit', 'reference', 'manage-references'];
   if (requestedBookId && inventoryBooks[requestedBookId] && validInventoryActions.includes(requestedInventoryAction)) {
     const bookActionTrigger = [...document.querySelectorAll('[data-book-actions-open]')]
-      .find((button) => button.dataset.bookId === requestedBookId);
+      .find((button) => button.dataset.bookId === requestedBookId && button.getClientRects().length > 0);
     if (bookActionTrigger) {
       bookActionTrigger.click();
       bookActionsMenu.querySelector(`[data-book-action="${requestedInventoryAction}"]`)?.click();
