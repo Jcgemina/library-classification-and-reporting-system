@@ -22,6 +22,7 @@
         yearFilter.value = requestedYear;
     }
     let reportRows = [];
+    let institutionProfile = {};
     let reportYear = Number(yearFilter.value);
     let shouldApplyInitialFilters = true;
 
@@ -148,6 +149,7 @@
                 throw new Error(result.message || 'Report data could not be loaded.');
             }
             reportRows = result.data.rows || [];
+            institutionProfile = result.data.institution_profile || {};
             refreshFilterOptions();
             if (shouldApplyInitialFilters) {
                 if (Array.from(programFilter.options).some(option => option.value === initialProgramId)) {
@@ -297,12 +299,20 @@
             day: 'numeric',
             year: 'numeric',
         });
+        const institutionName = institutionProfile.institution_name || 'AppSys Library';
+        const libraryName = institutionProfile.library_name || 'Program and major verification progress';
+        const profileDetails = [
+            institutionProfile.institution_address,
+            institutionProfile.contact_email,
+            institutionProfile.contact_phone,
+        ].filter(Boolean).join(' | ');
 
         previewDocument.innerHTML = `
             <div class="w-full bg-white p-4 text-slate-800 sm:p-6">
                 <div class="border-b border-slate-300 pb-3 text-center">
-                    <div class="text-[18px] font-black tracking-[0.14em] text-[#1e1e1e]">APPSYS ACADEMIC INSTITUTION PORTAL</div>
-                    <div class="mt-1 text-[11px] italic text-slate-500">Comprehensive Curricular Mapping &amp; Inventory Ledger Report</div>
+                    <div class="text-[18px] font-black tracking-[0.08em] text-[#1e1e1e]">${escapeHtml(institutionName)}</div>
+                    <div class="mt-1 text-[11px] italic text-slate-500">${escapeHtml(libraryName)}</div>
+                    ${profileDetails ? `<div class="mt-1 text-[10px] text-slate-500">${escapeHtml(profileDetails)}</div>` : ''}
                 </div>
 
                 <div class="mt-3 flex items-center justify-between gap-4 text-[11px] text-slate-600">

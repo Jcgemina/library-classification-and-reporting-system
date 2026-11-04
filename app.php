@@ -6,8 +6,8 @@ require_once __DIR__ . '/includes/functions.php';
 requireLogin();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'user', 'logs', 'configure'];
-$staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report'];
+$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'user', 'logs', 'configure'];
+$staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences'];
 $restrictedPages = ['user', 'logs', 'configure'];
 
 $allowedPages = $userRole === 'admin' ? $adminPages : $staffPages;
@@ -26,6 +26,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AppSys Library - Dashboard</title>
+<link rel="stylesheet" href="assets/css/preferences.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/preferences.css'); ?>">
 <style>
   html,
   body {
@@ -39,6 +40,10 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 </style>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  window.appUserPreferenceId = <?php echo json_encode((string) ($_SESSION['user_id'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+</script>
+<script src="assets/js/preferences.js?v=<?php echo (int) filemtime(__DIR__ . '/assets/js/preferences.js'); ?>"></script>
 </head>
 <body class="min-h-screen overflow-x-hidden bg-[#dfdfdf]">
 
@@ -56,8 +61,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
-    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'user', 'logs', 'configure'];
-    const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report'];
+    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'user', 'logs', 'configure'];
+    const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences'];
     const restrictedPages = ['user', 'logs', 'configure'];
     const allowedPages = currentUserRole === 'admin' ? adminPages : staffPages;
 
@@ -180,6 +185,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         course: 'Courses',
         reference_analyzer: 'Reference Analyzer',
         report: 'Report',
+        preferences: 'Preferences',
         user: 'User Management',
         logs: 'Logs',
         configure: 'Library Settings',
@@ -238,7 +244,9 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         });
 
         updateActiveTab(safePage);
-        const pageTitle = safePage === 'configure'
+        const pageTitle = safePage === 'preferences'
+          ? 'Preferences'
+          : safePage === 'configure'
           ? 'Library Settings'
           : safePage === 'reference_analyzer'
             ? 'Reference Analyzer'

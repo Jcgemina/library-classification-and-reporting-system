@@ -40,6 +40,14 @@ $loadProgressData = static function (PDO $pdo, int $year): array {
         $progressByScope[$key] = $progress;
     }
 
+    $institutionProfile = $pdo->query(
+        'SELECT institution_name, library_name, institution_address, contact_email, contact_phone
+         FROM library_configuration WHERE id = 1'
+    )->fetch(PDO::FETCH_ASSOC);
+    if ($institutionProfile === false) {
+        throw new PDOException('The library configuration record is missing.');
+    }
+
     $rows = [];
     $colleges = [];
     $programOptions = [];
@@ -89,6 +97,7 @@ $loadProgressData = static function (PDO $pdo, int $year): array {
         'rows' => $rows,
         'colleges' => $colleges,
         'programs' => $programOptions,
+        'institution_profile' => $institutionProfile,
         'year' => $year,
     ];
 };

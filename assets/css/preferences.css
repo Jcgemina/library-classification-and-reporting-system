@@ -1,0 +1,191 @@
+html[data-app-theme="dark"] {
+  color-scheme: dark;
+  background-color: #0b1120;
+  color: #e2e8f0;
+}
+
+html[data-app-theme="dark"] body {
+  background-color: #0b1120 !important;
+  color: #e2e8f0;
+}
+
+html[data-app-theme="dark"] .bg-white {
+  background-color: #111827 !important;
+}
+
+html[data-app-theme="dark"] .bg-slate-50,
+html[data-app-theme="dark"] .bg-gray-50 {
+  background-color: #1f2937 !important;
+}
+
+html[data-app-theme="dark"] .bg-slate-100,
+html[data-app-theme="dark"] .bg-gray-100 {
+  background-color: #273449 !important;
+}
+
+html[data-app-theme="dark"] .bg-slate-200,
+html[data-app-theme="dark"] .bg-slate-300 {
+  background-color: #334155 !important;
+}
+
+html[data-app-theme="dark"] .text-slate-900,
+html[data-app-theme="dark"] .text-slate-800,
+html[data-app-theme="dark"] .text-gray-900,
+html[data-app-theme="dark"] .text-gray-800 {
+  color: #e2e8f0 !important;
+}
+
+html[data-app-theme="dark"] .text-slate-700,
+html[data-app-theme="dark"] .text-slate-600,
+html[data-app-theme="dark"] .text-gray-700,
+html[data-app-theme="dark"] .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+
+html[data-app-theme="dark"] .text-slate-500,
+html[data-app-theme="dark"] .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+html[data-app-theme="dark"] .text-slate-400,
+html[data-app-theme="dark"] .text-slate-300 {
+  color: #a8b3c5 !important;
+}
+
+html[data-app-theme="dark"] .border-slate-100,
+html[data-app-theme="dark"] .border-slate-200,
+html[data-app-theme="dark"] .border-slate-300,
+html[data-app-theme="dark"] .border-gray-100,
+html[data-app-theme="dark"] .border-gray-200,
+html[data-app-theme="dark"] .border-gray-300 {
+  border-color: #334155 !important;
+}
+
+html[data-app-theme="dark"] .hover\:bg-slate-50:hover,
+html[data-app-theme="dark"] .hover\:bg-slate-100:hover,
+html[data-app-theme="dark"] .hover\:bg-gray-50:hover {
+  background-color: #273449 !important;
+}
+
+html[data-app-theme="dark"] .hover\:text-slate-900:hover {
+  color: #e2e8f0 !important;
+}
+
+html[data-app-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-app-theme="dark"] select,
+html[data-app-theme="dark"] textarea {
+  color-scheme: dark;
+}
+
+html[data-app-theme="dark"] ::selection {
+  background-color: #9f1239;
+  color: #fff;
+}
+
+html[data-app-theme="dark"] ::-webkit-scrollbar-thumb {
+  background-color: #475569;
+}
+
+html[data-app-theme="dark"] .log-filter-form {
+  border-color: #334155;
+  background-color: #1f2937;
+}
+
+html[data-app-theme="dark"] .log-results-card {
+  border-color: #334155;
+  background-color: #111827;
+}
+
+html[data-app-theme="dark"] .log-pagination {
+  border-color: #334155;
+  background: #111827;
+}
+
+html[data-app-theme="dark"] .log-tab[aria-selected="false"] {
+  color: #cbd5e1;
+}
+
+html[data-app-theme="dark"] .log-tab[aria-selected="false"]:hover {
+  background-color: #273449;
+  color: #f8fafc;
+}
+
+html[data-app-theme="dark"] #reportPreviewDocument,
+html[data-app-theme="dark"] #reportPreviewDocument * {
+  color-scheme: light;
+}
+
+html[data-app-theme="dark"] #reportPreviewDocument.bg-white,
+html[data-app-theme="dark"] #reportPreviewDocument .bg-white {
+  background-color: #fff !important;
+}
+
+html[data-app-theme="dark"] #reportPreviewDocument .text-slate-800,
+html[data-app-theme="dark"] #reportPreviewDocument .text-slate-700,
+html[data-app-theme="dark"] #reportPreviewDocument .text-slate-600,
+html[data-app-theme="dark"] #reportPreviewDocument .text-slate-500 {
+  color: #334155 !important;
+}
+
+html[data-app-theme="dark"] #reportPreviewDocument .border-slate-300 {
+  border-color: #cbd5e1 !important;
+}
+
+html[data-app-density="compact"] table th,
+html[data-app-density="compact"] table td {
+  padding-block: 0.4rem !important;
+}
+
+html[data-app-density="comfortable"] table th,
+html[data-app-density="comfortable"] table td {
+  padding-block: 0.75rem;
+}
+
+html[data-app-text-size="large"] .text-xs {
+  font-size: 0.84375rem !important;
+  line-height: 1.125rem !important;
+}
+
+html[data-app-text-size="large"] .text-sm {
+  font-size: 0.984375rem !important;
+  line-height: 1.40625rem !important;
+}
+
+html[data-app-text-size="large"] .text-base {
+  font-size: 1.125rem !important;
+  line-height: 1.6875rem !important;
+}
+
+html[data-app-text-size="large"] .text-lg {
+  font-size: 1.265625rem !important;
+  line-height: 1.96875rem !important;
+}
+
+html[data-app-text-size="large"] .text-xl {
+  font-size: 1.40625rem !important;
+  line-height: 1.96875rem !important;
+}
+
+html[data-app-text-size="large"] .text-2xl {
+  font-size: 1.6875rem !important;
+  line-height: 2.25rem !important;
+}
+
+html[data-app-text-size="large"] .text-3xl {
+  font-size: 1.96875rem !important;
+  line-height: 2.53125rem !important;
+}
+
+html[data-app-text-size="large"] .text-4xl {
+  font-size: 2.53125rem !important;
+  line-height: 2.8125rem !important;
+}
+
+html[data-app-text-size="large"] [class~="text-[7px]"],
+html[data-app-text-size="large"] [class~="text-[8px]"],
+html[data-app-text-size="large"] [class~="text-[9px]"],
+html[data-app-text-size="large"] [class~="text-[10px]"],
+html[data-app-text-size="large"] [class~="text-[11px]"] {
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
+}

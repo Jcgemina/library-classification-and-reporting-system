@@ -45,7 +45,6 @@ if (isset($_GET['action'])) {
 
         if ($action === 'list') {
             $search = trim(requestString($_GET, 'search'));
-            $yearInput = trim(requestString($_GET, 'publication_year'));
             $status = requestString($_GET, 'status', 'all');
             $collegeInput = trim(requestString($_GET, 'college_id'));
             $programInput = trim(requestString($_GET, 'program_id'));
@@ -54,9 +53,6 @@ if (isset($_GET['action'])) {
             $programId = $programInput === '' ? 0 : filter_var($programInput, FILTER_VALIDATE_INT);
             $courseId = $courseInput === '' ? 0 : filter_var($courseInput, FILTER_VALIDATE_INT);
 
-            if ($yearInput !== '' && (filter_var($yearInput, FILTER_VALIDATE_INT) === false || (int) $yearInput < 1450 || (int) $yearInput > (int) date('Y'))) {
-                referenceAnalyzerJson(['success' => false, 'message' => 'Enter a valid publication year.'], 422);
-            }
             if (!in_array($status, ['all', 'meets_policy', 'outside_policy', 'needs_verification', 'missing_publication_data'], true)) {
                 referenceAnalyzerJson(['success' => false, 'message' => 'Choose a valid policy status.'], 422);
             }
@@ -72,10 +68,6 @@ if (isset($_GET['action'])) {
                 $conditions[] = '(b.title LIKE :title_search OR b.author LIKE :author_search)';
                 $parameters[':title_search'] = '%' . substr($search, 0, 255) . '%';
                 $parameters[':author_search'] = '%' . substr($search, 0, 180) . '%';
-            }
-            if ($yearInput !== '') {
-                $conditions[] = 'b.publication_year = :publication_year';
-                $parameters[':publication_year'] = (int) $yearInput;
             }
             if ($collegeId > 0 || $programId > 0 || $courseId > 0) {
                 $academicConditions = ['bc_filter.book_id = b.book_id'];
@@ -229,12 +221,9 @@ $_SESSION['inventory_csrf'] = $csrfToken;
     </div>
 
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-reference-books-panel aria-label="Analyzed books">
-        <form class="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 xl:grid-cols-6" data-reference-filters>
+        <form class="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 xl:grid-cols-5" data-reference-filters>
             <label class="text-xs font-semibold text-slate-700 xl:col-span-2">Title or author
                 <input name="search" type="search" placeholder="Search inventory…" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
-            </label>
-            <label class="text-xs font-semibold text-slate-700">Publication year
-                <input name="publication_year" type="number" min="1450" max="<?php echo (int) date('Y'); ?>" placeholder="Any year" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
             </label>
             <label class="text-xs font-semibold text-slate-700">Policy status
                 <select name="status" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100">
@@ -250,9 +239,8 @@ $_SESSION['inventory_csrf'] = $csrfToken;
             <label class="text-xs font-semibold text-slate-700 sm:col-span-2 xl:col-span-2">Course
                 <select name="course_id" data-filter-course class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"><option value="">All courses</option></select>
             </label>
-            <p class="self-end pb-2 text-xs text-slate-500 sm:col-span-2 xl:col-span-2" data-reference-result-count aria-live="polite">Loading books…</p>
-            <p class="self-end pb-2 text-xs text-slate-600 sm:col-span-2 xl:col-span-3" data-reference-active-filters aria-live="polite" hidden></p>
-            <button type="button" data-reference-clear-filters class="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">Clear filters</button>
+            <p class="self-end pb-2 text-xs text-slate-500 sm:col-span-2 xl:col-span-1" data-reference-result-count aria-live="polite">Loading books…</p>
+            <button type="button" data-reference-clear-filters class="inline-flex h-10 w-full self-end items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">Clear filters</button>
         </form>
         <div class="overflow-x-auto">
             <table class="w-full min-w-[900px] text-left text-sm">
@@ -267,4 +255,4 @@ $_SESSION['inventory_csrf'] = $csrfToken;
     </section>
     <section class="hidden" data-book-detail-view aria-label="Book details" tabindex="-1"></section>
 </div>
-<script src="assets/js/reference_analyzer.js?v=20261025-2"></script>
+<script src="assets/js/reference_analyzer.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/reference_analyzer.js'); ?>"></script>

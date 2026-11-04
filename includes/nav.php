@@ -12,6 +12,7 @@ $navSections = [
 ];
 $navItems = [
     ['label' => 'Dashboard', 'page' => 'dashboard', 'section' => 'overview', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
+    ['label' => 'Preferences', 'page' => 'preferences', 'section' => 'overview', 'href' => 'app.php?page=preferences', 'icon' => 'sliders-horizontal'],
     ['label' => 'Inventory', 'page' => 'inventory', 'section' => 'operations', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
     ['label' => 'Report', 'page' => 'report', 'section' => 'operations', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
     ['label' => 'Academics', 'page' => 'academics', 'section' => 'academics', 'href' => 'app.php?page=academics', 'icon' => 'building-2'],
@@ -238,7 +239,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
             <p class="font-semibold text-slate-900 text-sm"><?php echo htmlspecialchars($_SESSION['full_name'], ENT_QUOTES, 'UTF-8'); ?></p>
             <p class="text-xs text-slate-500"><?php echo htmlspecialchars($_SESSION['role'], ENT_QUOTES, 'UTF-8'); ?></p>
           </div>
-          <a href="#" class="block px-4 py-2 text-sm text-slate-700 rounded-lg mx-1 hover:bg-slate-900 hover:text-white transition-colors duration-200 ease-in-out">Settings</a>
+          <a href="app.php?page=preferences" data-page="preferences" class="block px-4 py-2 text-sm text-slate-700 rounded-lg mx-1 hover:bg-slate-900 hover:text-white transition-colors duration-200 ease-in-out">Preferences</a>
           <a href="logout.php" class="block px-4 py-2 text-sm text-red-600 rounded-lg mx-1 hover:bg-slate-900 hover:text-red-600 transition-colors duration-200 ease-in-out">Logout</a>
         </div>
       </div>
