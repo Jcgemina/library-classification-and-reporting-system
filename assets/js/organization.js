@@ -37,6 +37,7 @@
         window.AppToast.show(message, error ? 'error' : 'success');
     }
   let organizationData = { colleges: [] };
+  let selectedCollegeId = null;
   function closeDialog(dialog) { dialog?.classList.add('hidden'); dialog?.classList.remove('flex'); }
   function openDialog(dialog) { dialog?.classList.remove('hidden'); dialog?.classList.add('flex'); }
   let prospectusDataLoaded = false;
@@ -54,6 +55,7 @@
       }).finally(() => {
           prospectusDataRequest = null;
       });
+      return prospectusDataRequest;
   }
   function refreshLoadedProspectusData() {
       if (!prospectusDataLoaded) return;
@@ -67,9 +69,21 @@
       const rows = prospectusData.prospectuses.filter(item => `${item.program_name} ${item.major_name || ''} ${item.curriculum_year}`.toLowerCase().includes(search));
       document.getElementById('prospectusRecordsBody').innerHTML = rows.length ? rows.map(item => {
           const displayName = `${item.program_name}${item.major_name ? ` (${item.major_name})` : ''} ${item.curriculum_year}`;
-          const pdfActions = item.pdf_file_path ? `<a href="${esc(item.pdf_file_path)}" target="_blank" rel="noopener" aria-label="View ${esc(displayName)} PDF" title="View PDF" class="mx-auto flex h-8 w-fit items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="file-text" class="h-3.5 w-3.5"></i><span>View PDF</span></a>` : '<span class="text-xs text-slate-400">No PDF</span>';
-          return `<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="px-4 py-3 font-semibold text-slate-900">${esc(item.program_name)}</td><td class="px-4 py-3 text-slate-600">${esc(item.major_name || 'General curriculum')}</td><td class="px-4 py-3 text-slate-600">${esc(item.curriculum_year)}</td><td class="px-4 py-3">${pdfActions}</td><td class="px-4 py-3"><div class="flex justify-end gap-1"><button type="button" data-row-replace="${item.id}" aria-label="Replace ${esc(displayName)} PDF" title="Replace PDF" class="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-md border border-sky-200 bg-white px-2 text-[11px] font-semibold text-sky-700 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="upload" class="h-3.5 w-3.5"></i><span>Replace PDF</span></button><input type="file" accept="application/pdf,.pdf" data-row-file="${item.id}" class="hidden"><button type="button" data-delete-prospectus-record="${item.id}" data-name="${esc(displayName)}" aria-label="Delete ${esc(displayName)}" title="Delete record" class="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-white px-2 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i><span>Delete</span></button></div></td></tr>`;
-      }).join('') : '<tr><td colspan="5" class="px-4 py-8 text-center text-sm italic text-slate-400">No prospectus records match your search.</td></tr>';
+          const pdfStatus = item.pdf_file_path
+              ? `<a href="${esc(item.pdf_file_path)}" target="_blank" rel="noopener" aria-label="View ${esc(displayName)} PDF" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:underline"><i data-lucide="file-check-2" class="h-3.5 w-3.5" aria-hidden="true"></i>PDF ready</a>`
+              : '<span class="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700"><i data-lucide="file-warning" class="h-3.5 w-3.5" aria-hidden="true"></i>PDF missing</span>';
+          return `<article class="grid grid-cols-1 items-center gap-2 border-b border-slate-200 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1.4fr)_minmax(110px,.75fr)_minmax(86px,.55fr)_auto_auto] sm:gap-3">
+              <span class="text-xs font-semibold text-slate-900">${esc(item.program_name)}</span>
+              <span class="text-[11px] text-slate-600">${esc(item.major_name || 'General curriculum')}</span>
+              <span class="text-[11px] tabular-nums text-slate-700">${esc(item.curriculum_year)}</span>
+              ${pdfStatus}
+              <div class="flex items-center gap-1">
+                <button type="button" data-row-replace="${item.id}" aria-label="Replace ${esc(displayName)} PDF" title="Replace PDF" class="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="upload" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Replace</span></button>
+                <input type="file" accept="application/pdf,.pdf" data-row-file="${item.id}" class="hidden">
+                <button type="button" data-delete-prospectus-record="${item.id}" data-name="${esc(displayName)}" aria-label="Delete ${esc(displayName)}" title="Delete prospectus" class="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Delete</span></button>
+              </div>
+            </article>`;
+      }).join('') : '<p class="py-8 text-center text-xs text-slate-600">No prospectuses match your search. Try another program or curriculum year.</p>';
       lucide.createIcons();
       document.getElementById('prospectusStatus').textContent = `${rows.length} prospectus${rows.length === 1 ? '' : 'es'}`;
   }
@@ -162,9 +176,8 @@
       }
       modal.classList.remove('hidden'); modal.classList.add('flex'); document.getElementById('organizationName').focus();
   };
-    const controls = (type, item, parent) => {
-        const label = type.charAt(0).toUpperCase() + type.slice(1);
-        return `<span class="flex flex-wrap items-center gap-1"><button type="button" data-edit="${type}" data-id="${item.id}" data-parent="${parent}" data-item='${esc(JSON.stringify(item))}' aria-label="Edit ${esc(label)} ${esc(item.name)}" title="Edit ${esc(label)}" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 transition hover:border-rose-500 hover:bg-rose-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-rose-300"><i data-lucide="pencil" class="h-3 w-3"></i><span>Edit ${esc(label)}</span></button><button type="button" data-delete="${type}" data-id="${item.id}" data-name="${esc(item.name)}" aria-label="Delete ${esc(label)} ${esc(item.name)}" title="Delete ${esc(label)}" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-500 hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-300"><i data-lucide="trash-2" class="h-3 w-3"></i><span>Delete ${esc(label)}</span></button></span>`;
+    const hierarchyControls = item => {
+        return `<button type="button" data-edit="college" data-id="${Number(item.id)}" data-item='${esc(JSON.stringify(item))}' aria-label="Edit college ${esc(item.name)}" class="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="pencil" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Edit college</span></button>`;
     };
     const add = (action, title, parent, major = '') => action === 'add_course' ? '' : `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" title="${title}" aria-label="${title}" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 transition hover:border-rose-500 hover:bg-rose-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-rose-300"><i data-lucide="plus" class="h-3 w-3"></i><span>${title}</span></button>`;
         const countLabel = (count, singular) => `${count} ${singular}${count === 1 ? '' : 's'}`;
@@ -307,110 +320,111 @@
     }
     const renderDirectCollege = college => {
         const programs = college.programs || [];
-        const programMarkup = programs.map(program => `<div class="border-l-2 border-rose-200 pl-4">
-            <div class="flex cursor-pointer items-center gap-2" data-program-toggle="${program.id}">
-                <i data-lucide="chevron-right" class="program-chevron h-4 w-4 shrink-0 text-rose-600 transition-transform"></i>
-                <i data-lucide="book" class="h-3.5 w-3.5 text-rose-600"></i>
-                <strong class="text-sm text-slate-700">${esc(program.name)}</strong>
-                <span class="ml-auto flex flex-wrap gap-1">${controls('program', program, college.id)}${add('add_major', 'Add major', program.id)}</span>
-            </div>
-            <div id="program-${program.id}" class="program-body max-h-0 overflow-hidden pl-7 opacity-0 transition-all duration-200 ease-in-out"></div>
-        </div>`).join('');
+        const majorCount = programs.reduce((total, program) => total + (program.majors || []).length, 0);
+        const statusLabel = status => {
+            const value = String(status || 'active');
+            return value.charAt(0).toUpperCase() + value.slice(1);
+        };
+        const programMarkup = programs.length ? programs.map((program, index) => {
+            const majors = program.majors || [];
+            const programStatus = statusLabel(program.status);
+            const majorMarkup = majors.length ? majors.map(major => `<div class="flex min-h-[34px] items-center justify-between gap-3 border-t border-slate-100 py-1.5">
+                <span class="min-w-0 text-[11px] text-slate-700">${esc(major.name)}</span>
+                <span class="shrink-0 text-[10px] text-slate-600">${esc(statusLabel(major.status))}</span>
+              </div>`).join('') : '<p class="border-t border-slate-100 py-2 text-[11px] text-slate-600">No majors yet.</p>';
+            return `<details class="group border-b border-slate-200 last:border-b-0" ${index === 0 ? 'open' : ''}>
+                <summary class="flex min-h-[55px] cursor-pointer list-none items-center justify-between gap-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400">
+                  <span class="min-w-0"><span class="block text-[13px] font-semibold text-slate-900">${esc(program.name)}</span><span class="mt-0.5 block text-[11px] text-slate-600">${countLabel(majors.length, 'major')} · ${esc(programStatus)}</span></span>
+                  <i data-lucide="chevron-right" class="h-4 w-4 shrink-0 text-slate-600 transition-transform group-open:rotate-90" aria-hidden="true"></i>
+                </summary>
+                <div class="pb-2 pl-3">
+                  <div>${majorMarkup}</div>
+                  <div class="pt-2">${add('add_major', 'Add major', program.id)}</div>
+                </div>
+              </details>`;
+        }).join('') : '<p class="py-6 text-xs text-slate-600">No programs in this college yet. Add a program to build its academic structure.</p>';
 
-        return `<article class="college-row group overflow-hidden rounded-xl border border-transparent bg-slate-50 transition-all hover:border-rose-200"><div class="flex cursor-pointer items-center gap-3 p-4" data-college-toggle="${college.id}"><i data-lucide="chevron-right" class="college-chevron h-5 w-5 shrink-0 text-rose-600 transition-transform"></i><i data-lucide="building-2" class="h-5 w-5 shrink-0 text-rose-600"></i><div class="min-w-0 flex-1"><h4 class="truncate text-sm font-bold text-slate-800">${esc(college.name)}</h4><p class="text-[10px] uppercase tracking-wide text-slate-500">${countLabel(programs.length, 'Program')}</p></div><div class="flex flex-wrap items-center gap-1">${controls('college', college)}${add('add_program', 'Add program', college.id)}</div></div><div id="college-${college.id}" class="college-body max-h-0 overflow-hidden px-4 opacity-0 transition-all duration-300 ease-in-out"><div class="space-y-2 border-t border-slate-200 pb-4 pl-2 pt-2">${programMarkup || '<p class="text-xs italic text-slate-400">No programs yet</p>'}</div></div></article>`;
+        return `<header class="flex flex-col justify-between gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start">
+            <div class="min-w-0"><h3 class="break-words text-lg font-bold text-slate-900">${esc(college.name)}</h3><p class="mt-1 text-xs text-slate-600">Academic structure · ${esc(statusLabel(college.status))}</p></div>
+            ${hierarchyControls(college)}
+          </header>
+          <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 py-3 text-[11px] text-slate-600" aria-label="Selected college totals">
+            <span><strong class="mr-1 text-xs tabular-nums text-slate-900">${programs.length}</strong>${programs.length === 1 ? 'program' : 'programs'}</span>
+            <span><strong class="mr-1 text-xs tabular-nums text-slate-900">${majorCount}</strong>${majorCount === 1 ? 'major' : 'majors'}</span>
+            <span class="ml-auto">${add('add_program', 'Add program', college.id)}</span>
+          </div>
+          <div class="mt-1">${programMarkup}</div>`;
     };
 
-    const renderProgramMajors = program => {
-        const majors = program.majors || [];
-        const majorMarkup = majors.map(major => `<div class="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-700"><i data-lucide="tag" class="h-3.5 w-3.5 text-rose-600"></i><span>${esc(major.name)}</span><span class="ml-auto">${controls('major', major, program.id)}</span></div>`).join('');
-        return majorMarkup || '<p class="py-2 text-xs italic text-slate-400">No majors yet</p>';
-    };
+    function renderSelectedCollege() {
+        const college = (organizationData.colleges || []).find(item => String(item.id) === String(selectedCollegeId));
+        if (!college) {
+            tree.innerHTML = '<div class="flex min-h-48 flex-col items-center justify-center text-center"><i data-lucide="building-2" class="h-8 w-8 text-slate-400" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-900">No colleges yet</p><p class="mt-1 text-xs text-slate-600">Add an academic unit to start building the structure.</p></div>';
+            lucide.createIcons({ root: tree });
+            return;
+        }
+        tree.innerHTML = renderDirectCollege(college);
+        lucide.createIcons({ root: tree });
+    }
+
+    function renderCollegeChoices() {
+        const choices = document.getElementById('collegeChoices');
+        const colleges = organizationData.colleges || [];
+        choices.innerHTML = colleges.length ? colleges.map(college => {
+            const programCount = (college.programs || []).length;
+            const selected = String(college.id) === String(selectedCollegeId);
+            return `<button type="button" class="flex min-h-[38px] w-auto min-w-max items-center justify-between gap-3 rounded-md px-2 text-left text-[11px] text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 md:w-full md:min-w-0 ${selected ? 'bg-rose-100 font-semibold text-rose-800' : ''}" data-academic-college="${Number(college.id)}" aria-pressed="${selected}" aria-label="${esc(college.name)}, ${programCount} ${programCount === 1 ? 'program' : 'programs'}">
+                <span class="min-w-0 md:whitespace-normal">${esc(college.name)}</span><span class="shrink-0 text-[10px] tabular-nums text-slate-600">${programCount}</span>
+              </button>`;
+        }).join('') : '<p class="px-2 py-2 text-xs text-slate-600">No colleges have been added.</p>';
+    }
 
     function render(data) {
         organizationData = data;
-        const expandedColleges = new Set([...tree.querySelectorAll('.college-body:not(.max-h-0)')].map(body => body.id.replace('college-', '')));
-        const expandedPrograms = new Set([...tree.querySelectorAll('.program-body:not(.max-h-0)')].map(body => body.id.replace('program-', '')));
-
-        Object.entries(data.counts || {}).forEach(([key, value]) => {
-            const el = document.querySelector(`[data-count="${key}"]`);
-            if (el) el.textContent = value;
-        });
-
         const colleges = Array.isArray(data.colleges) ? data.colleges : [];
-        tree.innerHTML = colleges.length
-            ? colleges.map(renderDirectCollege).join('')
-            : '<div class="flex flex-col items-center justify-center gap-2 py-12 text-slate-500"><i data-lucide="building-2" class="h-10 w-10 text-slate-400"></i><p class="text-sm">No colleges yet. Click <strong>Add College</strong> to get started.</p></div>';
-        tree.querySelectorAll('.college-body, .program-body').forEach(body => {
-            body.style.maxHeight = '0px';
-        });
-
-        expandedColleges.forEach(collegeId => {
-            const body = document.getElementById(`college-${collegeId}`);
-            const toggle = tree.querySelector(`[data-college-toggle="${collegeId}"]`);
-            if (body) {
-                body.dataset.open = 'true';
-                body.classList.remove('max-h-0', 'opacity-0');
-                body.classList.add('opacity-100');
-                body.style.maxHeight = '2000px';
-            }
-            const chevron = toggle?.querySelector('.college-chevron');
-            if (chevron) {
-                chevron.dataset.open = 'true';
-                chevron.style.transform = 'rotate(90deg)';
-            }
-        });
-        expandedPrograms.forEach(programId => {
-            const program = data.colleges.flatMap(college => college.programs || []).find(item => String(item.id) === String(programId));
-            const body = document.getElementById(`program-${programId}`);
-            const toggle = tree.querySelector(`[data-program-toggle="${programId}"]`);
-            if (program && body) body.innerHTML = renderProgramMajors(program);
-            if (body) {
-                body.dataset.open = 'true';
-                body.classList.remove('max-h-0', 'opacity-0');
-                body.classList.add('opacity-100');
-                body.style.maxHeight = '1000px';
-            }
-            const chevron = toggle?.querySelector('.program-chevron');
-            if (chevron) {
-                chevron.dataset.open = 'true';
-                chevron.style.transform = 'rotate(90deg)';
-            }
-        });
-        tree.querySelectorAll('.college-chevron').forEach((icon) => {
-            const collegeId = icon.closest('[data-college-toggle]')?.dataset.collegeToggle;
-            const body = document.getElementById(`college-${collegeId}`);
-            const isOpen = body?.dataset.open === 'true';
-            icon.dataset.open = String(Boolean(isOpen));
-            icon.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-        });
-        tree.querySelectorAll('.program-chevron').forEach((icon) => {
-            const programId = icon.closest('[data-program-toggle]')?.dataset.programToggle;
-            const body = document.getElementById(`program-${programId}`);
-            const isOpen = body?.dataset.open === 'true';
-            icon.dataset.open = String(Boolean(isOpen));
-            icon.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-        });
-        lucide.createIcons();
-
+        if (!colleges.some(college => String(college.id) === String(selectedCollegeId))) {
+            selectedCollegeId = (colleges.find(college => college.status === 'active') || colleges[0])?.id ?? null;
+        }
+        renderCollegeChoices();
+        renderSelectedCollege();
         setOrganizationStatus('Organization updated');
     }
+
     let organizationRecords = [];
     function renderRecords() {
-            const search = document.getElementById('organizationSearch').value.trim().toLowerCase();
-            const status = document.getElementById('organizationStatusFilter').value;
-            const type = document.getElementById('organizationTypeFilter').value;
-            const rows = organizationRecords.filter(record => {
-                    return (!search || `${record.name} ${record.code} ${record.type}`.toLowerCase().includes(search)) &&
-                            (status === 'all' || record.status === status) && (type === 'all' || record.entity === type);
-            });
-            document.getElementById('organizationRecordsBody').innerHTML = rows.length ? rows.map(record => {
-                        const recordLabel = `${record.type} ${record.name}`;
-                        const archiveLabel = record.status === 'archived' ? 'Restore' : 'Archive';
-                        const archiveIcon = record.status === 'archived' ? 'rotate-ccw' : 'archive';
-                        const archiveClasses = record.status === 'archived' ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 focus:ring-emerald-400' : 'border-amber-200 text-amber-700 hover:bg-amber-50 focus:ring-amber-400';
-                        return `<tr class="hover:bg-slate-50"><td class="px-3 py-3 font-semibold text-slate-800">${esc(record.name)}</td><td class="px-3 py-3 text-slate-500">${esc(record.type)}</td><td class="px-3 py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold ${record.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-700'}">${esc(record.status)}</span></td><td class="px-3 py-3"><div class="flex justify-end gap-1"><button type="button" data-record-edit="${record.entity}" data-id="${record.id}" aria-label="Edit ${esc(recordLabel)}" title="Edit" class="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-md border border-sky-200 bg-white px-2 text-[11px] font-semibold text-sky-700 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="pencil" class="h-3.5 w-3.5"></i><span>Edit</span></button><button type="button" data-record-archive="${record.entity}" data-id="${record.id}" aria-label="${archiveLabel} ${esc(recordLabel)}" title="${archiveLabel}" class="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-md border bg-white px-2 text-[11px] font-semibold ${archiveClasses} focus:outline-none focus:ring-2"><i data-lucide="${archiveIcon}" class="h-3.5 w-3.5"></i><span>${archiveLabel}</span></button><button type="button" data-record-delete="${record.entity}" data-id="${record.id}" aria-label="Delete ${esc(recordLabel)}" title="Delete" class="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-white px-2 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i><span>Delete</span></button></div></td></tr>`;
-                    }).join('') : '<tr><td colspan="4" class="px-3 py-8 text-center text-sm italic text-slate-400">No organization records match your search.</td></tr>';
-            lucide.createIcons();
+        const searchTerms = document.getElementById('organizationSearch').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        const status = document.getElementById('organizationStatusFilter').value;
+        const type = document.getElementById('organizationTypeFilter').value;
+        const parentNameFor = record => {
+            if (record.parentId === null) return 'University';
+            const parentEntity = record.entity === 'major' ? 'program' : 'college';
+            return organizationRecords.find(item => item.entity === parentEntity && Number(item.id) === Number(record.parentId))?.name || 'Parent unavailable';
+        };
+        const rows = organizationRecords.filter(record => {
+            const searchableText = `${record.name} ${record.code} ${record.type} ${parentNameFor(record)}`.toLowerCase();
+            return searchTerms.every(term => searchableText.includes(term))
+                && (status === 'all' || record.status === status)
+                && (type === 'all' || record.entity === type);
+        });
+        document.getElementById('organizationRecordsBody').innerHTML = rows.length ? rows.map(record => {
+            const recordLabel = `${record.type} ${record.name}`;
+            const parent = parentNameFor(record);
+            const archiveLabel = record.status === 'archived' ? 'Restore' : 'Archive';
+            const archiveIcon = record.status === 'archived' ? 'rotate-ccw' : 'archive';
+            const archiveClasses = record.status === 'archived' ? 'text-emerald-700 hover:bg-emerald-50' : 'text-amber-800 hover:bg-amber-50';
+            const statusLabel = record.status === 'archived' ? 'Archived' : 'Active';
+            return `<tr class="transition-colors hover:bg-slate-50">
+                <td class="px-3 py-3"><div class="text-xs font-semibold text-slate-900">${esc(record.name)}</div><div class="mt-0.5 text-[10px] text-slate-600">${esc(parent)}</div></td>
+                <td class="whitespace-nowrap px-3 py-3 text-[11px] text-slate-700">${esc(record.type)}</td>
+                <td class="px-3 py-3"><span class="inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ${record.status === 'archived' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-800'}">${statusLabel}</span></td>
+                <td class="px-3 py-3"><div class="flex justify-end gap-1">
+                  <button type="button" data-record-edit="${esc(record.entity)}" data-id="${Number(record.id)}" aria-label="Edit ${esc(recordLabel)}" title="Edit" class="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="pencil" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Edit</span></button>
+                  <button type="button" data-record-archive="${esc(record.entity)}" data-id="${Number(record.id)}" aria-label="${archiveLabel} ${esc(recordLabel)}" title="${archiveLabel}" class="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold ${archiveClasses} focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="${archiveIcon}" class="h-3.5 w-3.5" aria-hidden="true"></i><span>${archiveLabel}</span></button>
+                  <button type="button" data-record-delete="${esc(record.entity)}" data-id="${Number(record.id)}" aria-label="Delete ${esc(recordLabel)}" title="Delete" class="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Delete</span></button>
+                </div></td>
+              </tr>`;
+        }).join('') : '<tr><td colspan="4" class="px-3 py-8 text-center text-xs text-slate-600">No units match your search. Try another name or filter.</td></tr>';
+        lucide.createIcons();
     }
     let organizationLoadToken = 0;
     let organizationDataLoaded = false;
@@ -455,62 +469,34 @@
         return trackedRequest;
     }
     document.getElementById('addCollegeBtn').onclick = openHierarchyForm;
-    tree.onclick = event => {
-        const programToggle = event.target.closest('[data-program-toggle]');
-        const toggle = event.target.closest('[data-college-toggle]');
-        const addButton = event.target.closest('[data-add]');
-        const edit = event.target.closest('[data-edit]');
-        const del = event.target.closest('[data-delete]');
+    function openOrganizationAddForm(button) {
+        closeHierarchyForm();
+        openForm(button.dataset.add, `Add ${button.dataset.title.replace('Add ', '')}`, '', button.dataset.parent, {}, button.dataset.major);
+    }
 
-        if (programToggle && !addButton && !edit && !del) {
-            const programId = programToggle.dataset.programToggle;
-            const body = document.getElementById(`program-${programId}`);
-            if (body) {
-                const isOpen = body.dataset.open === 'true';
-                const nextOpen = !isOpen;
-                if (!isOpen && !body.dataset.loaded) {
-                    const program = organizationData.colleges
-                        .flatMap(college => college.programs || [])
-                        .find(item => String(item.id) === String(programId));
-                    if (program) {
-                        body.innerHTML = renderProgramMajors(program);
-                        body.dataset.loaded = '1';
-                        lucide.createIcons({ root: body });
-                    }
-                }
-                const chevron = programToggle.querySelector('.program-chevron');
-                body.dataset.open = String(nextOpen);
-                body.classList.toggle('max-h-0', !nextOpen);
-                body.style.maxHeight = nextOpen ? '1000px' : '0px';
-                body.classList.toggle('opacity-0', !nextOpen);
-                body.classList.toggle('opacity-100', nextOpen);
-                if (chevron) {
-                    chevron.dataset.open = String(nextOpen);
-                    chevron.style.transform = nextOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-                }
-            }
-        }
-        if (toggle && !addButton && !edit && !del) {
-            const body = document.getElementById(`college-${toggle.dataset.collegeToggle}`);
-            const chevron = toggle.querySelector('.college-chevron');
-            if (body) {
-                const isOpen = body.dataset.open === 'true';
-                const nextOpen = !isOpen;
-                body.dataset.open = String(nextOpen);
-                body.classList.toggle('max-h-0', !nextOpen);
-                body.style.maxHeight = nextOpen ? '2000px' : '0px';
-                body.classList.toggle('opacity-0', !nextOpen);
-                body.classList.toggle('opacity-100', nextOpen);
-                if (chevron) {
-                    chevron.dataset.open = String(nextOpen);
-                    chevron.style.transform = nextOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-                }
-            }
-        }
-        if (addButton) { closeHierarchyForm(); openForm(addButton.dataset.add, `Add ${addButton.dataset.title.replace('Add ', '')}`, '', addButton.dataset.parent, {}, addButton.dataset.major); }
-        if (edit) { closeHierarchyForm(); openForm(`edit_${edit.dataset.edit}`, `Edit ${edit.dataset.edit}`, edit.dataset.id, edit.dataset.parent, JSON.parse(edit.dataset.item)); }
-        if (del) openDeleteDialog(del.dataset.delete, del.dataset.id, del.dataset.name);
-    };
+    function openOrganizationEditForm(button) {
+        closeHierarchyForm();
+        openForm(`edit_${button.dataset.edit}`, `Edit ${button.dataset.edit}`, button.dataset.id, button.dataset.parent, JSON.parse(button.dataset.item));
+    }
+
+    function handleOrganizationTreeClick(event) {
+        const addButton = event.target.closest('[data-add]');
+        const editButton = event.target.closest('[data-edit]');
+        const deleteButton = event.target.closest('[data-delete]');
+
+        if (addButton) openOrganizationAddForm(addButton);
+        if (editButton) openOrganizationEditForm(editButton);
+        if (deleteButton) openDeleteDialog(deleteButton.dataset.delete, deleteButton.dataset.id, deleteButton.dataset.name);
+    }
+
+    tree.onclick = handleOrganizationTreeClick;
+    document.getElementById('collegeChoices').addEventListener('click', event => {
+        const choice = event.target.closest('[data-academic-college]');
+        if (!choice) return;
+        selectedCollegeId = choice.dataset.academicCollege;
+        renderCollegeChoices();
+        renderSelectedCollege();
+    });
     document.getElementById('organizationSearch').oninput = renderRecords;
     document.getElementById('organizationStatusFilter').onchange = renderRecords;
     document.getElementById('organizationTypeFilter').onchange = renderRecords;
@@ -671,10 +657,13 @@
             tabButtons.forEach(btn => {
                 const isSelected = btn.dataset.tab === tabName;
                 btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                if (isSelected) btn.setAttribute('aria-current', 'page');
+                else btn.removeAttribute('aria-current');
+                btn.tabIndex = isSelected ? 0 : -1;
                 if (isSelected) {
-                    btn.className = 'academics-tab inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-rose-700';
+                    btn.className = 'academics-tab flex min-h-9 items-center gap-2 rounded-md bg-rose-100 px-2.5 text-left text-xs font-semibold text-rose-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500';
                 } else {
-                    btn.className = 'academics-tab inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900';
+                    btn.className = 'academics-tab flex min-h-9 items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500';
                 }
             });
 
@@ -682,6 +671,8 @@
                 const isTarget = panel.id === `${tabName}Panel` || (tabName === 'secondary' && panel.id === 'secondaryViewPanel');
                 panel.classList.toggle('hidden', !isTarget);
             });
+            document.getElementById('collegePicker').hidden = tabName !== 'hierarchy';
+            document.getElementById('addCollegeBtn').hidden = tabName === 'prospectus';
 
             try {
                 sessionStorage.setItem('academics_active_tab', tabName);
@@ -702,6 +693,19 @@
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 activateTab(btn.dataset.tab);
+            });
+            btn.addEventListener('keydown', (event) => {
+                const currentIndex = [...tabButtons].indexOf(btn);
+                let nextIndex = currentIndex;
+                if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabButtons.length;
+                else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+                else if (event.key === 'Home') nextIndex = 0;
+                else if (event.key === 'End') nextIndex = tabButtons.length - 1;
+                else return;
+                event.preventDefault();
+                const nextTab = tabButtons[nextIndex];
+                activateTab(nextTab.dataset.tab);
+                nextTab.focus();
             });
         });
 

@@ -230,6 +230,19 @@ $shortBookTitle = static function (string $title): string {
   $words = array_values(array_filter($words, static fn($word): bool => preg_match('/[\pL\pN]/u', $word) === 1));
   return count($words) > 3 ? implode(' ', array_slice($words, 0, 3)) . '...' : $title;
 };
+$inventorySearchText = static function (array $book): string {
+  $referenceText = array_map(
+    static fn(array $reference): string => (string)$reference['code'] . ' ' . (string)$reference['name'],
+    $book['course_references'] ?? []
+  );
+  return strtolower(implode(' ', [
+    (string)($book['title'] ?? ''),
+    (string)($book['author'] ?? ''),
+    (string)($book['isbn'] ?? ''),
+    (string)($book['publisher'] ?? ''),
+    ...$referenceText,
+  ]));
+};
 $currentYear = (int)date('Y');
 
 if ($pdo instanceof PDO) {
@@ -281,62 +294,54 @@ $copyrightMetricStyles = [
 ?>
 <div id="inventoryPage" class="min-h-[calc(100vh-5rem)] p-1 text-slate-900 sm:p-2">
   <div data-inventory-list-view>
-  <div class="mb-5">
-    <div>
-      <h2 class="text-2xl font-bold text-slate-900">Inventory Management</h2>
-      <p class="mt-1 text-sm text-slate-600">Browse and manage all library volumes and resources.</p>
-    </div>
-  </div>
-
-  <div class="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-5">
-    <div class="flex h-[68px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-3 sm:px-4">
-      <div class="flex items-center gap-2"><span class="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-100 text-rose-700"><i data-lucide="book-open" class="h-3.5 w-3.5"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-800">Total Titles</p></div>
-      <p class="mt-1 text-xl font-bold leading-none tabular-nums text-slate-950"><?php echo $totalBookTitles; ?></p>
-    </div>
-    <div class="flex h-[68px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-3 sm:px-4">
-      <div class="flex items-center gap-2"><span class="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-100 text-sky-700"><i data-lucide="library" class="h-3.5 w-3.5"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-800">Total Volumes</p></div>
-      <p class="mt-1 text-xl font-bold leading-none tabular-nums text-slate-950"><?php echo $totalBookCopies; ?></p>
-    </div>
-    <?php foreach (array_values($copyrightYearMetrics) as $index => $metric): ?>
-      <?php $style = $copyrightMetricStyles[$index % count($copyrightMetricStyles)]; ?>
-      <div class="flex h-[68px] flex-col justify-center rounded-xl border border-slate-200 bg-white px-3 sm:px-4">
-        <div class="flex items-center gap-2"><span class="flex h-6 w-6 items-center justify-center rounded-lg <?php echo $style['iconBg']; ?> <?php echo $style['iconColor']; ?>"><i data-lucide="<?php echo $style['icon']; ?>" class="h-3.5 w-3.5"></i></span><p class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] <?php echo $style['labelColor']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> Yrs</p></div>
-        <p class="mt-1 text-xl font-bold leading-none tabular-nums <?php echo $style['valueColor']; ?>"><?php echo (int)$metric['title_count']; ?></p>
+    <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div>
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900">Inventory</h2>
+        <p class="mt-1 text-xs text-slate-600">Home <span aria-hidden="true">/</span> Library books</p>
       </div>
-    <?php endforeach; ?>
-  </div>
+      <div class="flex w-full gap-2 sm:w-auto">
+        <button type="button" data-inventory-archive-open aria-haspopup="dialog" aria-controls="inventoryArchiveModal" class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 sm:flex-none">
+          <i data-lucide="archive" class="h-4 w-4"></i>Archive <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600"><?php echo count($archivedBooks); ?></span>
+        </button>
+        <button type="button" data-inventory-add-open aria-haspopup="dialog" aria-controls="inventoryAddBookModal" class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-rose-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-500 sm:flex-none sm:px-4 sm:text-sm">
+          <i data-lucide="plus" class="h-4 w-4"></i>Add book
+        </button>
+      </div>
+    </header>
 
-  <section class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-    <div class="flex items-center gap-3">
-      <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700"><i data-lucide="archive" class="h-4 w-4"></i></div>
-      <div class="flex items-center gap-3">
+    <section class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white" aria-labelledby="inventoryBooksTitle">
+      <div class="flex flex-col justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
         <div>
-          <h3 class="text-sm font-bold text-slate-900">Archived Books</h3>
-          <p class="text-xs text-slate-600">Archived books can be restored anytime.</p>
+          <h3 id="inventoryBooksTitle" class="text-base font-bold text-slate-900">All books</h3>
+          <p class="mt-1 text-xs text-slate-600" data-inventory-result-count>Showing <?php echo number_format(count($activeBooks)); ?> books</p>
+        </div>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label class="relative block min-w-0 sm:w-64">
+            <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true"></i>
+            <span class="sr-only">Search books</span>
+            <input type="search" data-inventory-search placeholder="Search title, author, ISBN, course" class="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-600 focus:border-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-100">
+          </label>
+          <div class="flex gap-2">
+            <label class="sr-only" for="inventoryCopyrightFilter">Filter by copyright year</label>
+            <select id="inventoryCopyrightFilter" data-inventory-copyright-filter class="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:border-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-100 sm:flex-none">
+              <option value="all">All copyright ranges</option>
+              <?php foreach ($copyrightYearMetrics as $metric): ?>
+                <option value="within-<?php echo (int)$metric['years_threshold']; ?>">Within <?php echo (int)$metric['years_threshold']; ?> years</option>
+              <?php endforeach; ?>
+              <?php if ($copyrightYearMetrics): ?>
+                <?php $maximumCopyrightThreshold = max(array_column($copyrightYearMetrics, 'years_threshold')); ?>
+                <option value="outside-<?php echo (int)$maximumCopyrightThreshold; ?>">Outside <?php echo (int)$maximumCopyrightThreshold; ?> years</option>
+              <?php endif; ?>
+              <option value="unknown">Year not recorded</option>
+            </select>
+            <button type="button" data-inventory-filter-clear class="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-300">Clear</button>
+          </div>
         </div>
       </div>
-    </div>
-    <button type="button" data-inventory-archive-open aria-haspopup="dialog" aria-controls="inventoryArchiveModal" class="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">
-      View Archive<span class="inline-flex min-w-5 items-center justify-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600"><?php echo count($archivedBooks); ?></span><i data-lucide="arrow-up-right" class="h-3.5 w-3.5"></i>
-    </button>
-  </section>
 
-  <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
-    <div>
-      <h3 class="text-base font-bold text-slate-900">Books</h3>
-      <p class="mt-1 text-xs text-slate-600">Catalog and copyright-year status.</p>
-    </div>
-    <div class="flex items-center gap-2">
-      <button type="button" data-inventory-add-open aria-haspopup="dialog" aria-controls="inventoryAddBookModal" class="inline-flex h-9 items-center gap-2 rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">
-        <i data-lucide="plus" class="h-4 w-4"></i>Add Book
-      </button>
-    </div>
-  </div>
-
-  <section class="mt-2 hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm 2xl:block">
-    <div class="overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-500" role="region" aria-label="Book inventory table. Scroll horizontally to view all columns." tabindex="0">
-      <table class="w-full min-w-[1200px] text-left text-sm">
-        <thead class="border-b border-slate-200 bg-slate-50 font-mono text-[10px] uppercase tracking-[0.1em] text-slate-600">
+  <div class="hidden overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-500 xl:block" role="region" aria-label="Book inventory table. Scroll horizontally to view all columns." tabindex="0">
+      <table class="w-full min-w-[1040px] text-left text-sm">
+        <thead class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-[0.08em] text-slate-600">
           <tr>
             <th scope="col" class="px-4 py-3">Book</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3">Pub. Year</th>
@@ -357,7 +362,7 @@ $copyrightMetricStyles = [
           <?php else: ?>
             <?php foreach ($activeBooks as $book): ?>
               <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
-              <tr>
+              <tr data-inventory-book-entry data-inventory-view="table" data-book-id="<?php echo (int)$book['book_id']; ?>" data-copyright-year="<?php echo $bookCopyrightYear; ?>" data-search="<?php echo $escapeInventory($inventorySearchText($book)); ?>">
                 <td class="px-4 py-3"><p title="<?php echo $escapeInventory($book['title']); ?>" class="font-semibold text-slate-900"><?php echo $escapeInventory($shortBookTitle($book['title'])); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
                 <td class="px-4 py-3">
@@ -384,13 +389,14 @@ $copyrightMetricStyles = [
                 </td>
               </tr>
             <?php endforeach; ?>
+            <tr data-inventory-no-results class="hidden"><td colspan="<?php echo 6 + count($copyrightYearMetrics); ?>" class="px-4 py-12 text-center text-sm text-slate-600">No books match your search or filters.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
     </div>
   </section>
 
-  <section class="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white 2xl:hidden" aria-label="Book inventory">
+  <section class="overflow-hidden border-t border-slate-200 xl:hidden" aria-label="Book inventory">
     <?php if (!$inventorySchemaAvailable): ?>
       <div class="px-4 py-12 text-center"><p class="text-sm font-semibold text-rose-700">Inventory database tables are unavailable.</p><p class="mt-1 text-xs text-slate-600">Apply the latest schema.sql to enable book records and copyright ranges.</p></div>
     <?php elseif (!$activeBooks): ?>
@@ -399,7 +405,7 @@ $copyrightMetricStyles = [
       <div class="divide-y divide-slate-100">
         <?php foreach ($activeBooks as $book): ?>
           <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
-          <article class="p-4 sm:p-5">
+          <article data-inventory-book-entry data-inventory-view="cards" data-book-id="<?php echo (int)$book['book_id']; ?>" data-copyright-year="<?php echo $bookCopyrightYear; ?>" data-search="<?php echo $escapeInventory($inventorySearchText($book)); ?>" class="p-4 sm:p-5">
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
                 <h4 class="break-words text-sm font-semibold text-slate-900"><?php echo $escapeInventory($book['title']); ?></h4>
@@ -433,6 +439,7 @@ $copyrightMetricStyles = [
                   <?php $withinRange = $bookCopyrightYear > 0 && $bookCopyrightYear >= $currentYear - (int)$metric['years_threshold'] && $bookCopyrightYear <= $currentYear; ?>
                   <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium <?php echo $withinRange ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'; ?>" aria-label="<?php echo $withinRange ? 'Within' : 'Outside'; ?> <?php echo (int)$metric['years_threshold']; ?> year range"><i data-lucide="<?php echo $withinRange ? 'check' : 'x'; ?>" class="h-3.5 w-3.5" aria-hidden="true"></i><?php echo $withinRange ? 'Within' : 'Outside'; ?> <?php echo (int)$metric['years_threshold']; ?> yrs</span>
                 <?php endforeach; ?>
+                <div data-inventory-no-results-mobile class="hidden px-4 py-12 text-center text-sm text-slate-600">No books match your search or filters.</div>
               </div>
             </div>
           </article>
@@ -440,6 +447,13 @@ $copyrightMetricStyles = [
       </div>
     <?php endif; ?>
   </section>
+  <nav class="flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 sm:px-5" aria-label="Inventory pagination" data-inventory-pagination>
+    <p class="text-xs tabular-nums text-slate-600" data-inventory-page-status aria-live="polite"></p>
+    <div class="flex gap-2">
+      <button type="button" data-inventory-page-prev class="h-8 rounded-md border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50">Previous</button>
+      <button type="button" data-inventory-page-next class="h-8 rounded-md border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50">Next</button>
+    </div>
+  </nav>
   </div>
 
   <section class="hidden space-y-6" data-inventory-book-detail aria-live="polite" aria-label="Book information"></section>
