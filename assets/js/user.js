@@ -447,6 +447,59 @@
     document.getElementById('adminDeletePassword').focus();
   }
 
+  function requestLibrarianDeletion(id, adminPassword) {
+    const formData = new URLSearchParams({ action: 'delete', id: String(id), admin_password: adminPassword });
+    return fetch('pages/user.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: formData.toString()
+    }).then((response) => response.json());
+  }
+
+  function showDeleteResults(results) {
+    if (results.successfulIds.length > 0 && results.failedIds.length === 0) {
+      showToast(results.successfulIds.length === 1 ? 'Librarian deleted successfully.' : `${results.successfulIds.length} librarians deleted successfully.`);
+    } else if (results.successfulIds.length > 0 && results.failedIds.length > 0) {
+      showToast(`${results.successfulIds.length} deleted, ${results.failedIds.length} failed.`, 'error');
+    } else {
+      showToast(results.failedMessages[0] || 'Unable to delete selected librarians.', 'error');
+    }
+
+    fetchLibrarians()
+      .finally(() => {
+        closeDeleteConfirmation();
+      });
+  }
+
+  function deleteNextLibrarian(remainingIds, adminPassword, results) {
+    const id = remainingIds.shift();
+    if (id === undefined) {
+      showDeleteResults(results);
+      return;
+    }
+
+    requestLibrarianDeletion(id, adminPassword)
+      .then((result) => {
+        if (!result.success) {
+          results.failedIds.push(id);
+          results.failedMessages.push(result.message || 'Unable to delete selected librarians.');
+          return;
+        }
+
+        results.successfulIds.push(id);
+      })
+      .catch(() => {
+        results.failedIds.push(id);
+        results.failedMessages.push('Unable to delete selected librarians.');
+      })
+      .finally(() => {
+        deleteNextLibrarian(remainingIds, adminPassword, results);
+      });
+  }
+
   function confirmPendingDelete() {
     const selected = [...state.pendingDeleteIds];
     if (!selected.length || state.isDeleting) return;
@@ -467,58 +520,11 @@
     lucide.createIcons();
     state.isDeleting = true;
 
-    const remainingIds = [...selected];
-    const successfulIds = [];
-    const failedIds = [];
-    const failedMessages = [];
-
-    const deleteNext = () => {
-      const id = remainingIds.shift();
-      if (id === undefined) {
-        if (successfulIds.length > 0 && failedIds.length === 0) {
-          showToast(successfulIds.length === 1 ? 'Librarian deleted successfully.' : `${successfulIds.length} librarians deleted successfully.`);
-        } else if (successfulIds.length > 0 && failedIds.length > 0) {
-          showToast(`${successfulIds.length} deleted, ${failedIds.length} failed.`, 'error');
-        } else {
-          showToast(failedMessages[0] || 'Unable to delete selected librarians.', 'error');
-        }
-
-        fetchLibrarians()
-          .finally(() => {
-            closeDeleteConfirmation();
-          });
-        return;
-      }
-
-      const formData = new URLSearchParams({ action: 'delete', id: String(id), admin_password: adminPassword });
-      fetch('pages/user.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: formData.toString()
-      })
-        .then((response) => response.json())
-        .then((result) => {
-          if (!result.success) {
-            failedIds.push(id);
-            failedMessages.push(result.message || 'Unable to delete selected librarians.');
-            return;
-          }
-
-          successfulIds.push(id);
-        })
-        .catch(() => {
-          failedIds.push(id);
-          failedMessages.push('Unable to delete selected librarians.');
-        })
-        .finally(() => {
-          deleteNext();
-        });
-    };
-
-    deleteNext();
+    deleteNextLibrarian([...selected], adminPassword, {
+      successfulIds: [],
+      failedIds: [],
+      failedMessages: [],
+    });
   }
 
   function closeSaveConfirmation() {

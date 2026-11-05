@@ -16,6 +16,20 @@
   const archiveSearchInput = document.querySelector('[data-inventory-archive-search]');
   const archiveBookRows = [...document.querySelectorAll('[data-inventory-archive-row]')];
   const archiveNoMatches = document.querySelector('[data-inventory-archive-no-matches]');
+  const inventorySearchInput = document.querySelector('[data-inventory-search]');
+  const inventoryCopyrightFilter = document.querySelector('[data-inventory-copyright-filter]');
+  const inventoryFilterClear = document.querySelector('[data-inventory-filter-clear]');
+  const inventoryBookEntries = [...document.querySelectorAll('[data-inventory-book-entry]')];
+  const inventoryTableEntries = inventoryBookEntries.filter((entry) => entry.dataset.inventoryView === 'table');
+  const inventoryResultCount = document.querySelector('[data-inventory-result-count]');
+  const inventoryPagination = document.querySelector('[data-inventory-pagination]');
+  const inventoryPageStatus = document.querySelector('[data-inventory-page-status]');
+  const inventoryPagePrevious = document.querySelector('[data-inventory-page-prev]');
+  const inventoryPageNext = document.querySelector('[data-inventory-page-next]');
+  const inventoryNoResults = document.querySelector('[data-inventory-no-results]');
+  const inventoryNoResultsMobile = document.querySelector('[data-inventory-no-results-mobile]');
+  const inventoryPageSize = 10;
+  let inventoryCurrentPage = 1;
   const bookActionsMenu = document.getElementById('inventoryBookActionsMenu');
   const bookActionsTitle = document.querySelector('[data-book-actions-title]');
   let bookActionsTrigger = null;
@@ -172,6 +186,69 @@
     archiveSearchInput.value = '';
     filterArchivedBooks();
   });
+  function filterInventoryBooks() {
+    const query = inventorySearchInput?.value.trim().toLocaleLowerCase() || '';
+    const copyrightFilter = inventoryCopyrightFilter?.value || 'all';
+    const matchingIds = inventoryTableEntries
+      .filter((entry) => {
+        const searchMatches = (entry.dataset.search || '').toLocaleLowerCase().includes(query);
+        const copyrightYear = Number(entry.dataset.copyrightYear || 0);
+        let copyrightMatches = true;
+        if (copyrightFilter === 'unknown') {
+          copyrightMatches = copyrightYear <= 0;
+        } else if (copyrightFilter.startsWith('within-')) {
+          const years = Number(copyrightFilter.slice('within-'.length));
+          copyrightMatches = copyrightYear > 0 && copyrightYear >= new Date().getFullYear() - years && copyrightYear <= new Date().getFullYear();
+        } else if (copyrightFilter.startsWith('outside-')) {
+          const years = Number(copyrightFilter.slice('outside-'.length));
+          copyrightMatches = copyrightYear > 0 && copyrightYear < new Date().getFullYear() - years;
+        }
+        return searchMatches && copyrightMatches;
+      })
+      .map((entry) => entry.dataset.bookId);
+    const totalPages = Math.max(1, Math.ceil(matchingIds.length / inventoryPageSize));
+    inventoryCurrentPage = Math.min(inventoryCurrentPage, totalPages);
+    const startIndex = (inventoryCurrentPage - 1) * inventoryPageSize;
+    const visibleIds = new Set(matchingIds.slice(startIndex, startIndex + inventoryPageSize));
+
+    inventoryBookEntries.forEach((entry) => {
+      entry.classList.toggle('hidden', !visibleIds.has(entry.dataset.bookId));
+    });
+    inventoryNoResults?.classList.toggle('hidden', matchingIds.length > 0);
+    inventoryNoResultsMobile?.classList.toggle('hidden', matchingIds.length > 0);
+    if (inventoryResultCount) inventoryResultCount.textContent = `Showing ${matchingIds.length.toLocaleString()} books`;
+    if (inventoryPageStatus) {
+      const firstResult = matchingIds.length === 0 ? 0 : startIndex + 1;
+      const lastResult = Math.min(startIndex + inventoryPageSize, matchingIds.length);
+      inventoryPageStatus.textContent = `Showing ${firstResult}–${lastResult} of ${matchingIds.length.toLocaleString()}`;
+    }
+    if (inventoryPagePrevious) inventoryPagePrevious.disabled = inventoryCurrentPage <= 1;
+    if (inventoryPageNext) inventoryPageNext.disabled = inventoryCurrentPage >= totalPages;
+    inventoryPagination?.classList.toggle('hidden', matchingIds.length <= inventoryPageSize);
+  }
+  inventorySearchInput?.addEventListener('input', () => {
+    inventoryCurrentPage = 1;
+    filterInventoryBooks();
+  });
+  inventoryCopyrightFilter?.addEventListener('change', () => {
+    inventoryCurrentPage = 1;
+    filterInventoryBooks();
+  });
+  inventoryFilterClear?.addEventListener('click', () => {
+    if (inventorySearchInput) inventorySearchInput.value = '';
+    if (inventoryCopyrightFilter) inventoryCopyrightFilter.value = 'all';
+    inventoryCurrentPage = 1;
+    filterInventoryBooks();
+  });
+  inventoryPagePrevious?.addEventListener('click', () => {
+    inventoryCurrentPage = Math.max(1, inventoryCurrentPage - 1);
+    filterInventoryBooks();
+  });
+  inventoryPageNext?.addEventListener('click', () => {
+    inventoryCurrentPage += 1;
+    filterInventoryBooks();
+  });
+  filterInventoryBooks();
   document.querySelectorAll('[data-ai-course-close]').forEach((button) => {
     button.addEventListener('click', () => closeDialog(aiCourseModal));
   });
@@ -547,7 +624,113 @@
     manageReferencesModal.showModal();
   }
 
-  inventoryPage?.addEventListener('click', async (event) => {
+  function openBookActionsMenu(button) {
+    const book = inventoryBooks[button.dataset.bookId];
+    if (!book) return;
+    if (bookActionsMenu.matches(':popover-open')) bookActionsMenu.hidePopover();
+    bookActionsTrigger = button;
+    bookActionsTrigger.setAttribute('aria-expanded', 'true');
+    bookActionsTitle.textContent = book.title;
+    bookActionsMenu.querySelectorAll('[data-book-action]').forEach((menuButton) => {
+      menuButton.dataset.bookId = book.book_id;
+    });
+    bookActionsMenu.showPopover();
+
+    const triggerRect = button.getBoundingClientRect();
+    const menuRect = bookActionsMenu.getBoundingClientRect();
+    const edge = 8;
+    const gap = 6;
+    const belowTop = triggerRect.bottom + gap;
+    const top = belowTop + menuRect.height <= window.innerHeight - edge
+      ? belowTop
+      : Math.max(edge, triggerRect.top - menuRect.height - gap);
+    const left = Math.max(edge, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - edge));
+    bookActionsMenu.style.top = `${top}px`;
+    bookActionsMenu.style.left = `${left}px`;
+  }
+
+  async function restoreBook(bookId) {
+    const formData = new FormData();
+    formData.set('action', 'restore_book');
+    formData.set('book_id', bookId);
+    formData.set('csrf_token', addBookForm.elements.csrf_token.value);
+    try {
+      await postInventoryAction(formData);
+    } catch (error) {
+      window.alert(error.message);
+    }
+  }
+
+  function editBook(book) {
+    addBookForm.reset();
+    addBookForm.elements.action.value = 'update_book';
+    addBookForm.elements.book_id.value = book.book_id;
+    addBookForm.elements.title.value = book.title;
+    addBookForm.elements.author.value = book.author;
+    addBookForm.elements.isbn.value = book.isbn || '';
+    addBookForm.elements.publisher.value = book.publisher || '';
+    addBookForm.elements.publication_year.value = book.publication_year || '';
+    addBookForm.elements.copyright_year.value = book.copyright_year || '';
+    addBookForm.elements.copy_count.value = book.copy_count;
+    addBookForm.elements.description.value = book.description || '';
+    formTitle.textContent = 'Edit Book';
+    formSubmitLabel.textContent = 'Save Changes';
+    formMessage.hidden = true;
+    addBookDialog.showModal();
+  }
+
+  function addBookReference(book) {
+    referenceForm.reset();
+    referenceForm.elements.book_id.value = book.book_id;
+    referenceMessage.hidden = true;
+    addReferenceModal.showModal();
+  }
+
+  function confirmBookArchive(book) {
+    deleteBookForm.reset();
+    deleteBookForm.elements.book_id.value = book.book_id;
+    deleteBookCopy.textContent = `Move "${book.title}" to the archive? Its course references will also be removed.`;
+    deleteBookError.hidden = true;
+    deleteBookModal.showModal();
+  }
+
+  async function handleBookAction(button) {
+    if (bookActionsMenu.matches(':popover-open')) bookActionsMenu.hidePopover();
+
+    if (button.dataset.bookAction === 'view') {
+      const book = inventoryBooks[button.dataset.bookId];
+      if (book) showInventoryBookInfo(book);
+      return;
+    }
+
+    if (button.dataset.bookAction === 'restore') {
+      await restoreBook(button.dataset.bookId);
+      return;
+    }
+
+    const book = inventoryBooks[button.dataset.bookId];
+    if (!book) return;
+
+    switch (button.dataset.bookAction) {
+      case 'ai-course':
+        resetAiCoursePanel(book);
+        break;
+      case 'edit':
+        editBook(book);
+        break;
+      case 'reference':
+        addBookReference(book);
+        break;
+      case 'manage-references':
+        openManageReferences(book);
+        break;
+      case 'delete':
+        confirmBookArchive(book);
+        break;
+    }
+  }
+
+  async function handleInventoryClick(event) {
     const inventoryBackButton = event.target.closest('[data-inventory-book-back]');
     if (inventoryBackButton) {
       returnToInventoryList();
@@ -556,101 +739,16 @@
 
     const actionsOpenButton = event.target.closest('[data-book-actions-open]');
     if (actionsOpenButton) {
-      const book = inventoryBooks[actionsOpenButton.dataset.bookId];
-      if (!book) return;
-      if (bookActionsMenu.matches(':popover-open')) bookActionsMenu.hidePopover();
-      bookActionsTrigger = actionsOpenButton;
-      bookActionsTrigger.setAttribute('aria-expanded', 'true');
-      bookActionsTitle.textContent = book.title;
-      bookActionsMenu.querySelectorAll('[data-book-action]').forEach((button) => {
-        button.dataset.bookId = book.book_id;
-      });
-      bookActionsMenu.showPopover();
-      const triggerRect = actionsOpenButton.getBoundingClientRect();
-      const menuRect = bookActionsMenu.getBoundingClientRect();
-      const edge = 8;
-      const gap = 6;
-      const belowTop = triggerRect.bottom + gap;
-      const top = belowTop + menuRect.height <= window.innerHeight - edge
-        ? belowTop
-        : Math.max(edge, triggerRect.top - menuRect.height - gap);
-      const left = Math.max(edge, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - edge));
-      bookActionsMenu.style.top = `${top}px`;
-      bookActionsMenu.style.left = `${left}px`;
+      openBookActionsMenu(actionsOpenButton);
       return;
     }
 
     const actionButton = event.target.closest('[data-book-action]');
     if (!actionButton) return;
-    if (bookActionsMenu.matches(':popover-open')) bookActionsMenu.hidePopover();
+    await handleBookAction(actionButton);
+  }
 
-    if (actionButton.dataset.bookAction === 'view') {
-      const book = inventoryBooks[actionButton.dataset.bookId];
-      if (book) showInventoryBookInfo(book);
-      return;
-    }
-
-    if (actionButton.dataset.bookAction === 'restore') {
-      const formData = new FormData();
-      formData.set('action', 'restore_book');
-      formData.set('book_id', actionButton.dataset.bookId);
-      formData.set('csrf_token', addBookForm.elements.csrf_token.value);
-      try {
-        await postInventoryAction(formData);
-      } catch (error) {
-        window.alert(error.message);
-      }
-      return;
-    }
-
-    const book = inventoryBooks[actionButton.dataset.bookId];
-    if (!book) return;
-
-    if (actionButton.dataset.bookAction === 'ai-course') {
-      resetAiCoursePanel(book);
-      return;
-    }
-
-    if (actionButton.dataset.bookAction === 'edit') {
-      addBookForm.reset();
-      addBookForm.elements.action.value = 'update_book';
-      addBookForm.elements.book_id.value = book.book_id;
-      addBookForm.elements.title.value = book.title;
-      addBookForm.elements.author.value = book.author;
-      addBookForm.elements.isbn.value = book.isbn || '';
-      addBookForm.elements.publisher.value = book.publisher || '';
-      addBookForm.elements.publication_year.value = book.publication_year || '';
-      addBookForm.elements.copyright_year.value = book.copyright_year || '';
-      addBookForm.elements.copy_count.value = book.copy_count;
-      addBookForm.elements.description.value = book.description || '';
-      formTitle.textContent = 'Edit Book';
-      formSubmitLabel.textContent = 'Save Changes';
-      formMessage.hidden = true;
-      addBookDialog.showModal();
-      return;
-    }
-
-    if (actionButton.dataset.bookAction === 'reference') {
-      referenceForm.reset();
-      referenceForm.elements.book_id.value = book.book_id;
-      referenceMessage.hidden = true;
-      addReferenceModal.showModal();
-      return;
-    }
-
-    if (actionButton.dataset.bookAction === 'manage-references') {
-      openManageReferences(book);
-      return;
-    }
-
-    if (actionButton.dataset.bookAction === 'delete') {
-      deleteBookForm.reset();
-      deleteBookForm.elements.book_id.value = book.book_id;
-      deleteBookCopy.textContent = `Move "${book.title}" to the archive? Its course references will also be removed.`;
-      deleteBookError.hidden = true;
-      deleteBookModal.showModal();
-    }
-  });
+  inventoryPage?.addEventListener('click', handleInventoryClick);
 
   referenceList?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-reference-manager-action]');
