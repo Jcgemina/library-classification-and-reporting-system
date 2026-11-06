@@ -6,8 +6,8 @@ require_once __DIR__ . '/includes/functions.php';
 requireLogin();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'user', 'logs', 'configure'];
-$staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences'];
+$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'user', 'logs', 'configure'];
+$staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account'];
 $restrictedPages = ['user', 'logs', 'configure'];
 
 $allowedPages = $userRole === 'admin' ? $adminPages : $staffPages;
@@ -61,8 +61,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
-    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'user', 'logs', 'configure'];
-    const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences'];
+    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'user', 'logs', 'configure'];
+    const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account'];
     const restrictedPages = ['user', 'logs', 'configure'];
     const allowedPages = currentUserRole === 'admin' ? adminPages : staffPages;
 
@@ -186,6 +186,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         reference_analyzer: 'Reference Analyzer',
         report: 'Report',
         preferences: 'Preferences',
+        account: 'My Account',
         user: 'User Management',
         logs: 'Logs',
         configure: 'Library Settings',
@@ -246,6 +247,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         updateActiveTab(safePage);
         const pageTitle = safePage === 'preferences'
           ? 'Preferences'
+          : safePage === 'account'
+          ? 'My Account'
           : safePage === 'configure'
           ? 'Library Settings'
           : safePage === 'reference_analyzer'

@@ -13,6 +13,7 @@ $navSections = [
 $navItems = [
     ['label' => 'Dashboard', 'page' => 'dashboard', 'section' => 'overview', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
     ['label' => 'Preferences', 'page' => 'preferences', 'section' => 'overview', 'href' => 'app.php?page=preferences', 'icon' => 'sliders-horizontal'],
+    ['label' => 'My Account', 'page' => 'account', 'section' => 'overview', 'href' => 'app.php?page=account', 'icon' => 'user-round'],
     ['label' => 'Inventory', 'page' => 'inventory', 'section' => 'operations', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
     ['label' => 'Report', 'page' => 'report', 'section' => 'operations', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
     ['label' => 'Academics', 'page' => 'academics', 'section' => 'academics', 'href' => 'app.php?page=academics', 'icon' => 'building-2'],
