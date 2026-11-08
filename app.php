@@ -68,7 +68,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 </script>
 <script src="assets/js/preferences.js?v=<?php echo (int) filemtime(__DIR__ . '/assets/js/preferences.js'); ?>"></script>
 </head>
-<body class="min-h-screen overflow-x-hidden bg-[#dfdfdf]">
+<body class="min-h-screen overflow-x-hidden bg-white">
 
   <?php require_once __DIR__ . '/includes/nav.php'; ?>
   <div id="appToastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-3" role="region" aria-label="Notifications"></div>
