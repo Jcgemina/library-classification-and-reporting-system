@@ -1,9 +1,26 @@
 <?php
 $currentPage = $_GET['page'] ?? 'dashboard';
+$settingsPages = ['account', 'preferences', 'configure'];
+$isActiveSettings = in_array($currentPage, $settingsPages, true);
+$activeSettingsSubpage = $currentPage === 'configure'
+    ? (($_GET['section'] ?? '') === 'rules' ? 'rules' : 'institution')
+    : $currentPage;
+$settingsExpanded = $isActiveSettings;
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $isValidatedUser = !empty($_SESSION['authenticated']) && !empty($_SESSION['user_id']);
 $isAdmin = $isValidatedUser && $userRole === 'admin';
+$settingsItems = [
+    ['label' => 'My Account', 'page' => 'account', 'subpage' => 'account', 'href' => 'app.php?page=account', 'icon' => 'user-round'],
+    ['label' => 'Preference', 'page' => 'preferences', 'subpage' => 'preferences', 'href' => 'app.php?page=preferences', 'icon' => 'sliders-horizontal'],
+    ['label' => 'Institutional Profile', 'page' => 'configure', 'subpage' => 'institution', 'href' => 'app.php?page=configure&section=institution#institutionProfileSettings', 'icon' => 'building-2'],
+    ['label' => 'Library Rules', 'page' => 'configure', 'subpage' => 'rules', 'href' => 'app.php?page=configure&section=rules#libraryRulesSettings', 'icon' => 'list-checks'],
+];
+if (!$isAdmin) {
+    $settingsItems = array_values(array_filter($settingsItems, static function ($item) {
+        return $item['page'] !== 'configure';
+    }));
+}
 $navSections = [
     'overview' => 'Overview',
     'operations' => 'Library Operations',
@@ -12,7 +29,6 @@ $navSections = [
 ];
 $navItems = [
     ['label' => 'Dashboard', 'page' => 'dashboard', 'section' => 'overview', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
-    ['label' => 'Preferences', 'page' => 'preferences', 'section' => 'overview', 'href' => 'app.php?page=preferences', 'icon' => 'sliders-horizontal'],
     ['label' => 'Inventory', 'page' => 'inventory', 'section' => 'operations', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
     ['label' => 'Report', 'page' => 'report', 'section' => 'operations', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
     ['label' => 'Academics', 'page' => 'academics', 'section' => 'academics', 'href' => 'app.php?page=academics', 'icon' => 'building-2'],
@@ -20,7 +36,7 @@ $navItems = [
     ['label' => 'Reference Analyzer', 'page' => 'reference_analyzer', 'section' => 'academics', 'href' => 'app.php?page=reference_analyzer', 'icon' => 'scan-search'],
     ['label' => 'User', 'page' => 'user', 'section' => 'administration', 'href' => 'app.php?page=user', 'icon' => 'users'],
     ['label' => 'Logs', 'page' => 'logs', 'section' => 'administration', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text'],
-    ['label' => 'Library Settings', 'page' => 'configure', 'section' => 'administration', 'href' => 'app.php?page=configure', 'icon' => 'settings-2'],
+    ['label' => 'Settings', 'page' => 'account', 'section' => 'administration', 'href' => 'app.php?page=account', 'icon' => 'settings-2', 'isSettings' => true],
 ];
 
 if (!$isValidatedUser || $userRole !== 'admin') {
@@ -65,7 +81,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     align-items: center;
     gap: 0.5rem;
     color: #64748b;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     line-height: 1;
@@ -114,6 +130,191 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     display: inline;
   }
 
+  .settings-nav-item {
+    position: relative;
+  }
+
+  .nav-section-links > .settings-nav-item {
+    display: flex;
+    align-items: center;
+  }
+
+  .settings-nav-toggle {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    min-width: 1.75rem;
+    min-height: 2rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    color: inherit;
+    transition: background-color 0.2s ease;
+  }
+
+  .settings-nav-toggle:hover {
+    background: rgba(15, 23, 42, 0.08);
+  }
+
+  .settings-nav-toggle[aria-expanded="true"] [data-lucide] {
+    transform: rotate(180deg);
+  }
+
+  .settings-submenu {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .settings-submenu[hidden] {
+    display: none;
+  }
+
+  .settings-submenu-desktop {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    z-index: 60;
+    min-width: 13rem;
+    padding: 0.375rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+  }
+
+  .settings-submenu-link {
+    display: flex;
+    min-height: 2.25rem;
+    align-items: center;
+    gap: 0.625rem;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    color: #475569;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.18s ease, color 0.18s ease;
+  }
+
+  .settings-submenu-link:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+
+  .settings-submenu-link[aria-current="page"] {
+    background: #fff1f2;
+    color: #9f1239;
+    font-weight: 650;
+  }
+
+  #adminSidebar nav > a[data-page],
+  #adminSidebar nav .settings-nav-row > a[data-settings-parent] {
+    font-size: 0.9375rem;
+    line-height: 1.5rem;
+  }
+
+  html[data-app-text-size="large"] #adminSidebar .settings-submenu-link,
+  html[data-app-text-size="large"] #mobileMenu .settings-submenu-link {
+    font-size: 0.9375rem;
+  }
+
+  .settings-submenu-link [data-lucide] {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
+  .settings-submenu-mobile {
+    margin: 0.125rem 0 0.5rem 1rem;
+    border-left: 1px solid #cbd5e1;
+    padding-left: 0.625rem;
+  }
+
+  .settings-submenu-sidebar {
+    margin: 0 0 0.5rem 1rem;
+    border-left: 1px solid #cbd5e1;
+    padding-left: 0.625rem;
+  }
+
+  .settings-submenu-mobile .settings-submenu-link,
+  .settings-submenu-sidebar .settings-submenu-link {
+    position: relative;
+  }
+
+  .settings-submenu-mobile .settings-submenu-link::before,
+  .settings-submenu-sidebar .settings-submenu-link::before {
+    position: absolute;
+    top: 50%;
+    left: -0.625rem;
+    width: 0.625rem;
+    border-top: 1px solid #cbd5e1;
+    content: "";
+  }
+
+  #adminSidebar a[data-page]:not([data-settings-child])[aria-current="page"],
+  #adminSidebar a[data-settings-parent][aria-current="location"],
+  #mobileMenu a[data-page]:not([data-settings-child])[aria-current="page"],
+  #mobileMenu a[data-settings-parent][aria-current="location"] {
+    background: #f7f4f4;
+    box-shadow: inset 0 0 18px rgba(190, 18, 60, 0.08);
+    color: #30272a;
+    font-weight: 650;
+  }
+
+  #adminSidebar a[data-page]:not([data-settings-child])[aria-current="page"]::before,
+  #adminSidebar a[data-settings-parent][aria-current="location"]::before,
+  #mobileMenu a[data-page]:not([data-settings-child])[aria-current="page"]::before,
+  #mobileMenu a[data-settings-parent][aria-current="location"]::before {
+    position: absolute;
+    top: 5px;
+    bottom: 5px;
+    left: -7px;
+    width: 3px;
+    border-radius: 3px;
+    background: #be123c;
+    content: "";
+  }
+
+  #adminSidebar a[data-page]:not([data-settings-child])[aria-current="page"] [data-lucide],
+  #adminSidebar a[data-settings-parent][aria-current="location"] [data-lucide],
+  #mobileMenu a[data-page]:not([data-settings-child])[aria-current="page"] [data-lucide],
+  #mobileMenu a[data-settings-parent][aria-current="location"] [data-lucide] {
+    color: #9f1239;
+  }
+
+  #adminSidebar .settings-nav-row.is-current > .settings-nav-toggle {
+    color: #72545c;
+  }
+
+  #adminSidebar .settings-nav-row.is-current > .settings-nav-toggle:hover {
+    background: #ffe4e6;
+    color: #9f1239;
+  }
+
+  .settings-nav-row {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+  }
+
+  .settings-nav-row > [data-settings-parent] {
+    flex: 1;
+  }
+
+  .settings-nav-row > .settings-nav-toggle {
+    flex-shrink: 0;
+  }
+
+  .settings-nav-item > .settings-nav-row.is-current:not([data-settings-layout="desktop"]) {
+    border-radius: 0.5rem;
+    background: #f7f4f4;
+    box-shadow: inset 0 0 18px rgba(190, 18, 60, 0.08);
+    color: #30272a;
+  }
+
+  .settings-nav-item > .settings-nav-row.is-current > [data-settings-parent] {
+    color: #30272a;
+  }
+
   .admin-sidebar {
     transition: transform 0.24s ease;
   }
@@ -146,6 +347,12 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
 
     .nav-item {
       padding-inline: 0.5rem;
+    }
+
+    .settings-submenu-desktop {
+      position: fixed;
+      top: 5rem;
+      right: 1rem;
     }
   }
 
@@ -210,7 +417,37 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
             <span class="nav-section-label"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></span>
             <div class="nav-section-links">
         <?php endif; ?>
-        <?php $isActive = $item['page'] === $currentPage; ?>
+        <?php $isActive = !empty($item['isSettings']) ? $isActiveSettings : $item['page'] === $currentPage; ?>
+        <?php if (!empty($item['isSettings'])): ?>
+          <div class="settings-nav-item">
+            <div class="settings-nav-row <?php echo $isActive ? 'is-current' : ''; ?>" data-settings-layout="desktop">
+              <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
+                data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
+                data-settings-parent="true"
+                class="nav-item relative flex items-center justify-center gap-1 lg:gap-2 px-2 lg:px-4 py-1.5 md:py-2 rounded-lg whitespace-nowrap <?php echo $isActive ? 'text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
+                <?php echo $isActive ? 'aria-current="location"' : ''; ?>>
+                <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="w-4 h-4 flex-shrink-0"></i>
+                <span class="nav-label"><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+              </a>
+              <button type="button" class="settings-nav-toggle focus:outline-none focus:ring-2 focus:ring-rose-300" data-settings-toggle data-settings-menu="desktopSettingsMenu" aria-controls="desktopSettingsMenu" aria-expanded="<?php echo $settingsExpanded ? 'true' : 'false'; ?>" aria-label="<?php echo $settingsExpanded ? 'Collapse Settings submenu' : 'Expand Settings submenu'; ?>">
+                <i data-lucide="chevron-down" class="h-4 w-4 transition-transform"></i>
+              </button>
+            </div>
+            <div id="desktopSettingsMenu" class="settings-submenu settings-submenu-desktop" data-settings-menu-content <?php echo $settingsExpanded ? '' : 'hidden'; ?>>
+              <?php foreach ($settingsItems as $settingsItem): ?>
+                <?php $isSettingsItemActive = $settingsItem['subpage'] === $activeSettingsSubpage; ?>
+                <a href="<?php echo htmlspecialchars($settingsItem['href'], ENT_QUOTES, 'UTF-8'); ?>"
+                  data-page="<?php echo htmlspecialchars($settingsItem['page'], ENT_QUOTES, 'UTF-8'); ?>"
+                  data-settings-child="<?php echo htmlspecialchars($settingsItem['subpage'], ENT_QUOTES, 'UTF-8'); ?>"
+                  class="settings-submenu-link"
+                  <?php echo $isSettingsItemActive ? 'aria-current="page"' : ''; ?>>
+                  <i data-lucide="<?php echo htmlspecialchars($settingsItem['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
+                  <span><?php echo htmlspecialchars($settingsItem['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+                </a>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        <?php else: ?>
         <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
           data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
           class="nav-item relative flex items-center justify-center gap-1 lg:gap-2 px-2 lg:px-4 py-1.5 md:py-2 rounded-lg whitespace-nowrap
@@ -219,6 +456,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
           <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="w-4 h-4 flex-shrink-0"></i>
           <span class="nav-label"><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
         </a>
+        <?php endif; ?>
       <?php endforeach; ?>
       <?php if ($activeSection !== null): ?></div></div><?php endif; ?>
     </div>
@@ -239,7 +477,6 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
             <p class="font-semibold text-slate-900 text-sm"><?php echo htmlspecialchars($_SESSION['full_name'], ENT_QUOTES, 'UTF-8'); ?></p>
             <p class="text-xs text-slate-500"><?php echo htmlspecialchars($_SESSION['role'], ENT_QUOTES, 'UTF-8'); ?></p>
           </div>
-          <a href="app.php?page=preferences" data-page="preferences" class="block px-4 py-2 text-sm text-slate-700 rounded-lg mx-1 hover:bg-slate-900 hover:text-white transition-colors duration-200 ease-in-out">Preferences</a>
           <a href="logout.php" class="block px-4 py-2 text-sm text-red-600 rounded-lg mx-1 hover:bg-slate-900 hover:text-red-600 transition-colors duration-200 ease-in-out">Logout</a>
         </div>
       </div>
@@ -254,15 +491,46 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     <?php foreach ($navItems as $item): ?>
       <?php if ($activeSection !== $item['section']): ?>
         <?php $activeSection = $item['section']; ?>
-        <p class="nav-section-label px-3 pb-1 pt-3 text-[11px] font-bold tracking-[0.12em] first:pt-0"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
+        <p class="nav-section-label px-3 pb-1 pt-3 text-xs font-bold tracking-[0.12em] first:pt-0"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
       <?php endif; ?>
-      <?php $isActive = $item['page'] === $currentPage; ?>
+      <?php $isActive = !empty($item['isSettings']) ? $isActiveSettings : $item['page'] === $currentPage; ?>
+      <?php if (!empty($item['isSettings'])): ?>
+        <div class="settings-nav-item">
+          <div class="settings-nav-row <?php echo $isActive ? 'is-current' : ''; ?>">
+            <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
+              data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
+              data-settings-parent="true"
+              class="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium <?php echo $isActive ? 'bg-rose-700 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
+              <?php echo $isActive ? 'aria-current="location"' : ''; ?>>
+              <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="h-4 w-4 flex-shrink-0"></i>
+              <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+            </a>
+            <button type="button" class="settings-nav-toggle text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-300" data-settings-toggle data-settings-menu="mobileSettingsMenu" aria-controls="mobileSettingsMenu" aria-expanded="<?php echo $settingsExpanded ? 'true' : 'false'; ?>" aria-label="<?php echo $settingsExpanded ? 'Collapse Settings submenu' : 'Expand Settings submenu'; ?>">
+              <i data-lucide="chevron-down" class="h-4 w-4 transition-transform"></i>
+            </button>
+          </div>
+          <div id="mobileSettingsMenu" class="settings-submenu settings-submenu-mobile" data-settings-menu-content <?php echo $settingsExpanded ? '' : 'hidden'; ?>>
+            <?php foreach ($settingsItems as $settingsItem): ?>
+              <?php $isSettingsItemActive = $settingsItem['subpage'] === $activeSettingsSubpage; ?>
+              <a href="<?php echo htmlspecialchars($settingsItem['href'], ENT_QUOTES, 'UTF-8'); ?>"
+                data-page="<?php echo htmlspecialchars($settingsItem['page'], ENT_QUOTES, 'UTF-8'); ?>"
+                data-settings-child="<?php echo htmlspecialchars($settingsItem['subpage'], ENT_QUOTES, 'UTF-8'); ?>"
+                class="settings-submenu-link"
+                <?php echo $isSettingsItemActive ? 'aria-current="page"' : ''; ?>>
+                <i data-lucide="<?php echo htmlspecialchars($settingsItem['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
+                <span><?php echo htmlspecialchars($settingsItem['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+              </a>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php else: ?>
       <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
         data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium <?php echo $isActive ? 'bg-rose-700 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>">
+        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium <?php echo $isActive ? 'bg-rose-700 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>">
         <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="w-4 h-4"></i>
         <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
       </a>
+      <?php endif; ?>
     <?php endforeach; ?>
   </div>
 </div>
@@ -289,8 +557,8 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
       <img src="assets/images/library-system-logo.png" alt="" class="h-full w-full scale-[2.5] object-contain">
     </div>
     <div class="min-w-0 leading-tight">
-      <h1 class="truncate text-sm font-bold text-slate-900">AppSys Library</h1>
-      <p class="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Admin Portal</p>
+      <h1 class="truncate text-base font-bold text-slate-900">AppSys Library</h1>
+      <p class="truncate text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Admin Portal</p>
     </div>
   </div>
 
@@ -299,24 +567,55 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     <?php foreach ($navItems as $item): ?>
       <?php if ($activeSection !== $item['section']): ?>
         <?php $activeSection = $item['section']; ?>
-        <p class="nav-section-label <?php echo $activeSection === 'overview' ? '' : 'mt-5'; ?> mb-2 px-3 text-[11px] font-bold tracking-[0.12em]"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
+        <p class="nav-section-label <?php echo $activeSection === 'overview' ? '' : 'mt-5'; ?> mb-2 px-3 text-xs font-bold tracking-[0.12em]"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
       <?php endif; ?>
-      <?php $isActive = $item['page'] === $currentPage; ?>
+      <?php $isActive = !empty($item['isSettings']) ? $isActiveSettings : $item['page'] === $currentPage; ?>
+      <?php if (!empty($item['isSettings'])): ?>
+        <div class="settings-nav-item">
+          <div class="settings-nav-row <?php echo $isActive ? 'is-current' : ''; ?>">
+            <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
+              data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
+              data-settings-parent="true"
+              class="mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-colors <?php echo $isActive ? 'bg-rose-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
+              <?php echo $isActive ? 'aria-current="location"' : ''; ?>>
+              <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="h-4 w-4 flex-shrink-0"></i>
+              <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+            </a>
+            <button type="button" class="settings-nav-toggle mb-1 text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-300" data-settings-toggle data-settings-menu="adminSettingsMenu" aria-controls="adminSettingsMenu" aria-expanded="<?php echo $settingsExpanded ? 'true' : 'false'; ?>" aria-label="<?php echo $settingsExpanded ? 'Collapse Settings submenu' : 'Expand Settings submenu'; ?>">
+              <i data-lucide="chevron-down" class="h-4 w-4 transition-transform"></i>
+            </button>
+          </div>
+          <div id="adminSettingsMenu" class="settings-submenu settings-submenu-sidebar" data-settings-menu-content <?php echo $settingsExpanded ? '' : 'hidden'; ?>>
+            <?php foreach ($settingsItems as $settingsItem): ?>
+              <?php $isSettingsItemActive = $settingsItem['subpage'] === $activeSettingsSubpage; ?>
+              <a href="<?php echo htmlspecialchars($settingsItem['href'], ENT_QUOTES, 'UTF-8'); ?>"
+                data-page="<?php echo htmlspecialchars($settingsItem['page'], ENT_QUOTES, 'UTF-8'); ?>"
+                data-settings-child="<?php echo htmlspecialchars($settingsItem['subpage'], ENT_QUOTES, 'UTF-8'); ?>"
+                class="settings-submenu-link"
+                <?php echo $isSettingsItemActive ? 'aria-current="page"' : ''; ?>>
+                <i data-lucide="<?php echo htmlspecialchars($settingsItem['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
+                <span><?php echo htmlspecialchars($settingsItem['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+              </a>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php else: ?>
       <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
         data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
-        class="mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors <?php echo $isActive ? 'bg-rose-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
+        class="mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-colors <?php echo $isActive ? 'bg-rose-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
         <?php echo $isActive ? 'aria-current="page"' : ''; ?>>
         <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="h-4 w-4 flex-shrink-0"></i>
         <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
       </a>
+      <?php endif; ?>
     <?php endforeach; ?>
   </nav>
 
   <div class="border-t border-slate-200 p-4">
     <p class="truncate text-sm font-semibold text-slate-900"><?php echo htmlspecialchars($_SESSION['full_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
     <div class="mt-2 flex items-center justify-between gap-3">
-      <span class="text-xs capitalize text-slate-500"><?php echo htmlspecialchars($_SESSION['role'] ?? 'admin', ENT_QUOTES, 'UTF-8'); ?></span>
-      <a href="logout.php" class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-300">
+      <span class="text-sm capitalize text-slate-500"><?php echo htmlspecialchars($_SESSION['role'] ?? 'admin', ENT_QUOTES, 'UTF-8'); ?></span>
+        <a href="logout.php" class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-300">
         <i data-lucide="log-out" class="h-3.5 w-3.5"></i>
         <span>Logout</span>
       </a>
@@ -361,9 +660,23 @@ document.getElementById('mobileMenuButton')?.addEventListener('click', function 
     lucide.createIcons();
 });
 
-// Close menu when a link is clicked
+document.querySelectorAll('[data-settings-toggle]').forEach(toggle => {
+    toggle.addEventListener('click', function () {
+        const menu = document.getElementById(this.dataset.settingsMenu);
+        const isOpen = menu.hidden;
+        menu.hidden = !isOpen;
+        this.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        this.setAttribute('aria-label', isOpen ? 'Collapse Settings submenu' : 'Expand Settings submenu');
+    });
+});
+
+// Close the mobile menu after choosing a destination, but keep Settings open when entering its default page.
 document.querySelectorAll('#mobileMenu a').forEach(link => {
     link.addEventListener('click', function () {
+        if (this.hasAttribute('data-settings-parent')) {
+            return;
+        }
+
         const menu = document.getElementById('mobileMenu');
         const button = document.getElementById('mobileMenuButton');
         const icon = button.querySelector('[data-lucide]');
@@ -399,7 +712,7 @@ adminSidebarToggle?.addEventListener('click', function () {
 adminSidebarBackdrop?.addEventListener('click', function () {
   setAdminSidebarOpen(false);
 });
-document.querySelectorAll('#adminSidebar a[data-page]').forEach(link => {
+document.querySelectorAll('#adminSidebar a[data-page]:not([data-settings-parent])').forEach(link => {
   link.addEventListener('click', function () {
     setAdminSidebarOpen(false);
   });
