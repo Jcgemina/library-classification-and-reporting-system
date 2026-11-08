@@ -279,31 +279,38 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
 ?>
 
 <div
-    class="mx-auto w-full max-w-6xl space-y-6 p-1 text-slate-900 sm:p-2"
+    class="settings-screen"
     data-configure-page
+    data-active-section="<?php echo ($_GET['section'] ?? '') === 'rules' ? 'rules' : 'institution'; ?>"
     data-csrf-token="<?php echo $escapeConfigureValue($csrfToken); ?>"
     data-saved-reference-policy-direction="<?php echo $escapeConfigureValue($referencePolicyDirection); ?>"
     data-saved-reference-policy-years="<?php echo $escapeConfigureValue($referencePolicyYears); ?>"
 >
-    <header>
-        <h2 class="text-2xl font-bold text-slate-900">Library Settings</h2>
-        <p class="mt-1 text-sm text-slate-600">Manage your institution profile, reporting windows, reference-age policy, course book coverage, and the default curriculum year for new prospectus records.</p>
+    <header class="settings-page-heading">
+        <div>
+            <h1 id="configurePageHeading"><?php echo ($_GET['section'] ?? '') === 'rules' ? 'Library Rules' : 'Institutional Profile'; ?></h1>
+            <p class="page-description" id="configurePageDescription"><?php echo ($_GET['section'] ?? '') === 'rules'
+                ? 'Set the reporting and coverage rules used by library reports and prospectus records.'
+                : 'Manage the institution details shown in report previews.'; ?></p>
+        </div>
+        <span class="settings-preview-chip"><i data-lucide="settings-2" aria-hidden="true"></i>Administrative settings</span>
     </header>
 
     <?php if ($loadError !== null): ?>
-        <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">
+        <div class="settings-alert" role="alert">
             <?php echo $escapeConfigureValue($loadError); ?>
         </div>
     <?php endif; ?>
 
-    <form id="configureForm" class="grid gap-6 lg:grid-cols-2" novalidate>
-        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2" aria-labelledby="institutionProfileHeading">
-            <div class="border-b border-slate-200 pb-4">
-                <h3 id="institutionProfileHeading" class="text-lg font-bold text-slate-900">Institution profile</h3>
-                <p class="mt-1 text-sm leading-6 text-slate-600">Add your institution and library details for identification in report previews. All fields are optional.</p>
-            </div>
-            <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                <label for="institutionName" class="text-sm font-semibold text-slate-700">
+    <form id="configureForm" class="configure-form" novalidate>
+        <div id="institutionProfileSettings" class="settings-sheet scroll-mt-24" data-configure-group="institution">
+            <section class="settings-section" aria-labelledby="institutionProfileHeading">
+                <div>
+                    <h2 class="settings-section-title" id="institutionProfileHeading">Institution profile</h2>
+                    <p class="settings-section-copy">Add your institution and library details for identification in report previews. All fields are optional.</p>
+                </div>
+                <div class="settings-fields">
+                <label for="institutionName" class="settings-field">
                     Institution name
                     <input
                         id="institutionName"
@@ -312,10 +319,9 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                         maxlength="180"
                         value="<?php echo $escapeConfigureValue($institutionName); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                     >
                 </label>
-                <label for="libraryName" class="text-sm font-semibold text-slate-700">
+                <label for="libraryName" class="settings-field">
                     Library name
                     <input
                         id="libraryName"
@@ -324,10 +330,9 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                         maxlength="180"
                         value="<?php echo $escapeConfigureValue($libraryName); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                     >
                 </label>
-                <label for="institutionAddress" class="text-sm font-semibold text-slate-700 sm:col-span-2">
+                <label for="institutionAddress" class="settings-field is-wide">
                     Address
                     <input
                         id="institutionAddress"
@@ -336,10 +341,9 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                         maxlength="255"
                         value="<?php echo $escapeConfigureValue($institutionAddress); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                     >
                 </label>
-                <label for="contactEmail" class="text-sm font-semibold text-slate-700">
+                <label for="contactEmail" class="settings-field">
                     Contact email
                     <input
                         id="contactEmail"
@@ -348,10 +352,9 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                         maxlength="254"
                         value="<?php echo $escapeConfigureValue($contactEmail); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                     >
                 </label>
-                <label for="contactPhone" class="text-sm font-semibold text-slate-700">
+                <label for="contactPhone" class="settings-field">
                     Contact phone
                     <input
                         id="contactPhone"
@@ -360,21 +363,22 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                         maxlength="40"
                         value="<?php echo $escapeConfigureValue($contactPhone); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                     >
                 </label>
             </div>
-        </section>
+            </section>
+        </div>
 
-        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2" aria-labelledby="copyrightSettingsHeading">
-            <div class="border-b border-slate-200 pb-4">
-                <h3 id="copyrightSettingsHeading" class="text-lg font-bold text-slate-900">Copyright year ranges</h3>
-                <p class="mt-1 text-sm leading-6 text-slate-600">Each threshold counts titles dated from the current year back through that many years, using the copyright year or publication year when no copyright year is recorded. The windows overlap: a title in the shortest window also appears in every longer window. Keep the thresholds in ascending order.</p>
-            </div>
-            <div class="mt-5 grid gap-4 sm:grid-cols-3">
+        <div id="libraryRulesSettings" class="settings-sheet scroll-mt-24" data-configure-group="rules">
+            <section class="settings-section" aria-labelledby="copyrightSettingsHeading">
+                <div>
+                    <h2 class="settings-section-title" id="copyrightSettingsHeading">Copyright year ranges</h2>
+                    <p class="settings-section-copy">Each threshold counts titles dated from the current year back through that many years, using the copyright year or publication year when no copyright year is recorded. The windows overlap: a title in the shortest window also appears in every longer window. Keep the thresholds in ascending order.</p>
+                </div>
+                <div class="settings-range-fields">
                 <?php foreach (array_values($copyrightRanges) as $index => $yearsThreshold): ?>
-                    <label for="copyrightRange<?php echo $index + 1; ?>" class="text-sm font-semibold text-slate-700">
-                        Within this many years — window <?php echo $index + 1; ?>
+                    <label for="copyrightRange<?php echo $index + 1; ?>" class="settings-range-item">
+                        Window <?php echo $index + 1; ?> — years
                         <input
                             id="copyrightRange<?php echo $index + 1; ?>"
                             name="copyright_range_<?php echo $index + 1; ?>"
@@ -385,19 +389,18 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                             value="<?php echo $yearsThreshold; ?>"
                             required
                             <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                            class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                         >
                     </label>
                 <?php endforeach; ?>
             </div>
-        </section>
+            </section>
 
-        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="curriculumYearHeading">
-            <div class="border-b border-slate-200 pb-4">
-                <h3 id="curriculumYearHeading" class="text-lg font-bold text-slate-900">Default prospectus curriculum year</h3>
-                <p id="curriculumYearHelp" class="mt-1 text-sm leading-6 text-slate-600">Prefills the curriculum year when an admin creates a new prospectus. Use two four-digit years separated by a hyphen, for example 2026-2027. Admins can still change it for each prospectus.</p>
+        <section class="settings-section" aria-labelledby="curriculumYearHeading">
+            <div>
+                <h2 class="settings-section-title" id="curriculumYearHeading">Default prospectus curriculum year</h2>
+                <p class="settings-section-copy" id="curriculumYearHelp">Prefills the curriculum year when an admin creates a new prospectus. Use two four-digit years separated by a hyphen, for example 2026-2027. Admins can still change it for each prospectus.</p>
             </div>
-            <label for="defaultCurriculumYear" class="mt-5 block max-w-sm text-sm font-semibold text-slate-700">
+            <label for="defaultCurriculumYear" class="settings-field">
                 Initial curriculum year
                 <input
                     id="defaultCurriculumYear"
@@ -410,17 +413,16 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                     value="<?php echo $escapeConfigureValue($defaultCurriculumYear); ?>"
                     required
                     <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                    class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                 >
             </label>
         </section>
 
-        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="courseMinimumHeading">
-            <div class="border-b border-slate-200 pb-4">
-                <h3 id="courseMinimumHeading" class="text-lg font-bold text-slate-900">Minimum books per course</h3>
-                <p class="mt-1 text-sm text-slate-600">A course meets this readiness requirement when at least this many active book titles are linked to it. Copies of the same title count once.</p>
+        <section class="settings-section" aria-labelledby="courseMinimumHeading">
+            <div>
+                <h2 class="settings-section-title" id="courseMinimumHeading">Minimum books per course</h2>
+                <p class="settings-section-copy">A course meets this readiness requirement when at least this many active book titles are linked to it. Copies of the same title count once.</p>
             </div>
-            <label for="minimumBooksPerCourse" class="mt-5 block max-w-sm text-sm font-semibold text-slate-700">
+            <label for="minimumBooksPerCourse" class="settings-field">
                 Minimum active titles
                 <input
                     id="minimumBooksPerCourse"
@@ -432,32 +434,30 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                     value="<?php echo $minimumBooks; ?>"
                     required
                     <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                    class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                 >
             </label>
         </section>
 
-        <section class="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2" aria-labelledby="referencePolicyHeading">
-            <div class="border-b border-slate-200 pb-4">
-                <h3 id="referencePolicyHeading" class="text-lg font-bold text-slate-900">Reference-age policy</h3>
-                <p class="mt-1 text-sm leading-6 text-slate-600">Choose the institution’s approved reference recency rule. This is separate from copyright reporting and does not determine legal copyright status. You can save other settings while this remains unconfigured; confirm the approved rule whenever you set or change it.</p>
+        <section class="settings-section" aria-labelledby="referencePolicyHeading">
+            <div>
+                <h2 class="settings-section-title" id="referencePolicyHeading">Reference-age policy</h2>
+                <p class="settings-section-copy">Choose the institution’s approved reference recency rule. This is separate from copyright reporting and does not determine legal copyright status. You can save other settings while this remains unconfigured; confirm the approved rule whenever you set or change it.</p>
             </div>
-            <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                <label for="referencePolicyDirection" class="text-sm font-semibold text-slate-700">
+            <div class="settings-fields">
+                <label for="referencePolicyDirection" class="settings-field">
                     Policy direction
                     <select
                         id="referencePolicyDirection"
                         name="reference_policy_direction"
                         aria-describedby="referencePolicyHelp"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                     >
                         <option value="" <?php echo $referencePolicyDirection === null ? 'selected' : ''; ?>>Select the approved rule</option>
                         <option value="within" <?php echo $referencePolicyDirection === 'within' ? 'selected' : ''; ?>>Published within the last threshold years</option>
                         <option value="at_least" <?php echo $referencePolicyDirection === 'at_least' ? 'selected' : ''; ?>>At least the threshold years old</option>
                     </select>
                 </label>
-                <label for="referencePolicyYears" class="text-sm font-semibold text-slate-700">
+                <label for="referencePolicyYears" class="settings-field">
                     Threshold (years)
                     <input
                         id="referencePolicyYears"
@@ -469,28 +469,27 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                         value="<?php echo $referencePolicyYears ?? ''; ?>"
                         aria-describedby="referencePolicyHelp"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                        class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
                     >
                 </label>
+                <p id="referencePolicyHelp" class="settings-help">“Published within” means no older than the threshold; “at least” means the title is that many years old or older. The threshold must come from the institution’s approved policy.</p>
+                <label for="referencePolicyConfirmed" class="settings-check-row">
+                    <input
+                        id="referencePolicyConfirmed"
+                        name="reference_policy_confirmed"
+                        type="checkbox"
+                        value="1"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                    >
+                    <span>I confirm this new or changed rule and threshold match an approved institutional reference-age policy.</span>
+                </label>
             </div>
-            <p id="referencePolicyHelp" class="mt-4 text-sm leading-6 text-slate-600">“Published within” means no older than the threshold; “at least” means the title is that many years old or older. The threshold must come from the institution’s approved policy.</p>
-            <label for="referencePolicyConfirmed" class="mt-4 flex items-start gap-3 text-sm font-medium leading-6 text-slate-700">
-                <input
-                    id="referencePolicyConfirmed"
-                    name="reference_policy_confirmed"
-                    type="checkbox"
-                    value="1"
-                    <?php echo $loadError !== null ? 'disabled' : ''; ?>
-                    class="mt-1 h-4 w-4 flex-shrink-0 rounded border-slate-300 text-rose-600 focus:ring-rose-500 disabled:cursor-not-allowed"
-                >
-                <span>I confirm this new or changed rule and threshold match an approved institutional reference-age policy.</span>
-            </label>
         </section>
+        </div>
 
-        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between lg:col-span-2">
+        <div class="settings-actions">
             <p
                 id="configureMessage"
-                class="text-sm leading-6 text-slate-600"
+                class="settings-status"
                 role="status"
                 aria-live="polite"
             ><?php echo $loadError === null
@@ -498,21 +497,19 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                     ? 'Reference-age policy is not configured. You can save other settings or configure it when the approved policy is available.'
                     : 'No unsaved changes.')
                 : ''; ?></p>
-            <div class="flex flex-col-reverse gap-3 sm:flex-row">
                 <button
                     id="discardConfigureButton"
                     type="button"
                     disabled
-                    class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    class="settings-button"
                 >Discard changes</button>
                 <button
                     id="saveConfigureButton"
                     type="submit"
                     disabled
                     <?php echo $loadError !== null ? 'data-readonly="true"' : ''; ?>
-                    class="inline-flex min-h-11 items-center justify-center rounded-lg bg-rose-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400"
+                    class="settings-button settings-button-primary"
                 >Save settings</button>
-            </div>
         </div>
     </form>
 </div>

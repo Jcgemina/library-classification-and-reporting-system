@@ -15,7 +15,7 @@
             const formData = new FormData(form);
             formData.set('action', form.dataset.accountAction);
             status.textContent = 'Saving…';
-            status.classList.remove('text-red-700', 'text-green-700');
+            status.classList.remove('is-success', 'is-error');
             submitButton.disabled = true;
             submitButton.textContent = 'Saving…';
 
@@ -52,13 +52,13 @@
                 }
 
                 status.textContent = result.message;
-                status.classList.add('text-green-700');
+                status.classList.add('is-success');
                 window.AppToast.show(result.message);
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unable to save account changes.';
                 form.elements.current_password.value = '';
                 status.textContent = message;
-                status.classList.add('text-red-700');
+                status.classList.add('is-error');
                 window.AppToast.show(message, 'error');
             } finally {
                 submitButton.disabled = false;

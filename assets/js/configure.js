@@ -23,7 +23,7 @@
 
     function setMessage(text, type = 'status') {
         message.textContent = text;
-        message.className = `text-sm leading-6 ${type === 'error' ? 'text-rose-700' : type === 'success' ? 'text-green-700' : type === 'warning' ? 'text-amber-800' : 'text-slate-600'}`;
+        message.className = `settings-status${type === 'error' ? ' is-error' : type === 'success' ? ' is-success' : type === 'warning' ? ' is-warning' : ''}`;
     }
 
     function showSuccessToast(text) {
@@ -204,11 +204,13 @@
             isSaving = false;
             button.textContent = 'Save settings';
             form.removeAttribute('aria-busy');
-            updateFormState(message.textContent, message.className.includes('text-rose-700')
+            updateFormState(message.textContent, message.classList.contains('is-error')
                 ? 'error'
-                : message.className.includes('text-green-700')
+                : message.classList.contains('is-success')
                     ? 'success'
-                    : 'status');
+                    : message.classList.contains('is-warning')
+                        ? 'warning'
+                        : 'status');
         }
     });
 

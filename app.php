@@ -26,8 +26,31 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AppSys Library - Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/preferences.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/preferences.css'); ?>">
+<link rel="stylesheet" href="assets/css/settings.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/settings.css'); ?>">
 <style>
+  html,
+  body {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body .text-xs {
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+  }
+
+  body .text-sm {
+    font-size: 0.9375rem;
+    line-height: 1.5rem;
+  }
+
   html,
   body {
     scrollbar-width: none;
@@ -56,7 +79,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
   </script>
 
   <div class="<?php echo $userRole === 'admin' ? 'md:ml-64' : ''; ?>">
-    <main id="pageContent" class="mx-auto w-full max-w-[1440px] min-w-0 overflow-x-hidden p-6" aria-busy="true"></main>
+    <main id="pageContent" class="mx-auto w-full max-w-[1600px] min-w-0 overflow-x-hidden p-6" aria-busy="true"></main>
   </div>
 
   <script>
@@ -81,26 +104,49 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     }
 
     function updateActiveTab(activePage) {
-        const navLinks = document.querySelectorAll('[data-page]');
+        const settingsPages = ['account', 'preferences', 'configure'];
+        const settingsActive = settingsPages.includes(activePage);
+        const activeNavPage = settingsActive ? 'account' : activePage;
+        const navLinks = document.querySelectorAll('[data-page]:not([data-settings-child])');
         const highlight = document.querySelector('.nav-highlight');
         const navTrack = document.querySelector('.nav-track');
 
         const activeLink = [...navLinks].find(
-            link => link.dataset.page === activePage
+            link => link.dataset.page === activeNavPage
         );
 
         navLinks.forEach(link => {
-            const isActive = link.dataset.page === activePage;
+            const isActive = link.dataset.page === activeNavPage;
             const isMobileLink = link.closest('#mobileMenu');
             const isAdminSidebarLink = link.closest('#adminSidebar');
+            const isSidebarLink = Boolean(isMobileLink || isAdminSidebarLink);
 
-            link.classList.toggle('text-white', isActive);
-            link.classList.toggle('text-slate-600', !isActive);
+            link.classList.toggle('text-white', isActive && !isSidebarLink);
+            link.classList.toggle('text-slate-600', !isActive || isSidebarLink);
             link.classList.toggle('hover:text-slate-900', !isActive);
-            link.classList.toggle('bg-rose-700', isActive && (isMobileLink || isAdminSidebarLink));
+            link.classList.toggle('bg-rose-700', isActive && !isSidebarLink);
 
             link.classList.remove('text-slate-900');
-            link.classList.toggle('shadow-sm', isActive && Boolean(isAdminSidebarLink));
+            link.classList.toggle('shadow-sm', isActive && !isAdminSidebarLink && !isMobileLink);
+            link.classList.toggle('hover:bg-slate-100', !isActive);
+
+            if (isActive) {
+                link.setAttribute('aria-current', link.hasAttribute('data-settings-parent') ? 'location' : 'page');
+            } else {
+                link.removeAttribute('aria-current');
+            }
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeSettingsSubpage = activePage === 'configure'
+            ? (urlParams.get('section') === 'rules' ? 'rules' : 'institution')
+            : activePage;
+        document.querySelectorAll('[data-settings-child]').forEach(link => {
+            const isActive = settingsActive && link.dataset.settingsChild === activeSettingsSubpage;
+            link.classList.toggle('bg-rose-50', isActive);
+            link.classList.toggle('text-rose-800', isActive);
+            link.classList.toggle('font-semibold', isActive);
+            link.classList.toggle('text-slate-600', !isActive);
             link.classList.toggle('hover:bg-slate-100', !isActive);
 
             if (isActive) {
@@ -110,15 +156,29 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
             }
         });
 
+        document.querySelectorAll('[data-settings-menu-content]').forEach(menu => {
+            menu.hidden = !settingsActive;
+        });
+        document.querySelectorAll('[data-settings-toggle]').forEach(toggle => {
+            toggle.setAttribute('aria-expanded', settingsActive ? 'true' : 'false');
+            toggle.setAttribute('aria-label', settingsActive ? 'Collapse Settings submenu' : 'Expand Settings submenu');
+        });
+        document.querySelectorAll('.settings-nav-row').forEach(row => {
+            row.classList.toggle('is-current', settingsActive);
+        });
+
         if (highlight && activeLink && navTrack) {
+            const highlightTarget = activeLink.hasAttribute('data-settings-parent')
+                ? activeLink.parentElement
+                : activeLink;
             const trackRect = navTrack.getBoundingClientRect();
-            const linkRect = activeLink.getBoundingClientRect();
+            const linkRect = highlightTarget.getBoundingClientRect();
             const offsetLeft = linkRect.left - trackRect.left;
             const offsetTop = linkRect.top - trackRect.top;
 
           if (!highlight.classList.contains('is-ready')) {
             highlight.style.transition = 'none';
-            highlight.style.width = activeLink.offsetWidth + 'px';
+            highlight.style.width = highlightTarget.offsetWidth + 'px';
             highlight.style.height = linkRect.height + 'px';
             highlight.style.top = offsetTop + 'px';
             highlight.style.transform = `translate3d(${offsetLeft}px, 0, 0)`;
@@ -129,7 +189,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
             });
           } else {
             requestAnimationFrame(function () {
-              highlight.style.width = activeLink.offsetWidth + 'px';
+              highlight.style.width = highlightTarget.offsetWidth + 'px';
               highlight.style.height = linkRect.height + 'px';
               highlight.style.top = offsetTop + 'px';
               highlight.style.transform = `translate3d(${offsetLeft}px, 0, 0)`;
@@ -138,12 +198,47 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         }
     }
 
+    function scrollToRouteAnchor(hash, behavior = 'auto') {
+      if (!hash) {
+        return;
+      }
+
+      const target = document.getElementById(hash.slice(1));
+      const pageContainer = document.getElementById('pageContent');
+      if (target && pageContainer.contains(target)) {
+        requestAnimationFrame(() => target.scrollIntoView({ behavior, block: 'start' }));
+      }
+    }
+
+    function updateConfigureSection(section) {
+      const activeSection = section === 'rules' ? 'rules' : 'institution';
+      const configurePage = document.querySelector('[data-configure-page]');
+      if (!configurePage) {
+        return;
+      }
+
+      configurePage.dataset.activeSection = activeSection;
+      document.getElementById('configurePageHeading').textContent = activeSection === 'rules'
+        ? 'Library Rules'
+        : 'Institutional Profile';
+      document.getElementById('configurePageDescription').textContent = activeSection === 'rules'
+        ? 'Set the reporting and coverage rules used by library reports and prospectus records.'
+        : 'Manage the institution details shown in report previews.';
+    }
+
     function getPageQueryParams(pageName, params) {
       const requestedParams = new URLSearchParams(params);
       requestedParams.delete('page');
 
       if (pageName === 'logs') {
         return requestedParams;
+      }
+
+      if (pageName === 'configure') {
+        const section = requestedParams.get('section');
+        return section === 'rules' || section === 'institution'
+          ? new URLSearchParams([['section', section]])
+          : new URLSearchParams();
       }
 
       if (pageName === 'inventory') {
@@ -176,8 +271,9 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
     let activePageRequestId = 0;
 
-    function loadPage(pageName, updateHistory = true, requestedParams = new URLSearchParams(window.location.search)) {
+    function loadPage(pageName, updateHistory = true, requestedParams = new URLSearchParams(window.location.search), targetHash = window.location.hash) {
       const safePage = normalizePage(pageName);
+      const requestedSection = requestedParams.get('section');
       const pageLabels = {
         dashboard: 'Dashboard',
         inventory: 'Inventory',
@@ -189,7 +285,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         account: 'My Account',
         user: 'User Management',
         logs: 'Logs',
-        configure: 'Library Settings',
+        configure: requestedSection === 'rules' ? 'Library Rules' : 'Institutional Profile',
       };
       const pageLabel = pageLabels[safePage] || 'requested';
       const requestId = ++activePageRequestId;
@@ -205,6 +301,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
           }
         });
         preservedParams.forEach((value, key) => url.searchParams.set(key, value));
+        url.hash = targetHash;
         history.pushState({ page: safePage }, '', url);
       }
 
@@ -245,12 +342,13 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         });
 
         updateActiveTab(safePage);
+        scrollToRouteAnchor(targetHash, updateHistory ? 'smooth' : 'auto');
         const pageTitle = safePage === 'preferences'
           ? 'Preferences'
           : safePage === 'account'
           ? 'My Account'
           : safePage === 'configure'
-          ? 'Library Settings'
+          ? (requestedSection === 'rules' ? 'Library Rules' : 'Institutional Profile')
           : safePage === 'reference_analyzer'
             ? 'Reference Analyzer'
             : safePage.charAt(0).toUpperCase() + safePage.slice(1);
@@ -285,16 +383,55 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
       event.preventDefault();
 
-      if (link.dataset.page === getCurrentPageFromUrl()) {
+      const targetUrl = new URL(link.href, window.location.href);
+      const currentUrl = new URL(window.location.href);
+      if (link.dataset.page === 'configure' && getCurrentPageFromUrl() === 'configure') {
+        const preservedParams = getPageQueryParams('configure', targetUrl.searchParams);
+        const sectionUrl = new URL(currentUrl);
+        [...sectionUrl.searchParams.keys()].forEach(key => {
+          if (key !== 'page') {
+            sectionUrl.searchParams.delete(key);
+          }
+        });
+        sectionUrl.searchParams.set('page', 'configure');
+        preservedParams.forEach((value, key) => sectionUrl.searchParams.set(key, value));
+        sectionUrl.hash = targetUrl.hash;
+        history.pushState({ page: 'configure' }, '', sectionUrl);
+        updateConfigureSection(preservedParams.get('section'));
+        updateActiveTab('configure');
+        document.title = 'AppSys Library - ' + (preservedParams.get('section') === 'rules' ? 'Library Rules' : 'Institutional Profile');
+        scrollToRouteAnchor(targetUrl.hash, 'smooth');
         return;
       }
 
-      const targetUrl = new URL(link.href, window.location.href);
-      loadPage(link.dataset.page, true, targetUrl.searchParams);
+      const samePage = link.dataset.page === getCurrentPageFromUrl()
+        && targetUrl.searchParams.get('section') === currentUrl.searchParams.get('section')
+        && targetUrl.hash === currentUrl.hash;
+      if (samePage) {
+        if (link.hasAttribute('data-settings-parent')) {
+          document.querySelectorAll('[data-settings-menu-content]').forEach(menu => { menu.hidden = false; });
+          document.querySelectorAll('[data-settings-toggle]').forEach(toggle => {
+            toggle.setAttribute('aria-expanded', 'true');
+            toggle.setAttribute('aria-label', 'Collapse Settings submenu');
+          });
+        }
+        return;
+      }
+
+      loadPage(link.dataset.page, true, targetUrl.searchParams, targetUrl.hash);
     });
 
     window.addEventListener('popstate', function () {
-      loadPage(getCurrentPageFromUrl(), false);
+      const activePage = getCurrentPageFromUrl();
+      if (activePage === 'configure' && document.querySelector('[data-configure-page]')) {
+        updateConfigureSection(new URLSearchParams(window.location.search).get('section'));
+        updateActiveTab(activePage);
+        document.title = 'AppSys Library - ' + (new URLSearchParams(window.location.search).get('section') === 'rules' ? 'Library Rules' : 'Institutional Profile');
+        scrollToRouteAnchor(window.location.hash);
+        return;
+      }
+
+      loadPage(activePage, false);
     });
 
     // Add resize listener to recalculate highlight position on responsive layout changes

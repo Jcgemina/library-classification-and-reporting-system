@@ -21,18 +21,18 @@
 
     if (!window.AppPreferences.isStorageAvailable()) {
         message.textContent = 'Preferences could not be read from browser storage. Choose an option to save them again, or check your browser storage settings.';
-        message.className = 'text-sm text-rose-700';
+        message.className = 'settings-status is-error';
     }
 
     function savePreference(name, value) {
         try {
             window.AppPreferences.set(name, value);
             message.textContent = 'Preference saved in this browser for your account.';
-            message.className = 'text-sm text-green-700';
+            message.className = 'settings-status is-success';
         } catch (error) {
             updateControls();
             message.textContent = error instanceof Error ? error.message : 'Preference could not be saved.';
-            message.className = 'text-sm text-rose-700';
+            message.className = 'settings-status is-error';
         }
     }
 
@@ -45,10 +45,10 @@
             window.AppPreferences.reset();
             updateControls();
             message.textContent = 'Preferences restored to device theme, comfortable spacing, 10 rows per page, and default text size.';
-            message.className = 'text-sm text-green-700';
+            message.className = 'settings-status is-success';
         } catch (error) {
             message.textContent = error instanceof Error ? error.message : 'Preferences could not be reset.';
-            message.className = 'text-sm text-rose-700';
+            message.className = 'settings-status is-error';
         }
     });
 
