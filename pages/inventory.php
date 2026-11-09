@@ -286,6 +286,40 @@ if ($pdo instanceof PDO) {
   }
 }
 
+$renderCopyrightYearPills = static function (int $bookCopyrightYear) use ($copyrightYearMetrics, $currentYear): string {
+  if (!$copyrightYearMetrics) {
+    return '<span class="text-xs font-medium text-slate-500">No ranges configured</span>';
+  }
+
+  $pills = [];
+  foreach ($copyrightYearMetrics as $metric) {
+    $threshold = (int)$metric['years_threshold'];
+    $withinRange = $bookCopyrightYear > 0
+      && $bookCopyrightYear >= $currentYear - $threshold
+      && $bookCopyrightYear <= $currentYear;
+    $missingYear = $bookCopyrightYear <= 0;
+    $icon = $withinRange ? 'check' : ($missingYear ? 'circle-help' : 'minus');
+    $statusClass = $withinRange
+      ? 'bg-emerald-100 text-emerald-700'
+      : ($missingYear ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600');
+    $accessibleLabel = $withinRange
+      ? 'Within ' . $threshold . ' years'
+      : ($missingYear
+        ? 'Copyright year unavailable; ' . $threshold . '-year range needs review'
+        : 'Outside ' . $threshold . ' years');
+
+    $pills[] = '<span class="inline-flex min-w-[36px] items-center justify-center gap-1 rounded-lg px-1.5 py-1 text-xs font-semibold tabular-nums '
+      . $statusClass
+      . '" role="img" aria-label="' . $accessibleLabel . '">'
+      . $threshold
+      . 'y<i data-lucide="' . $icon . '" class="h-3 w-3" aria-hidden="true"></i></span>';
+  }
+
+  return '<div class="flex items-center gap-1 whitespace-nowrap" role="group" aria-label="Copyright-year checks">'
+    . implode('', $pills)
+    . '</div>';
+};
+
 $copyrightMetricStyles = [
   ['icon' => 'calendar-check', 'iconBg' => 'bg-emerald-100', 'iconColor' => 'text-emerald-700', 'labelColor' => 'text-emerald-800', 'valueColor' => 'text-emerald-600'],
   ['icon' => 'calendar-clock', 'iconBg' => 'bg-amber-100', 'iconColor' => 'text-amber-700', 'labelColor' => 'text-amber-800', 'valueColor' => 'text-amber-600'],
@@ -348,17 +382,15 @@ $copyrightMetricStyles = [
             <th scope="col" class="px-4 py-3">References</th>
             <th scope="col" class="px-4 py-3">Publisher</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3 text-center">Copies</th>
-            <?php foreach ($copyrightYearMetrics as $metric): ?>
-              <th scope="col" class="whitespace-nowrap px-4 py-3 text-center"><?php echo (int)$metric['years_threshold']; ?>-Yr</th>
-            <?php endforeach; ?>
+            <th scope="col" class="whitespace-nowrap px-4 py-3 text-center">Copyright</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <?php if (!$inventorySchemaAvailable): ?>
-            <tr><td colspan="<?php echo 6 + count($copyrightYearMetrics); ?>" class="px-4 py-12 text-center"><p class="text-sm font-semibold text-rose-700">Inventory database tables are unavailable.</p><p class="mt-1 text-xs text-slate-600">Apply the latest schema.sql to enable book records and copyright ranges.</p></td></tr>
+            <tr><td colspan="7" class="px-4 py-12 text-center"><p class="text-sm font-semibold text-rose-700">Inventory database tables are unavailable.</p><p class="mt-1 text-xs text-slate-600">Apply the latest schema.sql to enable book records and copyright ranges.</p></td></tr>
           <?php elseif (!$activeBooks): ?>
-            <tr><td colspan="<?php echo 6 + count($copyrightYearMetrics); ?>" class="px-4 py-14 text-center"><i data-lucide="book-x" class="mx-auto h-8 w-8 text-slate-300"></i><p class="mt-3 text-sm font-semibold text-slate-700">No books in the catalog</p><p class="mt-1 text-xs text-slate-600">Add a book to see its copyright-year status here.</p></td></tr>
+            <tr><td colspan="7" class="px-4 py-14 text-center"><i data-lucide="book-x" class="mx-auto h-8 w-8 text-slate-300"></i><p class="mt-3 text-sm font-semibold text-slate-700">No books in the catalog</p><p class="mt-1 text-xs text-slate-600">Add a book to see its copyright-year status here.</p></td></tr>
           <?php else: ?>
             <?php foreach ($activeBooks as $book): ?>
               <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
@@ -378,10 +410,7 @@ $copyrightMetricStyles = [
                 </td>
                 <td class="px-4 py-3 text-slate-700"><?php echo $escapeInventory($book['publisher'] ?: '—'); ?></td>
                 <td class="px-4 py-3 text-center font-semibold tabular-nums text-slate-800"><?php echo (int)$book['copy_count']; ?></td>
-                <?php foreach ($copyrightYearMetrics as $metric): ?>
-                  <?php $withinRange = $bookCopyrightYear > 0 && $bookCopyrightYear >= $currentYear - (int)$metric['years_threshold'] && $bookCopyrightYear <= $currentYear; ?>
-                  <td class="px-4 py-3 text-center"><span class="inline-flex h-6 w-6 items-center justify-center rounded-full <?php echo $withinRange ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'; ?>" aria-label="<?php echo $withinRange ? 'Within' : 'Outside'; ?> <?php echo (int)$metric['years_threshold']; ?> year range"><i data-lucide="<?php echo $withinRange ? 'check' : 'x'; ?>" class="h-3.5 w-3.5"></i></span></td>
-                <?php endforeach; ?>
+                <td class="px-4 py-3 text-center"><?php echo $renderCopyrightYearPills($bookCopyrightYear); ?></td>
                 <td class="px-4 py-3">
                   <div class="flex justify-end">
                     <button type="button" data-book-actions-open data-book-id="<?php echo (int)$book['book_id']; ?>" aria-controls="inventoryBookActionsMenu" aria-expanded="false" aria-label="More actions for <?php echo $escapeInventory($book['title']); ?>" title="More actions" class="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="ellipsis" class="h-4 w-4"></i></button>
@@ -389,7 +418,7 @@ $copyrightMetricStyles = [
                 </td>
               </tr>
             <?php endforeach; ?>
-            <tr data-inventory-no-results class="hidden"><td colspan="<?php echo 6 + count($copyrightYearMetrics); ?>" class="px-4 py-12 text-center text-sm text-slate-600">No books match your search or filters.</td></tr>
+            <tr data-inventory-no-results class="hidden"><td colspan="7" class="px-4 py-12 text-center text-sm text-slate-600">No books match your search or filters.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
@@ -433,12 +462,9 @@ $copyrightMetricStyles = [
               </div>
             </div>
             <div class="mt-3 border-t border-slate-100 pt-3">
-              <p class="text-[11px] font-medium text-slate-500">Copyright ranges</p>
+              <p class="text-[11px] font-medium text-slate-500">Copyright</p>
               <div class="mt-2 flex flex-wrap gap-2">
-                <?php foreach ($copyrightYearMetrics as $metric): ?>
-                  <?php $withinRange = $bookCopyrightYear > 0 && $bookCopyrightYear >= $currentYear - (int)$metric['years_threshold'] && $bookCopyrightYear <= $currentYear; ?>
-                  <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium <?php echo $withinRange ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'; ?>" aria-label="<?php echo $withinRange ? 'Within' : 'Outside'; ?> <?php echo (int)$metric['years_threshold']; ?> year range"><i data-lucide="<?php echo $withinRange ? 'check' : 'x'; ?>" class="h-3.5 w-3.5" aria-hidden="true"></i><?php echo $withinRange ? 'Within' : 'Outside'; ?> <?php echo (int)$metric['years_threshold']; ?> yrs</span>
-                <?php endforeach; ?>
+                <?php echo $renderCopyrightYearPills($bookCopyrightYear); ?>
                 <div data-inventory-no-results-mobile class="hidden px-4 py-12 text-center text-sm text-slate-600">No books match your search or filters.</div>
               </div>
             </div>
@@ -631,15 +657,13 @@ $copyrightMetricStyles = [
             <th scope="col" class="px-4 py-3">References</th>
             <th scope="col" class="px-4 py-3">Publisher</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3 text-center">Copies</th>
-            <?php foreach ($copyrightYearMetrics as $metric): ?>
-              <th scope="col" class="whitespace-nowrap px-4 py-3 text-center"><?php echo (int)$metric['years_threshold']; ?>-Yr</th>
-            <?php endforeach; ?>
+            <th scope="col" class="whitespace-nowrap px-4 py-3 text-center">Copyright</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody id="inventoryArchiveTableBody">
           <?php if (!$archivedBooks): ?>
-            <tr><td colspan="<?php echo 6 + count($copyrightYearMetrics); ?>" class="px-4 py-12 text-center"><p class="text-sm font-medium text-slate-700">No archived books</p><p class="mt-1 text-xs text-slate-600">Soft-deleted books will appear here.</p></td></tr>
+            <tr><td colspan="7" class="px-4 py-12 text-center"><p class="text-sm font-medium text-slate-700">No archived books</p><p class="mt-1 text-xs text-slate-600">Soft-deleted books will appear here.</p></td></tr>
           <?php else: ?>
             <?php foreach ($archivedBooks as $book): ?>
               <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
@@ -659,14 +683,11 @@ $copyrightMetricStyles = [
                 </td>
                 <td class="px-4 py-3 text-slate-700"><?php echo $escapeInventory($book['publisher'] ?: '—'); ?></td>
                 <td class="px-4 py-3 text-center font-semibold tabular-nums text-slate-800"><?php echo (int)$book['copy_count']; ?></td>
-                <?php foreach ($copyrightYearMetrics as $metric): ?>
-                  <?php $withinRange = $bookCopyrightYear > 0 && $bookCopyrightYear >= $currentYear - (int)$metric['years_threshold'] && $bookCopyrightYear <= $currentYear; ?>
-                  <td class="px-4 py-3 text-center"><span class="inline-flex h-6 w-6 items-center justify-center rounded-full <?php echo $withinRange ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'; ?>" aria-label="<?php echo $withinRange ? 'Within' : 'Outside'; ?> <?php echo (int)$metric['years_threshold']; ?> year range"><i data-lucide="<?php echo $withinRange ? 'check' : 'x'; ?>" class="h-3.5 w-3.5"></i></span></td>
-                <?php endforeach; ?>
+                <td class="px-4 py-3 text-center"><?php echo $renderCopyrightYearPills($bookCopyrightYear); ?></td>
                 <td class="px-4 py-3 text-right"><button type="button" data-book-action="restore" data-book-id="<?php echo (int)$book['book_id']; ?>" class="inline-flex h-8 items-center gap-2 rounded-md px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" aria-label="Restore book" title="Restore book"><i data-lucide="rotate-ccw" class="h-4 w-4"></i><span>Restore</span></button></td>
               </tr>
             <?php endforeach; ?>
-            <tr data-inventory-archive-no-matches hidden><td colspan="<?php echo 6 + count($copyrightYearMetrics); ?>" class="px-4 py-10 text-center text-sm text-slate-500" role="status">No archived books match your search.</td></tr>
+            <tr data-inventory-archive-no-matches hidden><td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500" role="status">No archived books match your search.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>

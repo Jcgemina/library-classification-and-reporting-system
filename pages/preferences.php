@@ -27,7 +27,7 @@ requireLogin();
             </div>
             <div class="settings-fields">
                 <label for="preferenceTheme" class="settings-field">
-                    Theme
+                    <span class="settings-field-label">Theme</span>
                     <select id="preferenceTheme">
                         <option value="system">Use device setting</option>
                         <option value="light">Light</option>
@@ -36,7 +36,7 @@ requireLogin();
                     <span class="settings-field-help">Device setting follows your operating system’s light or dark mode.</span>
                 </label>
                 <label for="preferenceDensity" class="settings-field">
-                    Table spacing
+                    <span class="settings-field-label">Table spacing</span>
                     <select id="preferenceDensity">
                         <option value="comfortable">Comfortable</option>
                         <option value="compact">Compact</option>
@@ -53,7 +53,7 @@ requireLogin();
             </div>
             <div class="settings-fields">
                 <label for="preferenceTextSize" class="settings-field">
-                    Text size
+                    <span class="settings-field-label">Text size</span>
                     <select id="preferenceTextSize">
                         <option value="default">Default</option>
                         <option value="large">Larger</option>
@@ -61,7 +61,7 @@ requireLogin();
                     <span class="settings-field-help">Larger text improves readability throughout the app.</span>
                 </label>
                 <label for="preferenceRowsPerPage" class="settings-field">
-                    Rows per page
+                    <span class="settings-field-label">Rows per page</span>
                     <select id="preferenceRowsPerPage">
                         <option value="5">5 rows</option>
                         <option value="10">10 rows</option>

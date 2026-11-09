@@ -38,6 +38,9 @@
     }
   let organizationData = { colleges: [] };
   let selectedCollegeId = null;
+  let expandedTreeProgramIds = new Set();
+  let renderedTreeCollegeId = null;
+  let academicActionMenuId = 0;
   function closeDialog(dialog) { dialog?.classList.add('hidden'); dialog?.classList.remove('flex'); }
   function openDialog(dialog) { dialog?.classList.remove('hidden'); dialog?.classList.add('flex'); }
   let prospectusDataLoaded = false;
@@ -176,11 +179,21 @@
       }
       modal.classList.remove('hidden'); modal.classList.add('flex'); document.getElementById('organizationName').focus();
   };
-    const hierarchyControls = item => {
-        return `<button type="button" data-edit="college" data-id="${Number(item.id)}" data-item='${esc(JSON.stringify(item))}' aria-label="Edit college ${esc(item.name)}" class="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="pencil" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Edit college</span></button>`;
+    const hierarchyEditAction = (entity, item, parent = '') => `<button type="button" data-edit="${entity}" data-id="${Number(item.id)}" ${parent ? `data-parent="${Number(parent)}"` : ''} data-item='${esc(JSON.stringify(item))}' aria-label="Edit ${entity} ${esc(item.name)}" class="academic-row-action"><i data-lucide="pencil" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Edit ${entity}</span></button>`;
+    const hierarchyDeleteAction = (entity, item) => `<button type="button" data-delete="${entity}" data-id="${Number(item.id)}" data-name="${esc(item.name)}" aria-label="Delete ${entity} ${esc(item.name)}" class="academic-row-action is-delete"><i data-lucide="trash-2" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Delete ${entity}</span></button>`;
+    const academicMenuAddAction = (title, parent) => `<button type="button" data-add="add_major" data-title="${esc(title)}" data-parent="${Number(parent)}" data-major="" title="${esc(title)}" aria-label="${esc(title)}" class="academic-row-action"><i data-lucide="plus" class="h-3 w-3" aria-hidden="true"></i><span>${esc(title)}</span></button>`;
+    const academicActionsDisclosure = (label, actionsMarkup) => {
+        const menuId = `organization-actions-${++academicActionMenuId}`;
+        return `<span class="academic-tree-action-anchor">
+          <button type="button" class="academic-tree-action-trigger" data-academic-menu-trigger aria-label="${esc(label)}" aria-haspopup="true" aria-expanded="false" aria-controls="${menuId}"><i data-lucide="ellipsis" aria-hidden="true"></i><span>Actions</span></button>
+          <div class="academic-action-menu-options" id="${menuId}" data-academic-action-menu popover="auto">${actionsMarkup}</div>
+        </span>`;
     };
-    const add = (action, title, parent, major = '') => action === 'add_course' ? '' : `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" title="${title}" aria-label="${title}" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 transition hover:border-rose-500 hover:bg-rose-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-rose-300"><i data-lucide="plus" class="h-3 w-3"></i><span>${title}</span></button>`;
-        const countLabel = (count, singular) => `${count} ${singular}${count === 1 ? '' : 's'}`;
+    const hierarchyControls = item => academicActionsDisclosure(
+        'College actions',
+        `${hierarchyEditAction('college', item)}${hierarchyDeleteAction('college', item)}`
+    );
+    const add = (action, title, parent, major = '') => action === 'add_course' ? '' : `<button type="button" data-add="${action}" data-title="${title}" data-parent="${parent}" data-major="${major}" title="${title}" aria-label="${title}" class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 transition hover:border-rose-500 hover:bg-rose-600 hover:text-white focus-visible:outline-none focus-visible:border-rose-300 focus-visible:bg-rose-100 focus-visible:text-rose-800"><i data-lucide="plus" class="h-3 w-3"></i><span>${title}</span></button>`;
     let hierarchyBuilder;
     function createHierarchyBuilder() {
         if (hierarchyBuilder) return hierarchyBuilder;
@@ -319,51 +332,137 @@
         deleteDialog?.classList.remove('flex');
     }
     const renderDirectCollege = college => {
-        const programs = college.programs || [];
+        const programs = Array.isArray(college.programs) ? college.programs : [];
         const majorCount = programs.reduce((total, program) => total + (program.majors || []).length, 0);
         const statusLabel = status => {
             const value = String(status || 'active');
             return value.charAt(0).toUpperCase() + value.slice(1);
         };
-        const programMarkup = programs.length ? programs.map((program, index) => {
+        const programRows = programs.map(program => {
             const majors = program.majors || [];
+            const programId = Number(program.id);
+            const programExpanded = expandedTreeProgramIds.has(String(program.id));
             const programStatus = statusLabel(program.status);
-            const majorMarkup = majors.length ? majors.map(major => `<div class="flex min-h-[34px] items-center justify-between gap-3 border-t border-slate-100 py-1.5">
-                <span class="min-w-0 text-[11px] text-slate-700">${esc(major.name)}</span>
-                <span class="shrink-0 text-[10px] text-slate-600">${esc(statusLabel(major.status))}</span>
-              </div>`).join('') : '<p class="border-t border-slate-100 py-2 text-[11px] text-slate-600">No majors yet.</p>';
-            return `<details class="group border-b border-slate-200 last:border-b-0" ${index === 0 ? 'open' : ''}>
-                <summary class="flex min-h-[55px] cursor-pointer list-none items-center justify-between gap-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400">
-                  <span class="min-w-0"><span class="block text-[13px] font-semibold text-slate-900">${esc(program.name)}</span><span class="mt-0.5 block text-[11px] text-slate-600">${countLabel(majors.length, 'major')} · ${esc(programStatus)}</span></span>
-                  <i data-lucide="chevron-right" class="h-4 w-4 shrink-0 text-slate-600 transition-transform group-open:rotate-90" aria-hidden="true"></i>
-                </summary>
-                <div class="pb-2 pl-3">
-                  <div>${majorMarkup}</div>
-                  <div class="pt-2">${add('add_major', 'Add major', program.id)}</div>
-                </div>
-              </details>`;
-        }).join('') : '<p class="py-6 text-xs text-slate-600">No programs in this college yet. Add a program to build its academic structure.</p>';
+            const programStatusClass = String(program.status).toLowerCase() === 'active'
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-slate-100 text-slate-700';
+            const programToggle = majors.length
+                ? `<button type="button" class="academic-tree-toggle" data-tree-toggle="${programId}" aria-controls="${majors.map(major => `academic-major-${Number(major.id)}`).join(' ')}" aria-expanded="${programExpanded}" aria-label="${programExpanded ? 'Collapse' : 'Expand'} ${esc(program.name)}"><i data-lucide="chevron-right" aria-hidden="true"></i></button>`
+                : '<span class="academic-tree-toggle-spacer" aria-hidden="true"></span>';
+            const programActions = academicActionsDisclosure(
+                `Actions for ${program.name}`,
+                `${academicMenuAddAction('Add major', program.id)}${hierarchyEditAction('program', program, college.id)}${hierarchyDeleteAction('program', program)}`
+            );
+            const programRow = `<tr data-program-row data-program-id="${programId}" id="academic-program-${programId}">
+              <td class="academic-tree-name-cell"><div class="academic-tree-name">${programToggle}<span class="academic-tree-unit-name">${esc(program.name)}</span></div></td>
+              <td class="academic-tree-type-cell">Program</td>
+              <td><span class="academic-tree-status ${programStatusClass}">${esc(programStatus)}</span></td>
+              <td class="academic-tree-actions-cell">${programActions}</td>
+            </tr>`;
+            const majorRows = majors.map(major => {
+                const majorStatus = statusLabel(major.status);
+                const majorStatusClass = String(major.status).toLowerCase() === 'active'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-slate-100 text-slate-700';
+                const majorActions = academicActionsDisclosure(
+                    `Actions for ${major.name}`,
+                    `${hierarchyEditAction('major', major, program.id)}${hierarchyDeleteAction('major', major)}`
+                );
+                return `<tr data-major-row data-parent-program="${programId}" data-major-id="${Number(major.id)}" id="academic-major-${Number(major.id)}">
+                  <td class="academic-tree-name-cell"><div class="academic-tree-name is-major"><span class="academic-tree-toggle-spacer" aria-hidden="true"></span><span class="academic-tree-unit-name">${esc(major.name)}</span></div></td>
+                  <td class="academic-tree-type-cell">Major</td>
+                  <td><span class="academic-tree-status ${majorStatusClass}">${esc(majorStatus)}</span></td>
+                  <td class="academic-tree-actions-cell">${majorActions}</td>
+                </tr>`;
+            }).join('');
+            return programRow + majorRows;
+        }).join('');
+        const emptyMessage = programs.length
+            ? 'No programs or majors match your search.'
+            : 'No programs in this college yet. Add a program to build the hierarchy.';
 
         return `<header class="flex flex-col justify-between gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start">
             <div class="min-w-0"><h3 class="break-words text-lg font-bold text-slate-900">${esc(college.name)}</h3><p class="mt-1 text-xs text-slate-600">Academic structure · ${esc(statusLabel(college.status))}</p></div>
-            ${hierarchyControls(college)}
+            <div class="flex flex-wrap items-center gap-2">${add('add_program', 'Add program', college.id)}${hierarchyControls(college)}</div>
           </header>
           <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 py-3 text-[11px] text-slate-600" aria-label="Selected college totals">
             <span><strong class="mr-1 text-xs tabular-nums text-slate-900">${programs.length}</strong>${programs.length === 1 ? 'program' : 'programs'}</span>
             <span><strong class="mr-1 text-xs tabular-nums text-slate-900">${majorCount}</strong>${majorCount === 1 ? 'major' : 'majors'}</span>
-            <span class="ml-auto">${add('add_program', 'Add program', college.id)}</span>
           </div>
-          <div class="mt-1">${programMarkup}</div>`;
+          <div class="academic-tree-toolbar">
+            <label class="academic-tree-search"><i data-lucide="search" aria-hidden="true"></i><input id="organizationTreeSearch" type="search" placeholder="Search programs or majors" aria-label="Search programs and majors"></label>
+            <span id="organizationTreeResultCount" class="text-[11px] text-slate-600" aria-live="polite"></span>
+          </div>
+          <div class="academic-tree-table-wrap">
+            <table class="academic-tree-table" aria-label="Academic hierarchy">
+              <thead><tr><th scope="col">Academic unit</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col" class="text-right">Actions</th></tr></thead>
+              <tbody id="organizationTreeRows">${programRows}
+                <tr id="organizationTreeEmptyRow" ${programs.length ? 'hidden' : ''}><td colspan="4"><p id="organizationTreeEmpty" class="py-6 text-center text-xs text-slate-600">${emptyMessage}</p></td></tr>
+              </tbody>
+            </table>
+          </div>`;
     };
+
+    function filterOrganizationTree() {
+        const college = (organizationData.colleges || []).find(item => String(item.id) === String(selectedCollegeId));
+        if (!college) return;
+        const query = document.getElementById('organizationTreeSearch')?.value.trim().toLocaleLowerCase() || '';
+        const rows = document.getElementById('organizationTreeRows');
+        let visiblePrograms = 0;
+        let visibleMajors = 0;
+        const totalMajors = (college.programs || []).reduce((total, program) => total + (program.majors || []).length, 0);
+
+        (college.programs || []).forEach(program => {
+            const programId = String(program.id);
+            const programRow = rows.querySelector(`[data-program-id="${CSS.escape(programId)}"]`);
+            if (!programRow) return;
+            const programMatches = String(program.name).toLocaleLowerCase().includes(query);
+            const matchingMajors = (program.majors || []).filter(major => String(major.name).toLocaleLowerCase().includes(query));
+            const showProgram = query === '' || programMatches || matchingMajors.length > 0;
+            programRow.hidden = !showProgram;
+            if (!showProgram) return;
+            visiblePrograms++;
+
+            const expanded = expandedTreeProgramIds.has(programId);
+            const toggle = programRow.querySelector('[data-tree-toggle]');
+            if (toggle) {
+                toggle.setAttribute('aria-expanded', String(expanded));
+                toggle.setAttribute('aria-label', `${expanded ? 'Collapse' : 'Expand'} ${program.name}`);
+            }
+            rows.querySelectorAll(`[data-major-row][data-parent-program="${CSS.escape(programId)}"]`).forEach(majorRow => {
+                const majorMatches = majorRow.querySelector('.academic-tree-unit-name').textContent.toLocaleLowerCase().includes(query);
+                const showMajor = expanded && (query === '' || programMatches || majorMatches);
+                majorRow.hidden = !showMajor;
+                if (showMajor) visibleMajors++;
+            });
+        });
+
+        const emptyRow = document.getElementById('organizationTreeEmptyRow');
+        const empty = document.getElementById('organizationTreeEmpty');
+        emptyRow.hidden = visiblePrograms > 0;
+        empty.textContent = query
+            ? 'No programs or majors match your search.'
+            : 'No programs in this college yet. Add a program to build the hierarchy.';
+        document.getElementById('organizationTreeResultCount').textContent = query === ''
+            ? `${visiblePrograms} ${visiblePrograms === 1 ? 'program' : 'programs'} · ${visibleMajors} of ${totalMajors} ${totalMajors === 1 ? 'major' : 'majors'} visible`
+            : `${visiblePrograms} matching ${visiblePrograms === 1 ? 'program' : 'programs'} · ${visibleMajors} ${visibleMajors === 1 ? 'major' : 'majors'} shown`;
+    }
 
     function renderSelectedCollege() {
         const college = (organizationData.colleges || []).find(item => String(item.id) === String(selectedCollegeId));
         if (!college) {
+            renderedTreeCollegeId = null;
+            expandedTreeProgramIds.clear();
             tree.innerHTML = '<div class="flex min-h-48 flex-col items-center justify-center text-center"><i data-lucide="building-2" class="h-8 w-8 text-slate-400" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-900">No colleges yet</p><p class="mt-1 text-xs text-slate-600">Add an academic unit to start building the structure.</p></div>';
             lucide.createIcons({ root: tree });
             return;
         }
+        if (String(renderedTreeCollegeId) !== String(selectedCollegeId)) {
+            expandedTreeProgramIds = new Set((college.programs || []).slice(0, 1).map(program => String(program.id)));
+            renderedTreeCollegeId = String(selectedCollegeId);
+        }
         tree.innerHTML = renderDirectCollege(college);
+        filterOrganizationTree();
         lucide.createIcons({ root: tree });
     }
 
@@ -479,10 +578,56 @@
         openForm(`edit_${button.dataset.edit}`, `Edit ${button.dataset.edit}`, button.dataset.id, button.dataset.parent, JSON.parse(button.dataset.item));
     }
 
+    function positionAcademicActionMenu(menu) {
+        if (!menu.matches(':popover-open')) return;
+        const trigger = menu.parentElement.querySelector('[data-academic-menu-trigger]');
+        if (!trigger) return;
+        const triggerRect = trigger.getBoundingClientRect();
+        const menuRect = menu.getBoundingClientRect();
+        const left = Math.max(8, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - 8));
+        const below = triggerRect.bottom + 5;
+        const top = below + menuRect.height <= window.innerHeight - 8
+            ? below
+            : Math.max(8, triggerRect.top - menuRect.height - 5);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+
+    function toggleAcademicActionMenu(trigger) {
+        const menu = trigger.parentElement.querySelector('[data-academic-action-menu]');
+        if (!menu) return;
+        if (!menu.dataset.ariaSync) {
+            menu.addEventListener('toggle', () => {
+                trigger.setAttribute('aria-expanded', String(menu.matches(':popover-open')));
+            });
+            menu.dataset.ariaSync = 'true';
+        }
+        if (menu.matches(':popover-open')) {
+            menu.hidePopover();
+            trigger.setAttribute('aria-expanded', 'false');
+            return;
+        }
+        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(openMenu => openMenu.hidePopover());
+        menu.showPopover();
+        trigger.setAttribute('aria-expanded', 'true');
+        positionAcademicActionMenu(menu);
+    }
+
     function handleOrganizationTreeClick(event) {
+        const treeToggle = event.target.closest('[data-tree-toggle]');
+        if (treeToggle) {
+            const programId = String(treeToggle.dataset.treeToggle);
+            if (expandedTreeProgramIds.has(programId)) expandedTreeProgramIds.delete(programId);
+            else expandedTreeProgramIds.add(programId);
+            filterOrganizationTree();
+            return;
+        }
+
         const addButton = event.target.closest('[data-add]');
         const editButton = event.target.closest('[data-edit]');
         const deleteButton = event.target.closest('[data-delete]');
+        const actionButton = addButton || editButton || deleteButton;
+        actionButton?.closest('[data-academic-action-menu]')?.hidePopover();
 
         if (addButton) openOrganizationAddForm(addButton);
         if (editButton) openOrganizationEditForm(editButton);
@@ -490,6 +635,36 @@
     }
 
     tree.onclick = handleOrganizationTreeClick;
+    tree.addEventListener('input', event => {
+        if (event.target.id !== 'organizationTreeSearch') return;
+        const query = event.target.value.trim().toLocaleLowerCase();
+        const college = (organizationData.colleges || []).find(item => String(item.id) === String(selectedCollegeId));
+        (college?.programs || []).forEach(program => {
+            if (query && (program.majors || []).some(major => String(major.name).toLocaleLowerCase().includes(query))) {
+                expandedTreeProgramIds.add(String(program.id));
+            }
+        });
+        filterOrganizationTree();
+    });
+    document.addEventListener('click', event => {
+        const trigger = event.target.closest('[data-academic-menu-trigger]');
+        if (trigger) toggleAcademicActionMenu(trigger);
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        const menu = document.querySelector('[data-academic-action-menu]:popover-open');
+        if (!menu) return;
+        const trigger = menu.parentElement.querySelector('[data-academic-menu-trigger]');
+        menu.hidePopover();
+        trigger?.setAttribute('aria-expanded', 'false');
+        trigger?.focus();
+    });
+    document.addEventListener('scroll', () => {
+        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(positionAcademicActionMenu);
+    }, true);
+    window.addEventListener('resize', () => {
+        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(positionAcademicActionMenu);
+    });
     document.getElementById('collegeChoices').addEventListener('click', event => {
         const choice = event.target.closest('[data-academic-college]');
         if (!choice) return;
