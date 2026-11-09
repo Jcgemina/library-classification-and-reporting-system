@@ -111,7 +111,8 @@
 }
 
 .settings-field {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   gap: 6px;
   color: #35414b;
@@ -138,6 +139,10 @@
   font: inherit;
   font-size: 14px;
   font-weight: 450;
+}
+
+.settings-field select {
+  height: 44px;
 }
 
 .settings-field textarea {

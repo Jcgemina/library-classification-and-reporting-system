@@ -56,6 +56,34 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     scrollbar-width: none;
   }
 
+  @media (min-width: 768px) and (max-width: 1440px) {
+    html {
+      font-size: 15px;
+    }
+
+    #adminSidebar {
+      width: 15rem;
+    }
+
+    #appMainShell[data-admin-shell="true"] {
+      margin-left: 15rem;
+    }
+
+    #pageContent {
+      padding: 1.25rem;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1280px) {
+    html {
+      font-size: 14.5px;
+    }
+
+    #pageContent {
+      padding: 1.125rem;
+    }
+  }
+
   html::-webkit-scrollbar,
   body::-webkit-scrollbar {
     display: none;
@@ -78,7 +106,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     lucide.createIcons();
   </script>
 
-  <div class="<?php echo $userRole === 'admin' ? 'md:ml-64' : ''; ?>">
+  <div id="appMainShell" data-admin-shell="<?php echo $userRole === 'admin' ? 'true' : 'false'; ?>" class="<?php echo $userRole === 'admin' ? 'md:ml-64' : ''; ?>">
     <main id="pageContent" class="mx-auto w-full max-w-[1600px] min-w-0 overflow-x-hidden p-6" aria-busy="true"></main>
   </div>
 
@@ -143,11 +171,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
             : activePage;
         document.querySelectorAll('[data-settings-child]').forEach(link => {
             const isActive = settingsActive && link.dataset.settingsChild === activeSettingsSubpage;
-            link.classList.toggle('bg-rose-50', isActive);
-            link.classList.toggle('text-rose-800', isActive);
-            link.classList.toggle('font-semibold', isActive);
-            link.classList.toggle('text-slate-600', !isActive);
-            link.classList.toggle('hover:bg-slate-100', !isActive);
+            link.classList.remove('bg-rose-50', 'text-rose-800', 'font-semibold');
+            link.classList.add('text-slate-600', 'hover:bg-slate-100');
 
             if (isActive) {
                 link.setAttribute('aria-current', 'page');
@@ -377,7 +402,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
       }
 
       const link = event.target.closest('[data-page]');
-      if (!link) {
+      if (!(link instanceof HTMLAnchorElement)) {
         return;
       }
 

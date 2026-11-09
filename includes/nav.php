@@ -139,24 +139,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     align-items: center;
   }
 
-  .settings-nav-toggle {
-    position: relative;
-    z-index: 1;
-    display: inline-flex;
-    min-width: 1.75rem;
-    min-height: 2rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.5rem;
-    color: inherit;
-    transition: background-color 0.2s ease;
-  }
-
-  .settings-nav-toggle:hover {
-    background: rgba(15, 23, 42, 0.08);
-  }
-
-  .settings-nav-toggle[aria-expanded="true"] [data-lucide] {
+  .settings-nav-toggle[aria-expanded="true"] [data-settings-chevron] {
     transform: rotate(180deg);
   }
 
@@ -200,14 +183,8 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     color: #0f172a;
   }
 
-  .settings-submenu-link[aria-current="page"] {
-    background: #fff1f2;
-    color: #9f1239;
-    font-weight: 650;
-  }
-
   #adminSidebar nav > a[data-page],
-  #adminSidebar nav .settings-nav-row > a[data-settings-parent] {
+  #adminSidebar nav .settings-nav-row > [data-settings-parent] {
     font-size: 0.9375rem;
     line-height: 1.5rem;
   }
@@ -251,9 +228,9 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
   }
 
   #adminSidebar a[data-page]:not([data-settings-child])[aria-current="page"],
-  #adminSidebar a[data-settings-parent][aria-current="location"],
+  #adminSidebar [data-settings-parent][aria-current="location"],
   #mobileMenu a[data-page]:not([data-settings-child])[aria-current="page"],
-  #mobileMenu a[data-settings-parent][aria-current="location"] {
+  #mobileMenu [data-settings-parent][aria-current="location"] {
     background: #f7f4f4;
     box-shadow: inset 0 0 18px rgba(190, 18, 60, 0.08);
     color: #30272a;
@@ -261,9 +238,9 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
   }
 
   #adminSidebar a[data-page]:not([data-settings-child])[aria-current="page"]::before,
-  #adminSidebar a[data-settings-parent][aria-current="location"]::before,
+  #adminSidebar [data-settings-parent][aria-current="location"]::before,
   #mobileMenu a[data-page]:not([data-settings-child])[aria-current="page"]::before,
-  #mobileMenu a[data-settings-parent][aria-current="location"]::before {
+  #mobileMenu [data-settings-parent][aria-current="location"]::before {
     position: absolute;
     top: 5px;
     bottom: 5px;
@@ -275,18 +252,9 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
   }
 
   #adminSidebar a[data-page]:not([data-settings-child])[aria-current="page"] [data-lucide],
-  #adminSidebar a[data-settings-parent][aria-current="location"] [data-lucide],
+  #adminSidebar [data-settings-parent][aria-current="location"] [data-lucide],
   #mobileMenu a[data-page]:not([data-settings-child])[aria-current="page"] [data-lucide],
-  #mobileMenu a[data-settings-parent][aria-current="location"] [data-lucide] {
-    color: #9f1239;
-  }
-
-  #adminSidebar .settings-nav-row.is-current > .settings-nav-toggle {
-    color: #72545c;
-  }
-
-  #adminSidebar .settings-nav-row.is-current > .settings-nav-toggle:hover {
-    background: #ffe4e6;
+  #mobileMenu [data-settings-parent][aria-current="location"] [data-lucide] {
     color: #9f1239;
   }
 
@@ -421,16 +389,19 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
         <?php if (!empty($item['isSettings'])): ?>
           <div class="settings-nav-item">
             <div class="settings-nav-row <?php echo $isActive ? 'is-current' : ''; ?>" data-settings-layout="desktop">
-              <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
+              <button type="button"
                 data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
                 data-settings-parent="true"
-                class="nav-item relative flex items-center justify-center gap-1 lg:gap-2 px-2 lg:px-4 py-1.5 md:py-2 rounded-lg whitespace-nowrap <?php echo $isActive ? 'text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
+                data-settings-toggle
+                data-settings-menu="desktopSettingsMenu"
+                aria-controls="desktopSettingsMenu"
+                aria-expanded="<?php echo $settingsExpanded ? 'true' : 'false'; ?>"
+                aria-label="<?php echo $settingsExpanded ? 'Collapse Settings submenu' : 'Expand Settings submenu'; ?>"
+                class="settings-nav-toggle nav-item relative flex items-center justify-center gap-1 lg:gap-2 px-2 lg:px-4 py-1.5 md:py-2 rounded-lg whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-rose-300 <?php echo $isActive ? 'text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
                 <?php echo $isActive ? 'aria-current="location"' : ''; ?>>
                 <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="w-4 h-4 flex-shrink-0"></i>
                 <span class="nav-label"><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
-              </a>
-              <button type="button" class="settings-nav-toggle focus:outline-none focus:ring-2 focus:ring-rose-300" data-settings-toggle data-settings-menu="desktopSettingsMenu" aria-controls="desktopSettingsMenu" aria-expanded="<?php echo $settingsExpanded ? 'true' : 'false'; ?>" aria-label="<?php echo $settingsExpanded ? 'Collapse Settings submenu' : 'Expand Settings submenu'; ?>">
-                <i data-lucide="chevron-down" class="h-4 w-4 transition-transform"></i>
+                <i data-lucide="chevron-down" data-settings-chevron class="h-4 w-4 transition-transform" aria-hidden="true"></i>
               </button>
             </div>
             <div id="desktopSettingsMenu" class="settings-submenu settings-submenu-desktop" data-settings-menu-content <?php echo $settingsExpanded ? '' : 'hidden'; ?>>
@@ -497,16 +468,19 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
       <?php if (!empty($item['isSettings'])): ?>
         <div class="settings-nav-item">
           <div class="settings-nav-row <?php echo $isActive ? 'is-current' : ''; ?>">
-            <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
+            <button type="button"
               data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
               data-settings-parent="true"
-              class="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium <?php echo $isActive ? 'bg-rose-700 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
+              data-settings-toggle
+              data-settings-menu="mobileSettingsMenu"
+              aria-controls="mobileSettingsMenu"
+              aria-expanded="<?php echo $settingsExpanded ? 'true' : 'false'; ?>"
+              aria-label="<?php echo $settingsExpanded ? 'Collapse Settings submenu' : 'Expand Settings submenu'; ?>"
+              class="settings-nav-toggle flex min-h-10 w-full items-center justify-start gap-3 rounded-lg px-3 py-2.5 text-base font-medium focus:outline-none focus:ring-2 focus:ring-rose-300 <?php echo $isActive ? 'text-slate-900' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
               <?php echo $isActive ? 'aria-current="location"' : ''; ?>>
               <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="h-4 w-4 flex-shrink-0"></i>
               <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
-            </a>
-            <button type="button" class="settings-nav-toggle text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-300" data-settings-toggle data-settings-menu="mobileSettingsMenu" aria-controls="mobileSettingsMenu" aria-expanded="<?php echo $settingsExpanded ? 'true' : 'false'; ?>" aria-label="<?php echo $settingsExpanded ? 'Collapse Settings submenu' : 'Expand Settings submenu'; ?>">
-              <i data-lucide="chevron-down" class="h-4 w-4 transition-transform"></i>
+              <i data-lucide="chevron-down" data-settings-chevron class="ml-auto h-4 w-4 transition-transform" aria-hidden="true"></i>
             </button>
           </div>
           <div id="mobileSettingsMenu" class="settings-submenu settings-submenu-mobile" data-settings-menu-content <?php echo $settingsExpanded ? '' : 'hidden'; ?>>
@@ -573,16 +547,19 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
       <?php if (!empty($item['isSettings'])): ?>
         <div class="settings-nav-item">
           <div class="settings-nav-row <?php echo $isActive ? 'is-current' : ''; ?>">
-            <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>"
+            <button type="button"
               data-page="<?php echo htmlspecialchars($item['page'], ENT_QUOTES, 'UTF-8'); ?>"
               data-settings-parent="true"
-              class="mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-colors <?php echo $isActive ? 'bg-rose-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
+              data-settings-toggle
+              data-settings-menu="adminSettingsMenu"
+              aria-controls="adminSettingsMenu"
+              aria-expanded="<?php echo $settingsExpanded ? 'true' : 'false'; ?>"
+              aria-label="<?php echo $settingsExpanded ? 'Collapse Settings submenu' : 'Expand Settings submenu'; ?>"
+              class="settings-nav-toggle mb-1 flex w-full items-center justify-start gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-rose-300 <?php echo $isActive ? 'text-slate-900' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'; ?>"
               <?php echo $isActive ? 'aria-current="location"' : ''; ?>>
               <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" class="h-4 w-4 flex-shrink-0"></i>
               <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
-            </a>
-            <button type="button" class="settings-nav-toggle mb-1 text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-300" data-settings-toggle data-settings-menu="adminSettingsMenu" aria-controls="adminSettingsMenu" aria-expanded="<?php echo $settingsExpanded ? 'true' : 'false'; ?>" aria-label="<?php echo $settingsExpanded ? 'Collapse Settings submenu' : 'Expand Settings submenu'; ?>">
-              <i data-lucide="chevron-down" class="h-4 w-4 transition-transform"></i>
+              <i data-lucide="chevron-down" data-settings-chevron class="ml-auto h-4 w-4 transition-transform" aria-hidden="true"></i>
             </button>
           </div>
           <div id="adminSettingsMenu" class="settings-submenu settings-submenu-sidebar" data-settings-menu-content <?php echo $settingsExpanded ? '' : 'hidden'; ?>>
@@ -670,13 +647,9 @@ document.querySelectorAll('[data-settings-toggle]').forEach(toggle => {
     });
 });
 
-// Close the mobile menu after choosing a destination, but keep Settings open when entering its default page.
+// Close the mobile menu after choosing a destination.
 document.querySelectorAll('#mobileMenu a').forEach(link => {
     link.addEventListener('click', function () {
-        if (this.hasAttribute('data-settings-parent')) {
-            return;
-        }
-
         const menu = document.getElementById('mobileMenu');
         const button = document.getElementById('mobileMenuButton');
         const icon = button.querySelector('[data-lucide]');
