@@ -10,16 +10,18 @@ function expectAiCourse(bool $condition, string $message): void
 
 expectAiCourse(aiCourseNormalizeField("  loops\n and   functions ") === 'loops and functions', 'Text normalization failed.');
 expectAiCourse(aiCourseSourceHash('book-v1', 'same text', 'model-a') !== aiCourseSourceHash('book-v1', 'same text', 'model-b'), 'Model changes must invalidate embeddings.');
+expectAiCourse(aiCourseReferenceFingerprint([3, 1, 2]) === aiCourseReferenceFingerprint([2, 3, 1]), 'Reference fingerprints must be independent of row order.');
+expectAiCourse(aiCourseReferenceFingerprint([1, 2]) !== aiCourseReferenceFingerprint([1]), 'Adding or removing a reference must invalidate suggestion runs.');
 expectAiCourse(abs(aiCourseCosineSimilarity([1.0, 0.0], [1.0, 0.0]) - 1.0) < 1e-9, 'Identical vectors should score 1.');
 expectAiCourse(abs(aiCourseCosineSimilarity([1.0, 0.0], [0.0, 1.0])) < 1e-9, 'Orthogonal vectors should score 0.');
 expectAiCourse(abs(aiCourseCosineSimilarity([1.0, 0.0], [-1.0, 0.0]) + 1.0) < 1e-9, 'Opposite vectors should score -1.');
 expectAiCourse(aiCourseValidateVector([0.25, -0.5], 2) === [0.25, -0.5], 'Valid vectors should be normalized to floats.');
 
 foreach ([
-    static fn() => aiCourseCosineSimilarity([1.0], [1.0, 0.0]),
-    static fn() => aiCourseCosineSimilarity([0.0, 0.0], [1.0, 0.0]),
-    static fn() => aiCourseValidateVector(['not a number']),
-    static fn() => aiCourseValidateVector([1.0], 2),
+    static fn(): float => aiCourseCosineSimilarity([1.0], [1.0, 0.0]),
+    static fn(): float => aiCourseCosineSimilarity([0.0, 0.0], [1.0, 0.0]),
+    static fn(): array => aiCourseValidateVector(['not a number']),
+    static fn(): array => aiCourseValidateVector([1.0], 2),
 ] as $invalidCase) {
     try {
         $invalidCase();
@@ -44,10 +46,10 @@ expectAiCourse(count($filtered['relevant']) === 1 && $filtered['relevant'][0]['c
 expectAiCourse($filtered['reviewed'][1]['relevance_reason'] === $reviews[11]['reason'], 'Candidate rationale was not retained.');
 
 foreach ([
-    static fn() => aiCourseValidateRelevanceReviews([], [10]),
-    static fn() => aiCourseValidateRelevanceReviews([['course_id' => 12, 'verdict' => 'relevant', 'reason' => 'Wrong ID.']], [10]),
-    static fn() => aiCourseValidateRelevanceReviews([['course_id' => 10, 'verdict' => 'maybe', 'reason' => 'Unknown label.']], [10]),
-    static fn() => aiCourseValidateRelevanceReviews([['course_id' => 10, 'verdict' => 'relevant', 'reason' => '']], [10]),
+    static fn(): array => aiCourseValidateRelevanceReviews([], [10]),
+    static fn(): array => aiCourseValidateRelevanceReviews([['course_id' => 12, 'verdict' => 'relevant', 'reason' => 'Wrong ID.']], [10]),
+    static fn(): array => aiCourseValidateRelevanceReviews([['course_id' => 10, 'verdict' => 'maybe', 'reason' => 'Unknown label.']], [10]),
+    static fn(): array => aiCourseValidateRelevanceReviews([['course_id' => 10, 'verdict' => 'relevant', 'reason' => '']], [10]),
 ] as $invalidReview) {
     try {
         $invalidReview();
