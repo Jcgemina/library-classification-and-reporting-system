@@ -6,6 +6,8 @@ $activeSettingsSubpage = $currentPage === 'configure'
     ? (($_GET['section'] ?? '') === 'rules' ? 'rules' : 'institution')
     : $currentPage;
 $settingsExpanded = $isActiveSettings;
+$activeLogTab = ($_GET['log_tab'] ?? '') === 'security' ? 'security' : 'activity';
+$logsExpanded = $currentPage === 'logs';
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $isValidatedUser = !empty($_SESSION['authenticated']) && !empty($_SESSION['user_id']);
@@ -35,7 +37,7 @@ $navItems = [
     ['label' => 'Courses', 'page' => 'course', 'section' => 'academics', 'href' => 'app.php?page=course', 'icon' => 'book-open'],
     ['label' => 'Reference Analyzer', 'page' => 'reference_analyzer', 'section' => 'academics', 'href' => 'app.php?page=reference_analyzer', 'icon' => 'scan-search'],
     ['label' => 'User', 'page' => 'user', 'section' => 'administration', 'href' => 'app.php?page=user', 'icon' => 'users'],
-    ['label' => 'Logs', 'page' => 'logs', 'section' => 'administration', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text'],
+    ['label' => 'Logs', 'page' => 'logs', 'section' => 'administration', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text', 'isLogs' => true],
     ['label' => 'Settings', 'page' => 'account', 'section' => 'administration', 'href' => 'app.php?page=account', 'icon' => 'settings-2', 'isSettings' => true],
 ];
 
@@ -343,7 +345,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
 </style>
 
 <?php if (!$isAdmin): ?>
-<nav class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-[0_6px_20px_rgba(15,23,42,0.20)]">
+<nav id="adminSidebar" aria-label="Primary navigation" class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-[0_6px_20px_rgba(15,23,42,0.20)]">
   <div class="relative w-full px-2 md:px-6 py-2 md:py-4 flex items-center justify-between gap-3">
 
     <div class="flex min-w-0 items-center gap-1.5 md:gap-3">
@@ -385,8 +387,20 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
             <span class="nav-section-label"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></span>
             <div class="nav-section-links">
         <?php endif; ?>
-        <?php $isActive = !empty($item['isSettings']) ? $isActiveSettings : $item['page'] === $currentPage; ?>
-        <?php if (!empty($item['isSettings'])): ?>
+        <?php $isActive = !empty($item['isSettings']) ? $isActiveSettings : (!empty($item['isLogs']) ? $logsExpanded : $item['page'] === $currentPage); ?>
+        <?php if (!empty($item['isLogs'])): ?>
+          <div class="logs-nav-item">
+            <button type="button" data-page="logs" data-logs-parent data-logs-toggle data-logs-menu="desktopLogsMenu" aria-controls="desktopLogsMenu" aria-expanded="<?php echo $logsExpanded ? 'true' : 'false'; ?>" aria-label="<?php echo $logsExpanded ? 'Collapse Logs submenu' : 'Expand Logs submenu'; ?>" class="logs-toggle nav-item <?php echo $isActive ? 'is-current' : ''; ?>" <?php echo $isActive ? 'aria-current="location"' : ''; ?>>
+              <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
+              <span class="nav-label"><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+              <i class="logs-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+            </button>
+            <div id="desktopLogsMenu" class="logs-menu" data-logs-menu-content <?php echo $logsExpanded ? '' : 'hidden'; ?>>
+              <a href="app.php?page=logs&amp;log_tab=activity" data-page="logs" data-log-tab="activity" class="settings-submenu-link logs-link" <?php echo $isActive && $activeLogTab === 'activity' ? 'aria-current="page"' : ''; ?>><i data-lucide="activity" aria-hidden="true"></i><span>Activity logs</span></a>
+              <a href="app.php?page=logs&amp;log_tab=security" data-page="logs" data-log-tab="security" class="settings-submenu-link logs-link" <?php echo $isActive && $activeLogTab === 'security' ? 'aria-current="page"' : ''; ?>><i data-lucide="shield-check" aria-hidden="true"></i><span>Security logs</span></a>
+            </div>
+          </div>
+        <?php elseif (!empty($item['isSettings'])): ?>
           <div class="settings-nav-item">
             <div class="settings-nav-row <?php echo $isActive ? 'is-current' : ''; ?>" data-settings-layout="desktop">
               <button type="button"
@@ -433,17 +447,22 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     </div>
 
     <!-- User menu (right) -->
-    <div class="relative flex items-center justify-end flex-shrink-0">
+    <div class="nav-profile relative flex items-center justify-end flex-shrink-0">
       <div class="relative group">
         <button
             type="button"
-            class="w-8 h-8 md:w-11 md:h-11 rounded-full bg-rose-200 text-rose-800 border-2 border-rose-400 flex items-center justify-center font-semibold shadow-sm text-xs md:text-sm hover:bg-rose-300 hover:border-rose-500 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-rose-200"
+            class="nav-profile-trigger w-8 h-8 md:w-11 md:h-11 rounded-full bg-rose-200 text-rose-800 border-2 border-rose-400 flex items-center justify-center font-semibold shadow-sm text-xs md:text-sm hover:bg-rose-300 hover:border-rose-500 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-rose-200"
             aria-label="User menu"
         >
-            <?php echo htmlspecialchars($profileInitials, ENT_QUOTES, 'UTF-8'); ?>
+            <span class="nav-profile-avatar" aria-hidden="true"><?php echo htmlspecialchars($profileInitials, ENT_QUOTES, 'UTF-8'); ?></span>
+            <span class="nav-profile-copy">
+              <strong><?php echo htmlspecialchars($_SESSION['full_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?></strong>
+              <small><?php echo htmlspecialchars($_SESSION['role'] ?? 'librarian', ENT_QUOTES, 'UTF-8'); ?></small>
+            </span>
+            <i data-lucide="chevron-down" class="nav-profile-chevron" aria-hidden="true"></i>
         </button>
 
-        <div class="absolute right-0 top-full mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-lg opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all duration-200 ease-in-out z-10">
+        <div class="nav-profile-menu absolute right-0 top-full mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-lg opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all duration-200 ease-in-out z-10">
           <div class="px-4 py-3 border-b border-slate-100">
             <p class="font-semibold text-slate-900 text-sm"><?php echo htmlspecialchars($_SESSION['full_name'], ENT_QUOTES, 'UTF-8'); ?></p>
             <p class="text-xs text-slate-500"><?php echo htmlspecialchars($_SESSION['role'], ENT_QUOTES, 'UTF-8'); ?></p>
@@ -464,8 +483,20 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
         <?php $activeSection = $item['section']; ?>
         <p class="nav-section-label px-3 pb-1 pt-3 text-xs font-bold tracking-[0.12em] first:pt-0"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
       <?php endif; ?>
-      <?php $isActive = !empty($item['isSettings']) ? $isActiveSettings : $item['page'] === $currentPage; ?>
-      <?php if (!empty($item['isSettings'])): ?>
+      <?php $isActive = !empty($item['isSettings']) ? $isActiveSettings : (!empty($item['isLogs']) ? $logsExpanded : $item['page'] === $currentPage); ?>
+      <?php if (!empty($item['isLogs'])): ?>
+        <div class="logs-nav-item">
+          <button type="button" data-page="logs" data-logs-parent data-logs-toggle data-logs-menu="mobileLogsMenu" aria-controls="mobileLogsMenu" aria-expanded="<?php echo $logsExpanded ? 'true' : 'false'; ?>" aria-label="<?php echo $logsExpanded ? 'Collapse Logs submenu' : 'Expand Logs submenu'; ?>" class="logs-toggle <?php echo $isActive ? 'is-current' : ''; ?>" <?php echo $isActive ? 'aria-current="location"' : ''; ?>>
+            <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
+            <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+            <i class="logs-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <div id="mobileLogsMenu" class="logs-menu" data-logs-menu-content <?php echo $logsExpanded ? '' : 'hidden'; ?>>
+            <a href="app.php?page=logs&amp;log_tab=activity" data-page="logs" data-log-tab="activity" class="settings-submenu-link logs-link" <?php echo $isActive && $activeLogTab === 'activity' ? 'aria-current="page"' : ''; ?>><i data-lucide="activity" aria-hidden="true"></i><span>Activity logs</span></a>
+            <a href="app.php?page=logs&amp;log_tab=security" data-page="logs" data-log-tab="security" class="settings-submenu-link logs-link" <?php echo $isActive && $activeLogTab === 'security' ? 'aria-current="page"' : ''; ?>><i data-lucide="shield-check" aria-hidden="true"></i><span>Security logs</span></a>
+          </div>
+        </div>
+      <?php elseif (!empty($item['isSettings'])): ?>
         <div class="settings-nav-item">
           <div class="settings-nav-row <?php echo $isActive ? 'is-current' : ''; ?>">
             <button type="button"
@@ -543,8 +574,20 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
         <?php $activeSection = $item['section']; ?>
         <p class="nav-section-label <?php echo $activeSection === 'overview' ? '' : 'mt-5'; ?> mb-2 px-3 text-xs font-bold tracking-[0.12em]"><?php echo htmlspecialchars($navSections[$activeSection], ENT_QUOTES, 'UTF-8'); ?></p>
       <?php endif; ?>
-      <?php $isActive = !empty($item['isSettings']) ? $isActiveSettings : $item['page'] === $currentPage; ?>
-      <?php if (!empty($item['isSettings'])): ?>
+      <?php $isActive = !empty($item['isSettings']) ? $isActiveSettings : (!empty($item['isLogs']) ? $logsExpanded : $item['page'] === $currentPage); ?>
+      <?php if (!empty($item['isLogs'])): ?>
+        <div class="logs-nav-item">
+          <button type="button" data-page="logs" data-logs-parent data-logs-toggle data-logs-menu="adminLogsMenu" aria-controls="adminLogsMenu" aria-expanded="<?php echo $logsExpanded ? 'true' : 'false'; ?>" aria-label="<?php echo $logsExpanded ? 'Collapse Logs submenu' : 'Expand Logs submenu'; ?>" class="logs-toggle <?php echo $isActive ? 'is-current' : ''; ?>" <?php echo $isActive ? 'aria-current="location"' : ''; ?>>
+            <i data-lucide="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
+            <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+            <i class="logs-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <div id="adminLogsMenu" class="logs-menu" data-logs-menu-content <?php echo $logsExpanded ? '' : 'hidden'; ?>>
+            <a href="app.php?page=logs&amp;log_tab=activity" data-page="logs" data-log-tab="activity" class="settings-submenu-link logs-link" <?php echo $isActive && $activeLogTab === 'activity' ? 'aria-current="page"' : ''; ?>><i data-lucide="activity" aria-hidden="true"></i><span>Activity logs</span></a>
+            <a href="app.php?page=logs&amp;log_tab=security" data-page="logs" data-log-tab="security" class="settings-submenu-link logs-link" <?php echo $isActive && $activeLogTab === 'security' ? 'aria-current="page"' : ''; ?>><i data-lucide="shield-check" aria-hidden="true"></i><span>Security logs</span></a>
+          </div>
+        </div>
+      <?php elseif (!empty($item['isSettings'])): ?>
         <div class="settings-nav-item">
           <div class="settings-nav-row <?php echo $isActive ? 'is-current' : ''; ?>">
             <button type="button"
@@ -647,6 +690,16 @@ document.querySelectorAll('[data-settings-toggle]').forEach(toggle => {
     });
 });
 
+document.querySelectorAll('[data-logs-toggle]').forEach(toggle => {
+    toggle.addEventListener('click', function () {
+        const menu = document.getElementById(this.dataset.logsMenu);
+        const isOpen = menu.hidden;
+        menu.hidden = !isOpen;
+        this.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        this.setAttribute('aria-label', isOpen ? 'Collapse Logs submenu' : 'Expand Logs submenu');
+    });
+});
+
 // Close the mobile menu after choosing a destination.
 document.querySelectorAll('#mobileMenu a').forEach(link => {
     link.addEventListener('click', function () {
@@ -670,6 +723,7 @@ function setAdminSidebarOpen(isOpen) {
     return;
   }
 
+  adminSidebar.classList.toggle('is-open', isOpen);
   adminSidebar.classList.toggle('-translate-x-full', !isOpen);
   adminSidebarBackdrop.classList.toggle('hidden', !isOpen);
   adminSidebarToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');

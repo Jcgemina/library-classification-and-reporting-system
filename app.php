@@ -66,7 +66,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
       width: 15rem;
     }
 
-    #appMainShell[data-admin-shell="true"] {
+    #appMainShell {
       margin-left: 15rem;
     }
 
@@ -92,6 +92,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 </style>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" href="assets/css/navigation.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/navigation.css'); ?>">
 <script>
   window.appUserPreferenceId = <?php echo json_encode((string) ($_SESSION['user_id'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 </script>
@@ -107,7 +108,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     lucide.createIcons();
   </script>
 
-  <div id="appMainShell" data-admin-shell="<?php echo $userRole === 'admin' ? 'true' : 'false'; ?>" class="<?php echo $userRole === 'admin' ? 'md:ml-64' : ''; ?>">
+  <div id="appMainShell" data-admin-shell="<?php echo $userRole === 'admin' ? 'true' : 'false'; ?>" class="md:ml-[248px]">
     <main id="pageContent" class="mx-auto w-full max-w-[1600px] min-w-0 overflow-x-hidden p-6" aria-busy="true"></main>
   </div>
 
@@ -132,20 +133,32 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
       return normalizePage(requestedPage);
     }
 
+    function urlLogTab() {
+      return new URLSearchParams(window.location.search).get('log_tab') === 'security' ? 'security' : 'activity';
+    }
+
     function updateActiveTab(activePage) {
         const settingsPages = ['account', 'preferences', 'configure'];
         const settingsActive = settingsPages.includes(activePage);
         const activeNavPage = settingsActive ? 'account' : activePage;
+        const activeLogTab = urlLogTab();
         const navLinks = document.querySelectorAll('[data-page]:not([data-settings-child])');
         const highlight = document.querySelector('.nav-highlight');
         const navTrack = document.querySelector('.nav-track');
 
-        const activeLink = [...navLinks].find(
-            link => link.dataset.page === activeNavPage
-        );
+        const isCurrentNavLink = (link) => {
+            if (link.hasAttribute('data-logs-parent')) {
+                return activePage === 'logs';
+            }
+            if (link.hasAttribute('data-log-tab')) {
+                return activePage === 'logs' && link.dataset.logTab === activeLogTab;
+            }
+            return link.dataset.page === activeNavPage;
+        };
+        const activeLink = [...navLinks].find(isCurrentNavLink);
 
         navLinks.forEach(link => {
-            const isActive = link.dataset.page === activeNavPage;
+            const isActive = isCurrentNavLink(link);
             const isMobileLink = link.closest('#mobileMenu');
             const isAdminSidebarLink = link.closest('#adminSidebar');
             const isSidebarLink = Boolean(isMobileLink || isAdminSidebarLink);
@@ -160,7 +173,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
             link.classList.toggle('hover:bg-slate-100', !isActive);
 
             if (isActive) {
-                link.setAttribute('aria-current', link.hasAttribute('data-settings-parent') ? 'location' : 'page');
+                link.setAttribute('aria-current', link.hasAttribute('data-settings-parent') || link.hasAttribute('data-logs-parent') ? 'location' : 'page');
             } else {
                 link.removeAttribute('aria-current');
             }
@@ -193,6 +206,14 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
             row.classList.toggle('is-current', settingsActive);
         });
 
+        document.querySelectorAll('[data-logs-menu-content]').forEach(menu => {
+            menu.hidden = activePage !== 'logs';
+        });
+        document.querySelectorAll('[data-logs-toggle]').forEach(toggle => {
+            toggle.setAttribute('aria-expanded', activePage === 'logs' ? 'true' : 'false');
+            toggle.setAttribute('aria-label', activePage === 'logs' ? 'Collapse Logs submenu' : 'Expand Logs submenu');
+        });
+
         if (highlight && activeLink && navTrack) {
             const highlightTarget = activeLink.hasAttribute('data-settings-parent')
                 ? activeLink.parentElement
@@ -221,6 +242,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
               highlight.style.transform = `translate3d(${offsetLeft}px, 0, 0)`;
             });
           }
+
         }
     }
 
@@ -432,6 +454,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
       const samePage = link.dataset.page === getCurrentPageFromUrl()
         && targetUrl.searchParams.get('section') === currentUrl.searchParams.get('section')
+        && (link.dataset.page !== 'logs' || targetUrl.searchParams.get('log_tab') === currentUrl.searchParams.get('log_tab'))
         && targetUrl.hash === currentUrl.hash;
       if (samePage) {
         if (link.hasAttribute('data-settings-parent')) {

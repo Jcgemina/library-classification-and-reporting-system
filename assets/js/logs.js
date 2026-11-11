@@ -37,54 +37,6 @@ function initializeLogs() {
     if (event.target === detailDialog) detailDialog.close();
   });
 
-  const activateLogTab = function (tabName) {
-    const security = tabName === 'security';
-    const activityPanel = document.getElementById('activityLogPanel');
-    const securityPanel = document.getElementById('securityLogPanel');
-    activityPanel.classList.toggle('is-active', !security);
-    securityPanel.classList.toggle('is-active', security);
-    activityPanel.hidden = security;
-    securityPanel.hidden = !security;
-    const formTab = logsRoot.querySelector('[data-log-filter-form="' + tabName + '"] input[name="log_tab"]');
-    if (formTab) formTab.value = tabName;
-    logsRoot.querySelectorAll('[data-log-tab]').forEach(function (item) {
-      const selected = item.dataset.logTab === tabName;
-      item.setAttribute('aria-selected', selected ? 'true' : 'false');
-      item.setAttribute('tabindex', selected ? '0' : '-1');
-    });
-    logsRoot.querySelectorAll('#' + tabName + 'LogPanel a').forEach(function (link) {
-      if (link.dataset.logReset) return;
-      const linkUrl = new URL(link.href, window.location.href);
-      if (link.href.includes('logs_export.php')) {
-        linkUrl.searchParams.set('log_tab', tabName);
-        link.href = linkUrl.toString();
-        return;
-      }
-      if (linkUrl.searchParams.get('page') !== 'logs') return;
-      linkUrl.searchParams.set('log_tab', tabName);
-      link.href = linkUrl.toString();
-    });
-  };
-
-  logsRoot.addEventListener('click', function (event) {
-    const tab = event.target.closest('[data-log-tab]');
-    if (!tab) return;
-    activateLogTab(tab.dataset.logTab);
-    const tabUrl = new URL(window.location.href);
-    tabUrl.searchParams.set('log_tab', tab.dataset.logTab);
-    history.replaceState({page: 'logs'}, '', tabUrl);
-  });
-
-  logsRoot.querySelector('[role="tablist"]').addEventListener('keydown', function (event) {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    const tabs = [...this.querySelectorAll('[role="tab"]')];
-    const current = tabs.findIndex(function (tab) { return tab.getAttribute('aria-selected') === 'true'; });
-    const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-    event.preventDefault();
-    tabs[nextIndex].focus();
-    tabs[nextIndex].click();
-  });
-
   const refreshLogs = function (url) {
     logsRoot.setAttribute('aria-busy', 'true');
     fetch('pages/logs.php' + url.search, {
