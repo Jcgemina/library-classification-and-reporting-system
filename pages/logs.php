@@ -34,8 +34,6 @@ $securityUserId = filter_var($securityUserIdInput, FILTER_VALIDATE_INT, ['option
 $securitySeverityInput = requestString($_GET, 'security_severity', requestString($_GET, 'severity'));
 $securitySeverity = in_array($securitySeverityInput, ['info', 'warning', 'critical'], true) ? $securitySeverityInput : '';
 $activeTab = requestString($_GET, 'log_tab') === 'security' ? 'security' : 'activity';
-$activeLogTabClasses = 'inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-rose-700';
-$inactiveLogTabClasses = 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900';
 $requestedPageSize = filter_var($_GET['per_page'] ?? 10, FILTER_VALIDATE_INT);
 $pageSize = in_array($requestedPageSize, [5, 10, 20, 50], true) ? $requestedPageSize : 10;
 $activityPage = max(1, requestInt($_GET, 'activity_page', 1));
@@ -147,38 +145,29 @@ $renderLogPagination = static function (string $type, int $currentPage, int $pag
   echo '</div>';
 };
 ?>
-<link rel="stylesheet" href="assets/css/logs.css">
-<div id="logsContent" class="min-h-[calc(100vh-5rem)] p-1 text-slate-900 sm:p-2">
-  <div class="mb-2">
+<link rel="stylesheet" href="assets/css/logs.css?v=<?php echo (int) filemtime(__DIR__ . '/../assets/css/logs.css'); ?>">
+<div id="logsContent" class="logs-content">
+  <section class="logs-heading" aria-labelledby="logsPageTitle">
     <div>
-      <h2 class="text-3xl font-bold text-slate-900">System activity and security</h2>
-      <p class="mt-1 text-sm text-slate-500">Review activity and security events with separate filters for each stream.</p>
+      <h1 id="logsPageTitle"><?php echo $activeTab === 'security' ? 'Security logs' : 'Activity logs'; ?></h1>
+      <p><?php echo $activeTab === 'security' ? 'Review sign-in and security events, with severity and request context.' : 'Trace changes to library records, accounts, and shared configuration.'; ?></p>
     </div>
-    <div class="mx-4 mt-4 inline-flex self-start rounded-lg border border-slate-200/80 bg-white p-1 shadow-sm">
-      <nav class="flex items-center gap-1" role="tablist" aria-label="Log type">
-        <button id="activityLogTab" type="button" role="tab" aria-controls="activityLogPanel" tabindex="<?php echo $activeTab === 'activity' ? '0' : '-1'; ?>" class="log-tab <?php echo $activeTab === 'activity' ? $activeLogTabClasses : $inactiveLogTabClasses; ?>" data-log-tab="activity" aria-selected="<?php echo $activeTab === 'activity' ? 'true' : 'false'; ?>">
-          <i data-lucide="activity" class="h-3.5 w-3.5"></i><span>Activity logs</span>
-        </button>
-        <button id="securityLogTab" type="button" role="tab" aria-controls="securityLogPanel" tabindex="<?php echo $activeTab === 'security' ? '0' : '-1'; ?>" class="log-tab <?php echo $activeTab === 'security' ? $activeLogTabClasses : $inactiveLogTabClasses; ?>" data-log-tab="security" aria-selected="<?php echo $activeTab === 'security' ? 'true' : 'false'; ?>">
-          <i data-lucide="shield-check" class="h-3.5 w-3.5"></i><span>Security logs</span>
-        </button>
-      </nav>
-    </div>
-  </div>
+    <span class="logs-stream-label"><i data-lucide="<?php echo $activeTab === 'security' ? 'shield-check' : 'activity'; ?>" aria-hidden="true"></i><?php echo $activeTab === 'security' ? 'Access and security' : 'Administrative activity'; ?></span>
+  </section>
   <?php if ($databaseError): ?><div role="alert" class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><span><?php echo htmlspecialchars($databaseError, ENT_QUOTES, 'UTF-8'); ?></span><a href="app.php?page=logs" class="font-semibold underline underline-offset-2">Try again</a></div><?php endif; ?>
   <div id="logsStage" class="logs-stage">
   <section id="activityLogPanel" role="tabpanel" aria-labelledby="activityLogTab" <?php echo $activeTab === 'activity' ? '' : 'hidden'; ?> class="log-panel <?php echo $activeTab === 'activity' ? 'is-active' : ''; ?>">
     <form id="activityLogFilterForm" data-log-filter-form="activity" method="get" action="app.php" class="log-filter-form p-4">
       <input type="hidden" name="page" value="logs"><input type="hidden" name="log_tab" value="activity">
       <input type="hidden" name="security_start_date" value="<?php echo htmlspecialchars($securityStartDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="security_end_date" value="<?php echo htmlspecialchars($securityEndDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="security_search" value="<?php echo htmlspecialchars($securitySearch, ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="security_user_id" value="<?php echo $securityUserId ?? ''; ?>"><input type="hidden" name="security_severity" value="<?php echo htmlspecialchars($securitySeverity, ENT_QUOTES, 'UTF-8'); ?>">
-      <div class="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto] lg:items-end">
+      <div class="grid log-filter-grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto] lg:items-end">
         <label class="block text-sm font-semibold text-slate-700">Search activity<span class="relative mt-1.5 block"><i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true"></i><input type="search" name="activity_search" value="<?php echo htmlspecialchars($activitySearch, ENT_QUOTES, 'UTF-8'); ?>" placeholder="User, action, IP, or description" class="w-full rounded-lg border border-slate-300 py-2.5 pl-9 pr-3 text-sm font-normal text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"></span></label>
         <label class="block text-sm font-semibold text-slate-700">From<input type="date" name="activity_start_date" value="<?php echo htmlspecialchars($activityStartDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"></label>
         <label class="block text-sm font-semibold text-slate-700">To<input type="date" name="activity_end_date" value="<?php echo htmlspecialchars($activityEndDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"></label>
         <label class="block text-sm font-semibold text-slate-700">User<select name="activity_user_id" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="">All users</option><?php foreach ($logUsers as $user): ?><option value="<?php echo (int)$user['id']; ?>" <?php echo $activityUserId === (int)$user['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($user['full_name'] . ' (' . $user['username'] . ')', ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></label>
-        <div class="flex gap-2"><button type="submit" class="inline-flex min-h-[42px] items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Apply activity filters</button><a href="#" data-log-reset="activity" class="inline-flex min-h-[42px] items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white">Reset</a></div>
+        <div class="log-filter-actions flex gap-2"><button type="submit" class="inline-flex min-h-[42px] items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Apply activity filters</button><a href="#" data-log-reset="activity" class="inline-flex min-h-[42px] items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white">Reset</a></div>
       </div>
-      <p class="mt-3 flex flex-wrap gap-3 text-xs text-slate-500"><span><?php echo number_format($activityTotal); ?> activity records match this range.</span><a href="pages/logs_export.php?<?php echo htmlspecialchars(http_build_query($queryParams), ENT_QUOTES, 'UTF-8'); ?>" class="font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900">Export filtered logs</a></p>
+      <p class="log-filter-meta mt-3 flex flex-wrap gap-3 text-xs text-slate-500"><span><?php echo number_format($activityTotal); ?> activity records match this range.</span><a href="pages/logs_export.php?<?php echo htmlspecialchars(http_build_query($queryParams), ENT_QUOTES, 'UTF-8'); ?>" class="font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900">Export filtered logs</a></p>
     </form>
     <?php if ($databaseError): ?>
       <p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Activity records are unavailable until the connection is restored.</p>
@@ -187,7 +176,7 @@ $renderLogPagination = static function (string $type, int $currentPage, int $pag
     <?php else: ?>
       <div class="log-results-card">
         <div class="log-table-shell overflow-x-auto">
-          <table class="w-full min-w-[640px] text-left text-sm">
+          <table class="log-table log-table--activity w-full min-w-[640px] text-left text-sm">
             <thead class="bg-slate-50 text-xs uppercase text-slate-500">
               <tr><th class="px-5 py-3">Time</th><th class="px-5 py-3">User</th><th class="px-5 py-3">Action</th><th class="px-5 py-3">IP address</th><th class="px-5 py-3">Details</th></tr>
             </thead>
@@ -212,15 +201,15 @@ $renderLogPagination = static function (string $type, int $currentPage, int $pag
     <form id="securityLogFilterForm" data-log-filter-form="security" method="get" action="app.php" class="log-filter-form p-4">
       <input type="hidden" name="page" value="logs"><input type="hidden" name="log_tab" value="security">
       <input type="hidden" name="activity_start_date" value="<?php echo htmlspecialchars($activityStartDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="activity_end_date" value="<?php echo htmlspecialchars($activityEndDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="activity_search" value="<?php echo htmlspecialchars($activitySearch, ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="activity_user_id" value="<?php echo $activityUserId ?? ''; ?>">
-      <div class="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_auto] lg:items-end">
+      <div class="grid log-filter-grid log-filter-grid--security gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_auto] lg:items-end">
         <label class="block text-sm font-semibold text-slate-700">Search security<span class="relative mt-1.5 block"><i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true"></i><input type="search" name="security_search" value="<?php echo htmlspecialchars($securitySearch, ENT_QUOTES, 'UTF-8'); ?>" placeholder="User, event, IP, or description" class="w-full rounded-lg border border-slate-300 py-2.5 pl-9 pr-3 text-sm font-normal text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"></span></label>
         <label class="block text-sm font-semibold text-slate-700">From<input type="date" name="security_start_date" value="<?php echo htmlspecialchars($securityStartDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"></label>
         <label class="block text-sm font-semibold text-slate-700">To<input type="date" name="security_end_date" value="<?php echo htmlspecialchars($securityEndDate->format('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"></label>
         <label class="block text-sm font-semibold text-slate-700">User<select name="security_user_id" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="">All users</option><?php foreach ($logUsers as $user): ?><option value="<?php echo (int)$user['id']; ?>" <?php echo $securityUserId === (int)$user['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($user['full_name'] . ' (' . $user['username'] . ')', ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></label>
         <label class="block text-sm font-semibold text-slate-700">Severity<select name="security_severity" class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="">All severities</option><?php foreach (['info', 'warning', 'critical'] as $option): ?><option value="<?php echo $option; ?>" <?php echo $securitySeverity === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($formatLogLabel($option), ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></label>
-        <div class="flex gap-2"><button type="submit" class="inline-flex min-h-[42px] items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Apply security filters</button><a href="#" data-log-reset="security" class="inline-flex min-h-[42px] items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white">Reset</a></div>
+        <div class="log-filter-actions flex gap-2"><button type="submit" class="inline-flex min-h-[42px] items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Apply security filters</button><a href="#" data-log-reset="security" class="inline-flex min-h-[42px] items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white">Reset</a></div>
       </div>
-      <p class="mt-3 flex flex-wrap gap-3 text-xs text-slate-500"><span><?php echo number_format($securityTotal); ?> security records match this range.</span><a href="pages/logs_export.php?<?php echo htmlspecialchars(http_build_query($queryParams), ENT_QUOTES, 'UTF-8'); ?>" class="font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900">Export filtered logs</a></p>
+      <p class="log-filter-meta mt-3 flex flex-wrap gap-3 text-xs text-slate-500"><span><?php echo number_format($securityTotal); ?> security records match this range.</span><a href="pages/logs_export.php?<?php echo htmlspecialchars(http_build_query($queryParams), ENT_QUOTES, 'UTF-8'); ?>" class="font-semibold text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900">Export filtered logs</a></p>
     </form>
     <?php if ($databaseError): ?>
       <p class="m-4 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Security records are unavailable until the connection is restored.</p>
@@ -229,7 +218,7 @@ $renderLogPagination = static function (string $type, int $currentPage, int $pag
     <?php else: ?>
       <div class="log-results-card">
         <div class="log-table-shell overflow-x-auto">
-          <table class="w-full min-w-[760px] text-left text-sm">
+          <table class="log-table log-table--security w-full min-w-[760px] text-left text-sm">
             <thead class="bg-slate-50 text-xs uppercase text-slate-500">
               <tr><th class="px-5 py-3">Time</th><th class="px-5 py-3">Event</th><th class="px-5 py-3">Severity</th><th class="px-5 py-3">User</th><th class="px-5 py-3">IP address</th><th class="px-5 py-3">Details</th></tr>
             </thead>

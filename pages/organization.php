@@ -357,43 +357,6 @@ if ($action !== '') {
     }
 }
 ?>
-<style>
-  .academic-tree-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 0 12px; }
-  .academic-tree-search { position: relative; display: block; width: min(300px, 100%); }
-  .academic-tree-search [data-lucide] { position: absolute; top: 50%; left: 10px; width: 15px; height: 15px; color: #64748b; transform: translateY(-50%); pointer-events: none; }
-  .academic-tree-search input { width: 100%; height: 36px; padding: 0 10px 0 32px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #0f172a; font-size: 11px; }
-  .academic-tree-search input:focus-visible { outline: none; background: #fff1f2; border-color: #be123c; }
-  .academic-tree-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
-  .academic-tree-table { width: 100%; min-width: 640px; border-collapse: collapse; text-align: left; }
-  .academic-tree-table thead { border-bottom: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-  .academic-tree-table th { padding: 10px 12px; }
-  .academic-tree-table td { border-top: 1px solid #f1f5f9; padding: 9px 12px; color: #334155; font-size: 11px; }
-  .academic-tree-table tbody tr:hover { background: #f8fafc; }
-  .academic-tree-name-cell { min-width: 230px; }
-  .academic-tree-name { display: flex; min-width: 0; align-items: center; gap: 7px; }
-  .academic-tree-name.is-major { padding-left: 30px; }
-  .academic-tree-unit-name { min-width: 0; overflow-wrap: anywhere; color: #0f172a; font-weight: 600; }
-  [data-major-row] .academic-tree-unit-name { font-weight: 400; }
-  .academic-tree-toggle, .academic-tree-toggle-spacer { display: inline-grid; width: 23px; height: 23px; flex: 0 0 auto; place-items: center; }
-  .academic-tree-toggle { border: 0; border-radius: 5px; background: transparent; color: #52606d; cursor: pointer; }
-  .academic-tree-toggle:hover { background: #f1f5f9; color: #0f172a; }
-  .academic-tree-toggle:focus-visible, .academic-tree-action-trigger:focus-visible { outline: none; background: #f0f1f2; color: #27323b; }
-  .academic-tree-toggle [data-lucide] { width: 14px; height: 14px; transition: transform .16s ease; }
-  .academic-tree-toggle[aria-expanded="true"] [data-lucide] { transform: rotate(90deg); }
-  .academic-tree-status { display: inline-flex; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 600; white-space: nowrap; }
-  .academic-tree-actions-cell { width: 1%; text-align: right; white-space: nowrap; }
-  .academic-tree-action-anchor { display: inline-flex; }
-  .academic-tree-action-trigger { display: inline-flex; min-height: 32px; align-items: center; gap: 5px; padding: 0 7px; border: 0; border-radius: 6px; background: transparent; color: #334155; font-size: 10px; font-weight: 600; cursor: pointer; }
-  .academic-tree-action-trigger:hover { background: #f5f6f7; }
-  .academic-tree-action-trigger [data-lucide] { width: 14px; height: 14px; }
-  .academic-action-menu-options[popover] { position: fixed; inset: auto; width: max-content; min-width: 170px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); margin: 0; overflow: auto; padding: 5px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: 0 12px 30px rgb(15 23 42 / .16); color: #0f172a; }
-  .academic-action-menu-options .academic-row-action { display: flex; width: 100%; min-height: 36px; height: auto; justify-content: flex-start; padding: 0 9px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #66717b; font-size: 11px; }
-  .academic-action-menu-options .academic-row-action:hover,
-  .academic-action-menu-options .academic-row-action:not(.is-delete):focus-visible { outline: none; background: #f2f3f4; color: #27323b; }
-  .academic-action-menu-options .academic-row-action.is-delete { border-color: transparent; background: transparent; color: #9c5b63; }
-  .academic-action-menu-options .academic-row-action.is-delete:hover,
-  .academic-action-menu-options .academic-row-action.is-delete:focus-visible { outline: none; background: #fbf1f2; color: #8d414b; }
-</style>
 <div class="space-y-5">
   <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
     <div>

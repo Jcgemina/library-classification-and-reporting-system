@@ -186,7 +186,7 @@
         const menuId = `organization-actions-${++academicActionMenuId}`;
         return `<span class="academic-tree-action-anchor">
           <button type="button" class="academic-tree-action-trigger" data-academic-menu-trigger aria-label="${esc(label)}" aria-haspopup="true" aria-expanded="false" aria-controls="${menuId}"><i data-lucide="ellipsis" aria-hidden="true"></i><span>Actions</span></button>
-          <div class="academic-action-menu-options" id="${menuId}" data-academic-action-menu popover="auto">${actionsMarkup}</div>
+          <div class="academic-action-menu-options" id="${menuId}" data-academic-action-menu popover="manual">${actionsMarkup}</div>
         </span>`;
     };
     const hierarchyControls = item => academicActionsDisclosure(
@@ -593,6 +593,12 @@
         menu.style.top = `${top}px`;
     }
 
+    function closeAcademicActionMenu(menu) {
+        if (!menu?.matches(':popover-open')) return;
+        menu.hidePopover();
+        menu.parentElement.querySelector('[data-academic-menu-trigger]')?.setAttribute('aria-expanded', 'false');
+    }
+
     function toggleAcademicActionMenu(trigger) {
         const menu = trigger.parentElement.querySelector('[data-academic-action-menu]');
         if (!menu) return;
@@ -603,11 +609,10 @@
             menu.dataset.ariaSync = 'true';
         }
         if (menu.matches(':popover-open')) {
-            menu.hidePopover();
-            trigger.setAttribute('aria-expanded', 'false');
+            closeAcademicActionMenu(menu);
             return;
         }
-        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(openMenu => openMenu.hidePopover());
+        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(closeAcademicActionMenu);
         menu.showPopover();
         trigger.setAttribute('aria-expanded', 'true');
         positionAcademicActionMenu(menu);
@@ -627,7 +632,7 @@
         const editButton = event.target.closest('[data-edit]');
         const deleteButton = event.target.closest('[data-delete]');
         const actionButton = addButton || editButton || deleteButton;
-        actionButton?.closest('[data-academic-action-menu]')?.hidePopover();
+        closeAcademicActionMenu(actionButton?.closest('[data-academic-action-menu]'));
 
         if (addButton) openOrganizationAddForm(addButton);
         if (editButton) openOrganizationEditForm(editButton);
@@ -648,15 +653,20 @@
     });
     document.addEventListener('click', event => {
         const trigger = event.target.closest('[data-academic-menu-trigger]');
-        if (trigger) toggleAcademicActionMenu(trigger);
+        if (trigger) {
+            toggleAcademicActionMenu(trigger);
+            return;
+        }
+        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(menu => {
+            if (!menu.contains(event.target)) closeAcademicActionMenu(menu);
+        });
     });
     document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
         const menu = document.querySelector('[data-academic-action-menu]:popover-open');
         if (!menu) return;
         const trigger = menu.parentElement.querySelector('[data-academic-menu-trigger]');
-        menu.hidePopover();
-        trigger?.setAttribute('aria-expanded', 'false');
+        closeAcademicActionMenu(menu);
         trigger?.focus();
     });
     document.addEventListener('scroll', () => {
