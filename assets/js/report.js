@@ -5,7 +5,7 @@
     const majorFilter = document.getElementById('reportMajorFilter');
     const clearButton = document.getElementById('reportClearFilters');
     const exportButton = document.getElementById('reportExportButton');
-    const previewButton = document.getElementById('reportPreviewButton');
+    const exportMenu = document.getElementById('reportExportMenu');
     const previewModal = document.getElementById('reportPreviewModal');
     const previewDocument = document.getElementById('reportPreviewDocument');
     const previewClose = document.getElementById('reportPreviewClose');
@@ -111,27 +111,27 @@
             const updatedMonth = row.updated_months[target] || '';
             const scopeId = row.major_id || '';
 
-            return `<tr class="transition-colors hover:bg-slate-50" data-report-row data-program="${row.program_id}" data-major="${scopeId}" data-college="${row.college_id}">
-                <td class="px-4 py-3 text-sm text-slate-500">${isProgram ? index + 1 : ''}</td>
-                <td class="px-4 py-3">
+            return `<tr data-report-row data-program="${row.program_id}" data-major="${scopeId}" data-college="${row.college_id}">
+                <td class="report-row-number">${isProgram ? index + 1 : ''}</td>
+                <td>
                     ${isProgram
-                        ? `<p class="text-sm font-semibold text-slate-900">${escapeHtml(row.program_name)}</p><p class="text-[11px] text-slate-500">${escapeHtml(row.college_name)}</p>`
-                        : `${isFirstRowForProgram ? `<p class="text-sm font-semibold text-slate-900">${escapeHtml(row.program_name)}</p>` : ''}
-                           <p class="pl-6 text-sm text-slate-700">${majorNumber}. ${escapeHtml(row.major_name)}</p>
-                           <p class="text-[11px] text-slate-500">${escapeHtml(row.college_name)}</p>`}
+                        ? `<p class="report-scope-name">${escapeHtml(row.program_name)}</p><p class="report-college-name">${escapeHtml(row.college_name)}</p>`
+                        : `${isFirstRowForProgram ? `<p class="report-scope-name">${escapeHtml(row.program_name)}</p>` : ''}
+                           <p class="report-major-name">${majorNumber}. ${escapeHtml(row.major_name)}</p>
+                           <p class="report-college-name">${escapeHtml(row.college_name)}</p>`}
                 </td>
-                <td class="px-4 py-3 text-center">
+                <td class="text-center">
                     <label class="sr-only" for="target-${row.program_id}-${scopeId}">Target quarter for ${escapeHtml(row.major_name || row.program_name)}</label>
-                    <select id="target-${row.program_id}-${scopeId}" data-report-field="target" class="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100">
+                    <select id="target-${row.program_id}-${scopeId}" data-report-field="target">
                         ${['Q1', 'Q2', 'Q3', 'Q4'].map(quarter => `<option value="${quarter}" ${target === quarter ? 'selected' : ''}>${quarter}</option>`).join('')}
                     </select>
                 </td>
-                <td class="px-4 py-3 text-center">
-                    <input type="checkbox" data-report-field="actual" aria-label="${target} complete for ${escapeHtml(row.major_name || row.program_name)}" ${isCompleted ? 'checked' : ''} class="h-4 w-4 cursor-pointer accent-rose-600">
+                <td class="text-center">
+                    <input type="checkbox" data-report-field="actual" aria-label="${target} complete for ${escapeHtml(row.major_name || row.program_name)}" ${isCompleted ? 'checked' : ''}>
                 </td>
-                <td class="px-4 py-3">
+                <td>
                     <label class="sr-only" for="updated-${row.program_id}-${scopeId}">Update month for ${escapeHtml(row.major_name || row.program_name)}</label>
-                    <input id="updated-${row.program_id}-${scopeId}" type="month" data-report-field="updated_as_of" value="${escapeHtml(updatedMonth)}" class="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100">
+                    <input id="updated-${row.program_id}-${scopeId}" type="month" data-report-field="updated_as_of" value="${escapeHtml(updatedMonth)}">
                 </td>
             </tr>`;
         }).join('');
@@ -139,7 +139,7 @@
 
     async function loadReport(year) {
         reportYear = Number(year);
-        tableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-sm text-slate-500">Loading report data…</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" class="report-empty">Loading report data…</td></tr>';
         try {
             const response = await fetch(`pages/report.php?action=data&year=${encodeURIComponent(reportYear)}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -165,7 +165,7 @@
             renderRows();
             return true;
         } catch (error) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-sm text-rose-700">Report data could not be loaded.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="5" class="report-empty">Report data could not be loaded.</td></tr>';
             resultCount.textContent = 'Unavailable';
             exportButton.disabled = true;
             toast(error.message, true);
@@ -251,48 +251,11 @@
         saveProgress(row, field, value);
     });
 
-    function buildPreviewRows() {
+    function openReportPreview() {
         const rows = visibleRows();
         if (!rows.length) {
-            return [
-                {
-                    seq: 1,
-                    program: 'BSIT',
-                    major: 'Information Security',
-                    course: 'IT226',
-                    title: 'IT226 - Introduction to Programming',
-                    volume: '1',
-                    years: { '5': '1', '10': '1', '20': '0' },
-                },
-                {
-                    seq: 2,
-                    program: 'BSIT',
-                    major: 'Information Security',
-                    course: 'IT331',
-                    title: 'IT331 - Programming Paradigm',
-                    volume: '4',
-                    years: { '5': '4', '10': '1', '20': '4' },
-                },
-            ];
+            return;
         }
-
-        return rows.map((row, index) => ({
-            seq: index + 1,
-            program: row.program_name || 'Not specified',
-            major: row.major_name || 'General',
-            course: row.college_name || 'N/A',
-            title: row.major_name ? `${row.program_name} - ${row.major_name}` : row.program_name,
-            volume: String(row.major_id ? (index + 1) * 2 : (index + 1)),
-            years: {
-                '5': String((index + 1) % 2),
-                '10': String((index + 2) % 3),
-                '20': String((index + 3) % 4),
-            },
-        }));
-    }
-
-    function openReportPreview() {
-        const previewRows = buildPreviewRows();
         const pageDate = new Date();
         const generatedOn = pageDate.toLocaleDateString('en-US', {
             month: 'long',
@@ -308,118 +271,198 @@
         ].filter(Boolean).join(' | ');
 
         previewDocument.innerHTML = `
-            <div class="w-full bg-white p-4 text-slate-800 sm:p-6">
-                <div class="border-b border-slate-300 pb-3 text-center">
-                    <div class="text-[18px] font-black tracking-[0.08em] text-[#1e1e1e]">${escapeHtml(institutionName)}</div>
-                    <div class="mt-1 text-[11px] italic text-slate-500">${escapeHtml(libraryName)}</div>
-                    ${profileDetails ? `<div class="mt-1 text-[10px] text-slate-500">${escapeHtml(profileDetails)}</div>` : ''}
+            <article class="report-print-document">
+                <header class="report-print-header">
+                    <h2>${escapeHtml(institutionName)}</h2>
+                    <p>${escapeHtml(libraryName)}</p>
+                    ${profileDetails ? `<p>${escapeHtml(profileDetails)}</p>` : ''}
+                    <h3>Program and Major Verification Progress</h3>
+                    <p>Academic year ${escapeHtml(reportYear)}</p>
+                </header>
+                <div class="report-print-meta">
+                    <span><strong>Generated On:</strong> ${escapeHtml(generatedOn)}</span>
+                    <span><strong>Academic Year:</strong> ${escapeHtml(reportYear)}</span>
+                    <span><strong>Records:</strong> ${rows.length}</span>
                 </div>
-
-                <div class="mt-3 flex items-center justify-between gap-4 text-[11px] text-slate-600">
-                    <div>Generated On: <span class="font-semibold">${escapeHtml(generatedOn)}</span></div>
-                    <div>Classification: <span class="font-semibold">Academic Resource Catalog Ledger</span></div>
-                    <div>System Operator Account: <span class="font-semibold">admin</span></div>
-                </div>
-
-                <div class="mt-5 overflow-hidden border border-slate-300 bg-white">
-                    <table class="w-full border-collapse text-[11px] text-slate-800">
-                        <thead>
-                            <tr class="bg-[#0f172a] text-white">
-                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">SEQ</th>
-                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Program</th>
-                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Major</th>
-                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Course</th>
-                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Title</th>
-                                <th class="border border-slate-300 px-2 py-2 text-left font-bold uppercase tracking-[0.08em]">Volume</th>
-                                <th colspan="3" class="border border-slate-300 px-2 py-2 text-center font-bold uppercase tracking-[0.08em]">Copyright year</th>
-                            </tr>
-                            <tr class="bg-[#0f172a] text-white">
-                                <th class="border border-slate-300 px-2 py-1.5 text-left font-semibold" colspan="6"></th>
-                                <th class="border border-slate-300 px-2 py-1.5 text-center font-semibold">5 YRS</th>
-                                <th class="border border-slate-300 px-2 py-1.5 text-center font-semibold">10 YRS</th>
-                                <th class="border border-slate-300 px-2 py-1.5 text-center font-semibold">20 YRS</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${previewRows.map(row => `
-                                <tr class="bg-white">
-                                    <td class="border border-slate-300 px-2 py-2 text-center font-medium text-slate-700">${row.seq}</td>
-                                    <td class="border border-slate-300 px-2 py-2 text-slate-700">${escapeHtml(row.program)}</td>
-                                    <td class="border border-slate-300 px-2 py-2 text-slate-700">${escapeHtml(row.major)}</td>
-                                    <td class="border border-slate-300 px-2 py-2 text-slate-700">${escapeHtml(row.course)}</td>
-                                    <td class="border border-slate-300 px-2 py-2 text-slate-700">${escapeHtml(row.title)}</td>
-                                    <td class="border border-slate-300 px-2 py-2 text-center text-slate-700">${escapeHtml(row.volume)}</td>
-                                    <td class="border border-slate-300 px-2 py-2 text-center text-slate-700">${escapeHtml(row.years['5'])}</td>
-                                    <td class="border border-slate-300 px-2 py-2 text-center text-slate-700">${escapeHtml(row.years['10'])}</td>
-                                    <td class="border border-slate-300 px-2 py-2 text-center text-slate-700">${escapeHtml(row.years['20'])}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="mt-5 flex items-center justify-between gap-3 border-t border-slate-300 pt-3 text-[11px] text-slate-600">
-                    <div>
-                        <div>Prepared by: <span class="font-semibold">System Librarian</span></div>
-                        <div>Approved by: <span class="font-semibold">Library Director</span></div>
-                        <div>Acknowledged by: <span class="font-semibold">Academic Affairs Office</span></div>
-                    </div>
-                    <div class="text-right">
-                        <div>Print status: <span class="font-semibold text-slate-700">Ready for export</span></div>
-                        <div>Prepared for: <span class="font-semibold">${escapeHtml(reportYear)}</span></div>
-                    </div>
-                </div>
-            </div>
+                <table class="report-print-table">
+                    <thead><tr><th>No.</th><th>College</th><th>Program</th><th>Major</th><th>Target Q</th><th>Actual</th><th>Updated as of</th></tr></thead>
+                    <tbody>${rows.map((row, index) => {
+                        const target = row.target_quarter || 'Q1';
+                        return `<tr>
+                            <td>${index + 1}</td>
+                            <td>${escapeHtml(row.college_name || 'Not specified')}</td>
+                            <td>${escapeHtml(row.program_name || 'Not specified')}</td>
+                            <td>${escapeHtml(row.major_name || '—')}</td>
+                            <td>${escapeHtml(target)}</td>
+                            <td>${row.actuals[target] ? 'Complete' : 'Pending'}</td>
+                            <td>${escapeHtml(row.updated_months[target] || '—')}</td>
+                        </tr>`;
+                    }).join('')}</tbody>
+                </table>
+            </article>
         `;
 
         previewModal.classList.remove('hidden');
-        previewModal.classList.add('flex');
+        previewModal.classList.add('is-open');
         document.body.classList.add('overflow-hidden');
         window.lucide?.createIcons({ root: previewModal });
+        previewPrint.focus();
     }
 
     function closeReportPreview() {
         previewModal.classList.add('hidden');
-        previewModal.classList.remove('flex');
+        previewModal.classList.remove('is-open');
         document.body.classList.remove('overflow-hidden');
+        exportButton.focus();
     }
 
-    previewButton.addEventListener('click', openReportPreview);
     previewClose.addEventListener('click', closeReportPreview);
-    previewPrint.addEventListener('click', () => window.print());
+    previewPrint.addEventListener('click', () => {
+        const clearPrintState = () => document.body.classList.remove('report-printing');
+        window.addEventListener('afterprint', clearPrintState, { once: true });
+        document.body.classList.add('report-printing');
+        window.print();
+    });
     previewModal.addEventListener('click', (event) => {
         if (event.target === previewModal) closeReportPreview();
     });
+    previewModal.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            closeReportPreview();
+            return;
+        }
+        if (event.key !== 'Tab') {
+            return;
+        }
 
-    exportButton.addEventListener('click', () => {
-        const csvRows = [['College', 'Program', 'Major', 'Year', 'Target quarter', 'Actual', 'Updated as of']];
-        visibleRows().forEach(row => {
-            const target = row.target_quarter || 'Q1';
-            csvRows.push([
-                row.college_name,
-                row.program_name,
-                row.major_name,
-                String(reportYear),
-                target,
-                row.actuals[target] ? 'Yes' : 'No',
-                row.updated_months[target] || '',
-            ]);
-        });
+        const focusable = [...previewModal.querySelectorAll('button:not(:disabled)')];
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
+
+    function currentExportRows() {
+        return [
+            ['College', 'Program', 'Major', 'Year', 'Target quarter', 'Actual', 'Updated as of'],
+            ...visibleRows().map(row => {
+                const target = row.target_quarter || 'Q1';
+                return [
+                    row.college_name || '',
+                    row.program_name || '',
+                    row.major_name || '',
+                    String(reportYear),
+                    target,
+                    row.actuals[target] ? 'Yes' : 'No',
+                    row.updated_months[target] || '',
+                ];
+            }),
+        ];
+    }
+
+    function downloadFile(content, mimeType, filename) {
+        const file = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(file);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function exportCsv() {
+        const csvRows = currentExportRows();
         const escapeCsvCell = value => {
             const stringValue = String(value ?? '');
             const safeValue = /^[=+\-@\t\r]/.test(stringValue) ? `'${stringValue}` : stringValue;
             return `"${safeValue.replaceAll('"', '""')}"`;
         };
         const csv = '\uFEFF' + csvRows.map(row => row.map(escapeCsvCell).join(',')).join('\r\n');
-        const file = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        const url = URL.createObjectURL(file);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `appsys-program-report-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.append(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        downloadFile(csv, 'text/csv;charset=utf-8', `appsys-program-report-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`);
+    }
+
+    function exportExcel() {
+        const xmlEscape = value => String(value ?? '')
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+            .replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&apos;',
+            })[character]);
+        const worksheetRows = currentExportRows().map(row => `<Row>${row.map(value =>
+            `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`
+        ).join('')}</Row>`).join('');
+        const workbook = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="Program Report"><Table>${worksheetRows}</Table></Worksheet>
+</Workbook>`;
+        downloadFile(workbook, 'application/vnd.ms-excel;charset=utf-8', `appsys-program-report-${reportYear}-${new Date().toISOString().slice(0, 10)}.xls`);
+    }
+
+    function positionExportMenu() {
+        if (!exportMenu.matches(':popover-open')) {
+            return;
+        }
+
+        const triggerRect = exportButton.getBoundingClientRect();
+        const menuRect = exportMenu.getBoundingClientRect();
+        const left = Math.max(8, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - 8));
+        const below = triggerRect.bottom + 5;
+        const top = below + menuRect.height <= window.innerHeight - 8
+            ? below
+            : Math.max(8, triggerRect.top - menuRect.height - 5);
+        exportMenu.style.left = `${left}px`;
+        exportMenu.style.top = `${top}px`;
+    }
+
+    exportButton.addEventListener('click', () => {
+        if (exportMenu.matches(':popover-open')) {
+            exportMenu.hidePopover();
+        } else {
+            exportMenu.showPopover();
+        }
+    });
+    exportMenu.addEventListener('toggle', () => {
+        const isOpen = exportMenu.matches(':popover-open');
+        exportButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (isOpen) {
+            positionExportMenu();
+            window.addEventListener('resize', positionExportMenu);
+            window.addEventListener('scroll', positionExportMenu, true);
+        } else {
+            window.removeEventListener('resize', positionExportMenu);
+            window.removeEventListener('scroll', positionExportMenu, true);
+        }
+    });
+    exportMenu.addEventListener('click', event => {
+        const option = event.target.closest('[data-report-export]');
+        if (!option) return;
+        exportMenu.hidePopover();
+        switch (option.dataset.reportExport) {
+            case 'print':
+                openReportPreview();
+                break;
+            case 'xls':
+                exportExcel();
+                break;
+            case 'csv':
+                exportCsv();
+                break;
+        }
     });
 
     loadReport(reportYear);

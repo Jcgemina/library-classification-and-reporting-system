@@ -1,0 +1,1415 @@
+.live-course-page,
+.live-report-page,
+.live-reference-page {
+    max-width: 1500px;
+    color: #18232d;
+}
+
+.live-course-page h1,
+.live-report-page h1,
+.live-reference-page h1 {
+    margin: 0;
+    color: #18232d;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.live-course-page p,
+.live-report-page p,
+.live-reference-page p {
+    margin-top: 5px;
+}
+
+.live-course-page .page-description,
+.live-report-page .page-description,
+.live-reference-page .page-description {
+    max-width: 760px;
+    margin: 5px 0 0;
+    color: #52606d;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.live-course-page .courses-heading,
+.live-report-page .reports-heading,
+.live-reference-page .reference-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.live-course-page .courses-heading .page-description,
+.live-report-page .reports-heading .page-description,
+.live-reference-page .reference-heading .page-description {
+    max-width: 760px;
+}
+
+.live-course-page .live-button,
+.live-report-page .live-button,
+.live-reference-page .live-button {
+    display: inline-flex;
+    min-height: 36px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 11px;
+    border: 1px solid #d5d9de;
+    border-radius: 7px;
+    background: #fff;
+    color: #35414b;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 650;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.live-course-page .live-button:hover,
+.live-report-page .live-button:hover,
+.live-reference-page .live-button:hover {
+    border-color: #bfc5cb;
+    background: #f7f8f9;
+}
+
+.live-course-page .live-button:focus-visible,
+.live-report-page .live-button:focus-visible,
+.live-reference-page .live-button:focus-visible {
+    outline: 2px solid #8e6e75;
+    outline-offset: 2px;
+}
+
+.live-course-page .live-button-primary,
+.live-report-page .live-button-primary,
+.live-reference-page .live-button-primary {
+    border-color: #a51f43;
+    background: #a51f43;
+    color: #fff;
+}
+
+.live-course-page .live-button-primary:hover,
+.live-report-page .live-button-primary:hover,
+.live-reference-page .live-button-primary:hover {
+    border-color: #861a37;
+    background: #861a37;
+}
+
+.live-course-page .live-button:disabled,
+.live-report-page .live-button:disabled,
+.live-reference-page .live-button:disabled {
+    cursor: not-allowed;
+    opacity: .48;
+}
+
+.live-course-page [data-lucide],
+.live-report-page [data-lucide],
+.live-reference-page [data-lucide] {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+}
+
+.live-course-page .courses-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 30px;
+    margin: 24px 0 22px;
+    padding: 13px 0;
+    border-top: 1px solid #cbd1d7;
+    border-bottom: 1px solid #cbd1d7;
+}
+
+.live-course-page .courses-summary-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.live-course-page .courses-summary-item strong {
+    color: #18232d;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+}
+
+.live-course-page .courses-summary-item span {
+    color: #52606d;
+    font-size: 11px;
+}
+
+.live-course-page .courses-summary-item:last-child {
+    margin-left: auto;
+}
+
+.live-course-page .courses-workspace {
+    border-top: 1px solid #cbd1d7;
+}
+
+.live-course-page .courses-directory-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 18px 0 14px;
+}
+
+.live-course-page .courses-directory-heading h2,
+.live-reference-page .reference-section-heading h2,
+.live-reference-page .reference-results-heading h2 {
+    margin: 0;
+    color: #18232d;
+    font-size: 15px;
+    font-weight: 650;
+}
+
+.live-course-page .courses-directory-heading p,
+.live-reference-page .reference-section-heading p,
+.live-reference-page .reference-results-heading p {
+    margin: 4px 0 0;
+    color: #52606d;
+    font-size: 11px;
+}
+
+.live-course-page .courses-filters {
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) repeat(3, minmax(140px, 190px));
+    gap: 8px;
+    padding-bottom: 12px;
+}
+
+.live-course-page .courses-filters input,
+.live-course-page .courses-filters select,
+.live-report-page .report-filter,
+.live-reference-page .reference-filter-control {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+    padding: 0 9px;
+    border: 1px solid #cbd1d7;
+    border-radius: 7px;
+    background: #fff;
+    color: #35414b;
+    font: inherit;
+    font-size: 11px;
+}
+
+.live-course-page .courses-filters input::placeholder,
+.live-reference-page .reference-filter-control::placeholder {
+    color: #64707b;
+    opacity: 1;
+}
+
+.live-course-page .courses-table-wrap,
+.live-report-page .report-table-wrap,
+.live-reference-page .reference-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.live-course-page .courses-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.live-course-page .courses-table thead {
+    background: #f8f9fa;
+}
+
+.live-course-page .courses-table th,
+.live-report-page .report-table th,
+.live-reference-page .reference-table th {
+    padding: 10px 12px;
+    border-top: 1px solid #dfe3e7;
+    border-bottom: 1px solid #dfe3e7;
+    color: #52606d;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.live-course-page .courses-table th:last-child {
+    text-align: right;
+}
+
+.live-course-page .courses-table td,
+.live-report-page .report-table td,
+.live-reference-page .reference-table td {
+    padding: 12px;
+    border-bottom: 1px solid #eceef0;
+    color: #35414b;
+    font-size: 11px;
+    vertical-align: middle;
+}
+
+.live-course-page .courses-table tbody tr:last-child td,
+.live-report-page .report-table tbody tr:last-child td,
+.live-reference-page .reference-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.live-course-page .courses-table tbody tr:hover,
+.live-report-page .report-table tbody tr:hover,
+.live-reference-page .reference-table tbody tr:hover {
+    background: #fcfbfb;
+}
+
+.live-course-page .course-code-label,
+.live-reference-page .reference-book-title {
+    color: #18232d;
+    font-size: 12px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.live-course-page .course-name-label,
+.live-reference-page .reference-book-author {
+    margin-top: 3px;
+    color: #52606d;
+    font-size: 10px;
+    overflow-wrap: anywhere;
+}
+
+.live-course-page .course-academic-link {
+    color: #18232d;
+    font-weight: 650;
+}
+
+.live-course-page .course-academic-detail {
+    margin-top: 3px;
+    color: #52606d;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.live-course-page .course-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #087553;
+    font-size: 10px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.live-course-page .course-status::before {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    content: "";
+}
+
+.live-course-page .course-status.is-inactive {
+    color: #52606d;
+}
+
+.live-course-page .course-readiness {
+    color: #713f12;
+    font-size: 10px;
+    font-weight: 650;
+}
+
+.live-course-page .course-readiness.is-ready {
+    color: #087553;
+}
+
+.live-course-page .course-readiness-detail {
+    margin-top: 3px;
+    color: #52606d;
+    font-size: 10px;
+}
+
+.live-course-page .course-actions {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.live-course-page .course-actions summary {
+    display: inline-grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border-radius: 6px;
+    color: #52606d;
+    cursor: pointer;
+    list-style: none;
+}
+
+.live-course-page .course-actions summary::-webkit-details-marker {
+    display: none;
+}
+
+.live-course-page .course-actions summary:hover,
+.live-course-page .course-actions[open] summary {
+    background: #f3f4f5;
+    color: #18232d;
+}
+
+.live-course-page .course-actions-menu {
+    position: fixed;
+    z-index: 20;
+    top: 0;
+    right: auto;
+    display: grid;
+    min-width: 165px;
+    padding: 5px;
+    border: 1px solid #dfe3e7;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 12px 30px rgb(15 23 42 / .16);
+}
+
+.live-course-page .course-actions-menu button {
+    display: flex;
+    min-height: 34px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: #35414b;
+    font: inherit;
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.live-course-page .course-actions-menu button:hover,
+.live-course-page .course-actions-menu button:focus-visible {
+    background: #f5f6f7;
+}
+
+.live-course-page .course-actions-menu button:focus-visible {
+    outline: 2px solid #8e6e75;
+    outline-offset: -2px;
+}
+
+.live-course-page .courses-empty {
+    padding: 34px 12px !important;
+    color: #52606d !important;
+    text-align: center;
+}
+
+.live-course-page .course-modal {
+    width: min(620px, calc(100vw - 32px));
+    max-height: min(90vh, 760px);
+    overflow-y: auto;
+    border: 1px solid #dfe3e7;
+    border-radius: 12px;
+    background: #fff;
+    padding: 22px;
+    box-shadow: 0 18px 48px rgb(15 23 42 / .2);
+}
+
+.live-course-page #courseModal {
+    margin-top: 0;
+}
+
+.live-course-page .course-modal input,
+.live-course-page .course-modal select,
+.live-course-page .course-modal textarea {
+    width: 100%;
+    min-height: 38px;
+    padding: 7px 10px;
+    border: 1px solid #cbd1d7;
+    border-radius: 7px;
+    background: #fff;
+    color: #18232d;
+    font: inherit;
+    font-size: 12px;
+}
+
+.live-course-page .course-modal input:focus-visible,
+.live-course-page .course-modal select:focus-visible,
+.live-course-page .course-modal textarea:focus-visible {
+    outline: 2px solid #8e6e75;
+    outline-offset: 1px;
+}
+
+.live-course-page .courses-preview-note {
+    display: none;
+}
+
+.live-report-page .report-workspace {
+    margin-top: 24px;
+    overflow: hidden;
+    border: 1px solid #dfe3e7;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.live-report-page .report-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid #dfe3e7;
+}
+
+.live-report-page .report-filters {
+    display: grid;
+    flex: 1 1 530px;
+    grid-template-columns: repeat(4, minmax(110px, 1fr));
+    gap: 9px;
+}
+
+.live-report-page .report-filter-field {
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+    color: #35414b;
+    font-size: 10px;
+    font-weight: 650;
+}
+
+.live-report-page .report-actions {
+    display: flex;
+    flex: 1 1 420px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+}
+
+.live-report-page .report-result-count {
+    margin-right: auto;
+    color: #52606d;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.live-report-page .report-export-button {
+    gap: 7px;
+}
+
+.live-report-page .report-export-button [data-lucide]:last-child {
+    width: 13px;
+    height: 13px;
+    margin-left: 1px;
+}
+
+.live-report-page .report-export-menu[popover] {
+    position: fixed;
+    inset: auto;
+    width: max-content;
+    min-width: 196px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    margin: 0;
+    overflow: auto;
+    padding: 5px;
+    border: 1px solid #dfe3e7;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 12px 30px rgb(15 23 42 / .16);
+    color: #18232d;
+}
+
+.live-report-page .report-export-option {
+    display: flex;
+    width: 100%;
+    min-height: 36px;
+    align-items: center;
+    gap: 9px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: #334155;
+    font: inherit;
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.live-report-page .report-export-option:hover,
+.live-report-page .report-export-option:focus-visible {
+    background: #f5f6f7;
+}
+
+.live-report-page .report-export-option:focus-visible {
+    outline: 2px solid #8e6e75;
+    outline-offset: -2px;
+}
+
+.live-report-page .report-export-option [data-lucide] {
+    color: #52606d;
+}
+
+.live-report-page .report-guidance {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #dcecf4;
+    background: #f0f9fc;
+    color: #164e63;
+    font-size: 11px;
+}
+
+.live-report-page .report-guidance [data-lucide] {
+    margin-top: 1px;
+    color: #0369a1;
+}
+
+.live-report-page .report-guidance p {
+    margin: 0;
+}
+
+.live-report-page .report-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.live-report-page .report-table thead {
+    background: #f8f9fa;
+}
+
+.live-report-page .report-table th {
+    padding: 11px 14px;
+}
+
+.live-report-page .report-table td {
+    min-height: 53px;
+    padding: 10px 14px;
+}
+
+.live-report-page .report-number-column {
+    width: 64px;
+}
+
+.live-report-page .report-quarter-column {
+    width: 135px;
+    text-align: center;
+}
+
+.live-report-page .report-actual-column {
+    width: 115px;
+    text-align: center;
+}
+
+.live-report-page .report-updated-column {
+    width: 190px;
+}
+
+.live-report-page .report-row-number {
+    color: #52606d;
+    font-variant-numeric: tabular-nums;
+}
+
+.live-report-page .report-scope-name {
+    color: #18232d;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.live-report-page .report-major-name {
+    margin-top: 3px;
+    padding-left: 20px;
+    color: #334155;
+    font-size: 11px;
+}
+
+.live-report-page .report-college-name {
+    margin-top: 3px;
+    color: #52606d;
+    font-size: 10px;
+}
+
+.live-report-page .report-table select,
+.live-report-page .report-table input[type="month"] {
+    min-height: 33px;
+    padding: 0 9px;
+    border: 1px solid #dfe3e7;
+    border-radius: 7px;
+    background: #fff;
+    color: #35414b;
+    font-size: 11px;
+}
+
+.live-report-page .report-table input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #a51f43;
+    cursor: pointer;
+}
+
+.live-report-page .report-empty {
+    padding: 30px 16px;
+    color: #52606d;
+    font-size: 12px;
+    text-align: center;
+}
+
+.live-report-page .report-table td.report-empty {
+    padding: 30px 16px;
+}
+
+.live-report-page .report-empty[hidden] {
+    display: none;
+}
+
+.live-report-page #reportEmptyState {
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+}
+
+.live-report-page #reportEmptyState.hidden {
+    display: none;
+}
+
+.live-report-page #reportEmptyState [data-lucide] {
+    width: 26px;
+    height: 26px;
+    color: #64748b;
+}
+
+.live-report-page #reportEmptyState strong {
+    color: #334155;
+    font-size: 12px;
+}
+
+.live-report-page #reportEmptyState span {
+    font-size: 11px;
+}
+
+.live-report-page .report-preview-modal {
+    position: fixed;
+    z-index: 50;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    margin: 0;
+    background: rgb(15 23 42 / .55);
+}
+
+.live-report-page .report-preview-modal.is-open {
+    display: flex;
+}
+
+.live-report-page .report-preview-shell {
+    display: flex;
+    width: 100%;
+    max-width: 1200px;
+    max-height: 90vh;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #dfe3e7;
+    border-radius: 12px;
+    background: #f3f2f1;
+    box-shadow: 0 30px 80px rgb(15 23 42 / .28);
+}
+
+.live-reference-page .reference-overview {
+    margin-top: 24px;
+}
+
+.live-reference-page .reference-section-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.live-reference-page .reference-summary {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border: 1px solid #dfe3e7;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.live-reference-page .reference-summary-item {
+    min-width: 0;
+    padding: 13px 15px;
+}
+
+.live-reference-page .reference-summary-item + .reference-summary-item {
+    border-left: 1px solid #dfe3e7;
+}
+
+.live-reference-page .reference-summary-label {
+    color: #52606d;
+    font-size: 10px;
+    font-weight: 650;
+}
+
+.live-reference-page .reference-summary-value {
+    margin-top: 3px;
+    color: #18232d;
+    font-size: 21px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.live-reference-page .reference-summary-item.is-meets .reference-summary-value {
+    color: #087553;
+}
+
+.live-reference-page .reference-summary-item.is-outside .reference-summary-value {
+    color: #9f1239;
+}
+
+.live-reference-page .reference-summary-item.is-review .reference-summary-value {
+    color: #854d0e;
+}
+
+.live-reference-page .reference-summary-item.is-missing .reference-summary-value {
+    color: #475569;
+}
+
+.live-reference-page .reference-policy-note {
+    margin: 13px 0 0;
+    padding: 11px 13px;
+    border: 1px solid #dcecf4;
+    border-radius: 8px;
+    background: #f0f9fc;
+    color: #164e63;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.live-reference-page .reference-error {
+    margin: 9px 0 0;
+    padding: 10px 12px;
+    border: 1px solid #f1c4cb;
+    border-radius: 8px;
+    background: #fff2f3;
+    color: #9f1239;
+    font-size: 11px;
+}
+
+.live-reference-page .reference-results-panel {
+    margin-top: 22px;
+    overflow: hidden;
+    border: 1px solid #dfe3e7;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.live-reference-page .reference-results-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 17px 12px;
+}
+
+.live-reference-page .reference-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 9px;
+    padding: 12px 16px;
+    border-top: 1px solid #dfe3e7;
+}
+
+.live-reference-page .reference-filter-field {
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+    color: #35414b;
+    font-size: 10px;
+    font-weight: 650;
+}
+
+.live-reference-page .reference-filter-field.is-search {
+    grid-column: span 2;
+}
+
+.live-reference-page .reference-filter-tools {
+    display: flex;
+    min-height: 43px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 16px 12px;
+}
+
+.live-reference-page .reference-result-count {
+    color: #52606d;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.live-reference-page .reference-table {
+    width: 100%;
+    min-width: 850px;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.live-reference-page .reference-table thead {
+    background: #f8f9fa;
+}
+
+.live-reference-page .reference-table th {
+    padding: 10px 13px;
+}
+
+.live-reference-page .reference-table td {
+    padding: 11px 13px;
+}
+
+.live-reference-page .reference-book-title {
+    display: block;
+    max-width: 22rem;
+}
+
+.live-reference-page .reference-book-author {
+    max-width: 15rem;
+}
+
+.live-reference-page .reference-course-count {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.live-reference-page .reference-status {
+    display: inline-flex;
+    min-height: 23px;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.live-reference-page .reference-status.is-meets {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.live-reference-page .reference-status.is-outside {
+    background: #ffe4e6;
+    color: #9f1239;
+}
+
+.live-reference-page .reference-status.is-review {
+    background: #fef3c7;
+    color: #854d0e;
+}
+
+.live-reference-page .reference-status.is-missing {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.live-reference-page .reference-detail-button {
+    min-height: 30px;
+    padding: 0 9px;
+    font-size: 10px;
+}
+
+.live-reference-page .reference-empty {
+    padding: 30px 16px !important;
+    color: #52606d !important;
+    font-size: 12px !important;
+    text-align: center;
+}
+
+.live-reference-page .reference-table td.reference-empty {
+    padding: 30px 16px;
+}
+
+.live-reference-page .reference-detail-view[hidden],
+.live-reference-page [data-reference-overview][hidden],
+.live-reference-page [data-reference-books-panel][hidden] {
+    display: none;
+}
+
+.live-reference-page .reference-detail-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px 14px;
+    margin-top: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #dfe3e7;
+}
+
+.live-reference-page .reference-back-button {
+    width: max-content;
+    max-width: 100%;
+    min-height: 34px;
+    grid-column: 1 / -1;
+    justify-self: start;
+    padding: 0 10px;
+    font-size: 11px;
+}
+
+.live-reference-page .reference-detail-heading {
+    grid-column: 1 / -1;
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.live-reference-page .reference-title-group {
+    min-width: 0;
+}
+
+.live-reference-page .reference-detail-title {
+    margin: 0;
+    color: #18232d;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.live-reference-page .reference-detail-author {
+    margin: 3px 0 0;
+    color: #52606d;
+    font-size: 12px;
+}
+
+.live-reference-page .reference-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 18px;
+}
+
+.live-reference-page .reference-detail-section {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #dfe3e7;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.live-reference-page .reference-detail-section h4 {
+    margin: 0;
+    color: #18232d;
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.live-reference-page .reference-detail-list {
+    margin: 12px 0 0;
+    border-top: 1px solid #dfe3e7;
+}
+
+.live-reference-page .reference-detail-row {
+    display: grid;
+    grid-template-columns: minmax(110px, .7fr) minmax(0, 1.3fr);
+    gap: 14px;
+    padding: 9px 0;
+    border-bottom: 1px solid #dfe3e7;
+    font-size: 11px;
+}
+
+.live-reference-page .reference-detail-row:last-child {
+    border-bottom: 0;
+}
+
+.live-reference-page .reference-detail-row dt {
+    color: #52606d;
+}
+
+.live-reference-page .reference-detail-row dd {
+    margin: 0;
+    color: #334155;
+    font-weight: 550;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.live-reference-page .reference-assessment-explanation,
+.live-reference-page .reference-no-courses {
+    margin: 12px 0 0;
+    padding: 11px 12px;
+    border-radius: 7px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.live-reference-page .reference-course-list {
+    margin: 11px 0 0;
+    padding: 0;
+    border-top: 1px solid #dfe3e7;
+    list-style: none;
+}
+
+.live-reference-page .reference-course-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 11px 0;
+    border-bottom: 1px solid #dfe3e7;
+}
+
+.live-reference-page .reference-course-item:last-child {
+    border-bottom: 0;
+}
+
+.live-report-page .report-print-document {
+    min-height: 0;
+    padding: 24px;
+    background: #fff;
+    color: #1e293b;
+    font: 12px/1.5 Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.live-report-page .report-print-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #cbd1d7;
+    text-align: center;
+}
+
+.live-report-page .report-print-header h2 {
+    margin: 0;
+    color: #1e1e1e;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: .08em;
+}
+
+.live-report-page .report-print-header p {
+    margin: 4px 0 0;
+    color: #52606d;
+    font-size: 11px;
+}
+
+.live-report-page .report-print-header p:first-of-type {
+    font-style: italic;
+}
+
+.live-report-page .report-print-header h3 {
+    margin: 12px 0 0;
+    color: #18232d;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.live-report-page .report-print-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 12px 0;
+    color: #52606d;
+    font-size: 11px;
+}
+
+.live-report-page .report-print-meta strong {
+    color: #334155;
+    font-weight: 700;
+}
+
+.live-report-page .report-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    text-align: left;
+}
+
+.live-report-page .report-print-table th,
+.live-report-page .report-print-table td {
+    padding: 8px;
+    border: 1px solid #cbd1d7;
+    color: #334155;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+
+.live-report-page .report-print-table th {
+    background: #0f172a;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+}
+
+.live-reference-page .reference-course-name {
+    color: #18232d;
+    font-size: 11px;
+    font-weight: 650;
+}
+
+.live-reference-page .reference-course-meta {
+    margin-top: 3px;
+    color: #52606d;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.live-reference-page .reference-linked-courses {
+    margin-top: 18px;
+}
+
+.live-reference-page .reference-book-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+    margin-top: 18px;
+}
+
+@media (max-width: 1279px) {
+    .live-course-page .courses-filters {
+        grid-template-columns: minmax(0, 1fr) repeat(3, minmax(120px, 160px));
+    }
+
+    .live-report-page .report-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .live-report-page .report-actions {
+        justify-content: flex-start;
+    }
+
+    .live-reference-page .reference-filter-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .live-reference-page .reference-filter-field.is-search {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 760px) {
+    .live-course-page .courses-heading,
+    .live-report-page .reports-heading,
+    .live-reference-page .reference-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .live-course-page .courses-summary {
+        gap: 10px 17px;
+    }
+
+    .live-course-page .courses-summary-item:last-child {
+        margin-left: 0;
+    }
+
+    .live-course-page .courses-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .live-course-page .courses-filters input {
+        grid-column: 1 / -1;
+    }
+
+    .live-course-page .courses-table thead {
+        display: none;
+    }
+
+    .live-course-page .courses-table,
+    .live-course-page .courses-table tbody {
+        display: block;
+        min-width: 0;
+    }
+
+    .live-course-page .courses-table tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: start;
+        gap: 0 12px;
+        padding: 9px 0;
+        border-bottom: 1px solid #dfe3e7;
+    }
+
+    .live-course-page .courses-table tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .live-course-page .courses-table td {
+        min-width: 0;
+        padding: 6px 3px;
+        border: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .live-course-page .courses-table td[data-label]::before {
+        display: block;
+        margin-bottom: 2px;
+        color: #52606d;
+        content: attr(data-label);
+        font-size: 9px;
+    }
+
+    .live-course-page .courses-table td:first-child,
+    .live-course-page .courses-table td:nth-child(2),
+    .live-course-page .courses-table td:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .live-course-page .course-actions {
+        justify-content: flex-start;
+    }
+
+    .live-course-page .course-actions-menu {
+        right: auto;
+        left: 0;
+    }
+
+    .live-report-page .report-filters,
+    .live-report-page .report-actions {
+        flex-basis: 100%;
+    }
+
+    .live-report-page .report-actions {
+        justify-content: flex-start;
+    }
+
+    .live-report-page .report-result-count {
+        width: 100%;
+    }
+
+    .live-reference-page .reference-overview {
+        margin-top: 20px;
+    }
+
+    .live-reference-page .reference-section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .live-reference-page .reference-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .live-reference-page .reference-summary-item {
+        padding: 11px 12px;
+    }
+
+    .live-reference-page .reference-summary-item + .reference-summary-item {
+        border-left: 0;
+    }
+
+    .live-reference-page .reference-summary-item:nth-child(even) {
+        border-left: 1px solid #dfe3e7;
+    }
+
+    .live-reference-page .reference-summary-item:nth-child(n + 3) {
+        border-top: 1px solid #dfe3e7;
+    }
+
+    .live-reference-page .reference-summary-item:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .live-reference-page .reference-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 11px 12px;
+    }
+
+    .live-reference-page .reference-filter-field.is-search {
+        grid-column: 1 / -1;
+    }
+
+    .live-reference-page .reference-filter-tools {
+        padding-right: 12px;
+        padding-left: 12px;
+    }
+
+    .live-reference-page .reference-detail-header {
+        margin-top: 20px;
+    }
+
+    .live-reference-page .reference-detail-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        margin-top: 14px;
+    }
+
+    .live-reference-page .reference-course-item {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .live-report-page #reportPreviewDocument {
+        padding: 20px;
+    }
+}
+
+@media print {
+    @page {
+        size: landscape;
+        margin: 14mm;
+    }
+
+    body.report-printing * {
+        visibility: hidden !important;
+    }
+
+    body.report-printing #reportPreviewModal,
+    body.report-printing #reportPreviewModal * {
+        visibility: visible !important;
+    }
+
+    body.report-printing #reportPreviewModal {
+        position: absolute !important;
+        inset: 0 !important;
+        display: block !important;
+        padding: 0 !important;
+        background: #fff !important;
+    }
+
+    body.report-printing .report-preview-shell {
+        width: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+        overflow: visible !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+    }
+
+    body.report-printing .report-preview-toolbar {
+        display: none !important;
+    }
+
+    body.report-printing .report-preview-scroll {
+        overflow: visible !important;
+        padding: 0 !important;
+    }
+
+    body.report-printing #reportPreviewDocument {
+        width: 100% !important;
+        min-height: 0 !important;
+        max-width: none !important;
+        box-shadow: none !important;
+    }
+
+    body.report-printing .report-print-table thead {
+        display: table-header-group;
+    }
+
+    body.report-printing .report-print-table tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}

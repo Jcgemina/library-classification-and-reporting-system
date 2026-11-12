@@ -297,45 +297,46 @@
 
         $('courseBody').innerHTML = state.courses.length
             ? state.courses.map((course) => `
-                <tr class="align-top hover:bg-slate-50">
-                    <td class="px-3 py-4">
-                        <div class="font-bold text-slate-900">${esc(course.code)}</div>
+                <tr>
+                    <td data-label="Course">
+                        <div class="course-code-label">${esc(course.code)}</div>
+                        <div class="course-name-label">${esc(course.name)}</div>
                     </td>
-                    <td class="px-3 py-4 text-slate-600">
-                        <div class="font-medium text-slate-800">${esc(course.name)}</div>
-                    </td>
-                    <td class="px-3 py-4">
+                    <td data-label="Academic link">
                         ${course.programName
-                            ? `<div class="font-medium text-slate-800">${esc(course.programName)}</div><div class="text-xs text-slate-500">${esc(course.collegeName)}${course.majorName ? ` / ${esc(course.majorName)}` : ''}</div>`
-                            : '<span class="text-xs italic text-slate-400">Unassigned</span>'}
+                            ? `<div class="course-academic-link">${esc(course.programName)}</div><div class="course-academic-detail">${esc(course.collegeName)}${course.majorName ? ` / ${esc(course.majorName)}` : ''}</div>`
+                            : '<span class="course-academic-detail">Unassigned</span>'}
                     </td>
-                    <td class="w-28 px-3 py-4 text-center align-middle">
-                        <span class="inline-flex h-6 w-20 items-center justify-center rounded-full text-xs font-bold leading-none ${course.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">${esc(course.status)}</span>
+                    <td data-label="Status">
+                        <span class="course-status ${course.status === 'inactive' ? 'is-inactive' : ''}">${esc(course.status)}</span>
                     </td>
-                    <td class="px-3 py-4">
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${course.meetsBookMinimum ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}">
+                    <td data-label="Book readiness">
+                        <span class="course-readiness ${course.meetsBookMinimum ? 'is-ready' : ''}">
                             ${course.meetsBookMinimum ? 'Meets minimum' : 'Below minimum'}
                         </span>
-                        <div class="mt-1 text-xs ${course.meetsBookMinimum ? 'text-emerald-900' : 'text-amber-950'}">${esc(course.bookCount)} of ${esc(course.minimumBooks)} active titles</div>
+                        <div class="course-readiness-detail">${esc(course.bookCount)} of ${esc(course.minimumBooks)} active titles</div>
                     </td>
-                    <td class="w-44 whitespace-nowrap px-3 py-4 text-right">
-                        <div class="inline-flex max-w-full flex-nowrap justify-end gap-1">
-                            <button type="button" data-view="${course.id}" aria-label="View ${esc(course.code)} course" title="View course" class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="eye" class="h-4 w-4"></i></button>
+                    <td data-label="Actions">
+                        <details class="course-actions">
+                            <summary aria-label="Actions for ${esc(course.code)} course"><i data-lucide="more-horizontal" aria-hidden="true"></i></summary>
+                            <div class="course-actions-menu">
+                                <button type="button" data-view="${course.id}"><i data-lucide="eye" aria-hidden="true"></i>View course</button>
                             ${admin ? `
-                                <button type="button" data-edit="${course.id}" aria-label="Edit ${esc(course.code)} course" title="Edit course" class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-sky-700 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="pencil" class="h-4 w-4"></i></button>
-                                <button type="button" data-toggle="${course.id}" aria-label="${course.status === 'active' ? 'Deactivate' : 'Activate'} ${esc(course.code)} course" title="${course.status === 'active' ? 'Deactivate' : 'Activate'} course" class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"><i data-lucide="${course.status === 'active' ? 'toggle-right' : 'toggle-left'}" class="h-4 w-4"></i></button>
-                                <button type="button" data-delete="${course.id}" aria-label="Delete ${esc(course.code)} course" title="Delete course" class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                                <button type="button" data-edit="${course.id}"><i data-lucide="pencil" aria-hidden="true"></i>Edit course</button>
+                                <button type="button" data-toggle="${course.id}"><i data-lucide="${course.status === 'active' ? 'circle-minus' : 'circle-check'}" aria-hidden="true"></i>${course.status === 'active' ? 'Deactivate' : 'Activate'} course</button>
+                                <button type="button" data-delete="${course.id}"><i data-lucide="trash-2" aria-hidden="true"></i>Delete course</button>
                             ` : ''}
-                        </div>
+                            </div>
+                        </details>
                     </td>
                 </tr>
             `).join('')
             : `
                 <tr>
-                    <td colspan="6" class="px-3 py-10 text-center text-sm text-slate-500">No courses found.</td>
+                    <td colspan="5" class="courses-empty">No courses match your filters. Adjust or clear your search to see course records.</td>
                 </tr>
             `;
-            lucide.createIcons({ nodes: [$('courseBody')] });
+        lucide.createIcons({ nodes: [$('courseBody')] });
     }
 
     const params = () => {
@@ -366,7 +367,7 @@
             state.courses = data.courses;
             $('totalCount').textContent = data.counts.total;
             $('activeCount').textContent = data.counts.active;
-            $('inactiveCount').textContent = data.counts.inactive;
+            $('readyCount').textContent = data.counts.meets_minimum;
             render();
             $('courseStatusMessage').textContent = `${state.courses.length} shown`;
             if (!requestedCourseOpened) {
@@ -476,6 +477,11 @@
             return;
         }
 
+        if (!button.matches('[data-view], [data-edit], [data-toggle], [data-delete]')) {
+            return;
+        }
+
+        button.closest('details')?.removeAttribute('open');
         const id = Number(button.dataset.edit || button.dataset.toggle || button.dataset.delete || button.dataset.view || button.dataset.detailsDelete || 0);
         const course = state.courses.find((item) => item.id === id);
 
@@ -512,6 +518,44 @@
         } catch (error) {
             toast(error.message, true);
         }
+    });
+
+    $('courseBody').addEventListener('click', (event) => {
+        const summary = event.target.closest('.course-actions summary');
+        if (!summary) {
+            return;
+        }
+
+        document.querySelectorAll('.course-actions[open]').forEach((details) => {
+            if (details !== summary.parentElement) {
+                details.removeAttribute('open');
+            }
+        });
+
+        requestAnimationFrame(() => {
+            const details = summary.parentElement;
+            if (!details.open) {
+                return;
+            }
+
+            const menu = details.querySelector('.course-actions-menu');
+            const triggerRect = summary.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();
+            const left = Math.max(8, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - 8));
+            const below = triggerRect.bottom + 5;
+            const top = below + menuRect.height <= window.innerHeight - 8
+                ? below
+                : Math.max(8, triggerRect.top - menuRect.height - 5);
+            menu.style.left = `${left}px`;
+            menu.style.top = `${top}px`;
+        });
+    });
+
+    coursePage.addEventListener('click', (event) => {
+        if (event.target.closest('.course-actions')) {
+            return;
+        }
+        document.querySelectorAll('.course-actions[open]').forEach((details) => details.removeAttribute('open'));
     });
 
     $('courseBody').addEventListener('click', (event) => {

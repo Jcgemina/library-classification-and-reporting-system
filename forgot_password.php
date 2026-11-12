@@ -59,7 +59,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     <span id="sendResetLinkLabel" aria-live="polite">Send reset link</span>
                 </button>
             </form>
-            <a href="login.php" class="mt-5 block text-center text-sm font-semibold text-rose-600 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-200">Back to login</a>
+            <a href="index.php" class="mt-5 block text-center text-sm font-semibold text-rose-600 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-200">Back to login</a>
         </main>
 
         <div class="flex items-center justify-center gap-4 text-xs text-slate-400 mt-5">

@@ -3,7 +3,6 @@
     allLibrarians: [],
     selectedIds: new Set(),
     editingId: null,
-    searchTimer: null,
     pendingDeleteIds: [],
     pendingSavePayload: null,
     pendingStatusId: null,
@@ -123,7 +122,7 @@
       const isCurrent = page === state.currentPage;
       return `
         <button type="button" data-page-number="${page}" aria-label="Go to page ${page}" aria-current="${isCurrent ? 'page' : 'false'}"
-          class="flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm font-semibold transition ${isCurrent ? 'bg-[#4B5694] text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}">
+          class="users-page-number${isCurrent ? ' is-current' : ''}">
           ${page}
         </button>
       `;
@@ -209,9 +208,10 @@
       if (!searchValue) return true;
 
       return (
-        librarian.fullName.toLowerCase().includes(searchValue) ||
-        librarian.username.toLowerCase().includes(searchValue) ||
-        librarian.role.toLowerCase().includes(searchValue)
+        String(librarian.fullName || '').toLowerCase().includes(searchValue) ||
+        String(librarian.email || '').toLowerCase().includes(searchValue) ||
+        String(librarian.username || '').toLowerCase().includes(searchValue) ||
+        String(librarian.role || '').toLowerCase().includes(searchValue)
       );
     });
 
@@ -220,12 +220,7 @@
     }
 
     if (!visibleLibrarians.length) {
-      list.innerHTML = `
-        <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-          <p class="text-base font-semibold text-slate-700">No accounts found</p>
-          <p class="mt-1 text-sm text-slate-500">Try a different search or status filter.</p>
-        </div>
-      `;
+      list.innerHTML = '<tr><td class="users-empty" colspan="6">No accounts match your search and filters.</td></tr>';
       pagination.innerHTML = '';
       updateStats();
       return;
@@ -238,54 +233,34 @@
 
     list.innerHTML = paginatedLibrarians.map((librarian) => {
       const isSelected = state.selectedIds.has(librarian.id);
-      const isAdmin = librarian.role === 'admin';
       const isActive = librarian.status === 'active';
       const initials = String(librarian.fullName || '').split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
 
       return `
-        <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div class="flex min-w-0 items-center justify-start gap-3 md:flex-1">
-            <input type="checkbox" data-select-id="${librarian.id}" class="h-4 w-4 rounded border-slate-300 text-rose-500 focus:ring-rose-200" ${isSelected ? 'checked' : ''} />
-
-            <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-rose-100 text-sm font-bold text-rose-700">
-              ${esc(initials || 'L')}
-            </div>
-
-            <div class="min-w-0 text-left">
-              <div class="flex flex-wrap items-center justify-start gap-1.5">
-                <p class="text-sm font-semibold text-slate-900">${esc(librarian.fullName)}</p>
-                <span class="rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${isAdmin ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">
-                  ${esc(librarian.role)}
-                </span>
-              </div>
-              <div class="mt-1 flex flex-wrap items-center justify-start gap-x-3 gap-y-1 text-[11px] text-slate-500">
-                <span>@${esc(librarian.username)}</span>
-                <span><span class="mr-1 text-[9px] font-semibold uppercase tracking-wide text-slate-400">Joined</span>${esc(librarian.joinedAt || 'Recently')}</span>
+        <tr>
+          <td data-label="Person">
+            <div class="users-person">
+              <input type="checkbox" data-select-id="${librarian.id}" aria-label="Select ${esc(librarian.fullName)}" class="users-select" ${isSelected ? 'checked' : ''}>
+              <span class="users-person-avatar" aria-hidden="true">${esc(initials || 'L')}</span>
+              <div class="users-person-identity">
+                <div class="users-person-name">${esc(librarian.fullName)}</div>
+                <div class="users-person-email">${esc(librarian.email || 'No email recorded')}</div>
               </div>
             </div>
-          </div>
-
-          <div class="w-full md:w-64 md:flex-shrink-0">
-            <p class="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Primary actions</p>
-            <div class="mt-1 flex items-center gap-1">
-              <button type="button" data-action="view" data-id="${librarian.id}" aria-label="View ${esc(librarian.fullName)}" title="View profile" class="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-slate-200 bg-white px-1.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400">
-                <i data-lucide="eye" class="h-3.5 w-3.5"></i><span>View</span>
-              </button>
-
-              <button type="button" data-action="edit" data-id="${librarian.id}" aria-label="Edit ${esc(librarian.fullName)}" title="Edit user" class="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-sky-200 bg-white px-1.5 text-[10px] font-semibold text-sky-700 transition hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-400">
-                <i data-lucide="pencil" class="h-3.5 w-3.5"></i><span>Edit</span>
-              </button>
-
-              <button type="button" data-action="toggle-status" data-id="${librarian.id}" aria-label="${isActive ? 'Deactivate' : 'Activate'} ${esc(librarian.fullName)}" title="${isActive ? 'Deactivate' : 'Activate'} account" class="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-amber-200 bg-white px-1.5 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400">
-                <i data-lucide="${isActive ? 'user-round-x' : 'user-round-check'}" class="h-3.5 w-3.5"></i><span>${isActive ? 'Disable' : 'Enable'}</span>
-              </button>
-
-              <button type="button" data-action="delete" data-id="${librarian.id}" aria-label="Delete ${esc(librarian.fullName)}" title="Delete user" class="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-rose-200 bg-white px-1.5 text-[10px] font-semibold text-rose-700 transition hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400 ${isSelected ? 'opacity-60 cursor-not-allowed' : ''}" ${isSelected ? 'disabled' : ''}>
-                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i><span>Delete</span>
-              </button>
+          </td>
+          <td data-label="Username"><span class="users-username">${esc(librarian.username)}</span></td>
+          <td data-label="Role"><span class="users-role">${librarian.role === 'admin' ? 'Admin' : 'Librarian'}</span></td>
+          <td data-label="Status"><span class="users-status${isActive ? '' : ' is-inactive'}">${isActive ? 'Active' : 'Inactive'}</span></td>
+          <td data-label="Joined">${esc(librarian.joinedAt || 'Recently')}</td>
+          <td data-label="Actions">
+            <div class="users-row-actions">
+              <button type="button" data-action="view" data-id="${librarian.id}" aria-label="View ${esc(librarian.fullName)}">View</button>
+              <button type="button" data-action="edit" data-id="${librarian.id}" aria-label="Edit ${esc(librarian.fullName)}">Edit</button>
+              <button type="button" data-action="toggle-status" data-id="${librarian.id}" aria-label="${isActive ? 'Deactivate' : 'Activate'} ${esc(librarian.fullName)}">${isActive ? 'Deactivate' : 'Activate'}</button>
+              <button type="button" data-action="delete" data-id="${librarian.id}" aria-label="Delete ${esc(librarian.fullName)}" ${isSelected ? 'disabled' : ''}>Delete</button>
             </div>
-          </div>
-        </div>
+          </td>
+        </tr>
       `;
     }).join('');
 
@@ -336,7 +311,7 @@
 
     state.lastFocusedElement = document.activeElement;
     state.editingId = librarian ? librarian.id : null;
-    title.textContent = mode === 'edit' ? 'Edit Librarian' : 'Add Librarian';
+    title.textContent = mode === 'edit' ? 'Edit user' : 'Add user';
 
     form.reset();
     document.getElementById('librarianId').value = librarian ? librarian.id : '';
@@ -389,11 +364,7 @@
       })
       .catch((error) => {
         const list = document.getElementById('librarianList');
-        list.innerHTML = `
-          <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            ${esc(error.message || 'Unable to load librarians.')}
-          </div>
-        `;
+        list.innerHTML = `<tr><td class="users-error" colspan="6">${esc(error.message || 'Unable to load accounts.')}</td></tr>`;
       });
   }
 
@@ -709,12 +680,9 @@
     button.addEventListener('click', closeUserDetail);
   });
 
-  document.getElementById('librarianSearch').addEventListener('input', function () {
-    clearTimeout(state.searchTimer);
-    state.searchTimer = setTimeout(() => {
-      state.currentPage = 1;
-      fetchLibrarians();
-    }, 250);
+  document.getElementById('librarianSearch').addEventListener('input', () => {
+    state.currentPage = 1;
+    renderLibrarians();
   });
 
   document.getElementById('librarianStatusFilter').addEventListener('change', function () {

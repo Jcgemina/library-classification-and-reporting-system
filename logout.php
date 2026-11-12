@@ -39,5 +39,5 @@ if ($useSessionCookies !== false && $useSessionCookies !== '' && $useSessionCook
 	header('Set-Cookie: ' . implode('; ', $cookieParts), false);
 }
 session_destroy();
-header('Location: login.php');
+header('Location: index.php');
 exit;

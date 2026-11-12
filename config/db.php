@@ -28,6 +28,7 @@ $getConfig = static function (string $key, string $default = '') use ($environme
 };
 
 $DB_HOST = $getConfig('DB_HOST', 'localhost');
+$DB_PORT = $getConfig('DB_PORT', '3306');
 $DB_NAME = $getConfig('DB_NAME');
 $DB_USER = $getConfig('DB_USER');
 $DB_PASS = $getConfig('DB_PASS');
@@ -39,7 +40,7 @@ $dbConnectionError = null;
 
 try {
     $pdo = new PDO(
-        "mysql:host={$DB_HOST};dbname={$DB_NAME};charset=utf8mb4",
+        "mysql:host={$DB_HOST};port={$DB_PORT};dbname={$DB_NAME};charset=utf8mb4",
         $DB_USER,
         $DB_PASS,
         [

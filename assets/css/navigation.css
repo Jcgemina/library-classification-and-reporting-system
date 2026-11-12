@@ -112,11 +112,12 @@
     width: auto;
     margin: 0 10px 8px;
     color: var(--nav-muted);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.12em;
     line-height: 1.4;
     text-align: left;
+    text-transform: uppercase;
   }
 
   nav#adminSidebar .nav-section-label::before,
@@ -223,16 +224,6 @@
     gap: 3px;
     margin: 2px 0 4px 17px;
     padding: 2px 0 2px 10px;
-  }
-
-  nav#adminSidebar .logs-menu::before {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 1px;
-    background: #e8bbc5;
-    content: "";
   }
 
   nav#adminSidebar .logs-menu[hidden] {
@@ -421,6 +412,7 @@
   }
 
   aside#adminSidebar > nav {
+    overflow-x: hidden;
     padding: 22px 14px;
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
@@ -430,9 +422,15 @@
     display: block;
     margin: 0 10px 8px;
     color: var(--nav-muted);
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 700;
     letter-spacing: 0.12em;
     line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  aside#adminSidebar > nav > .nav-section-label:not(:first-child) {
+    margin-top: 24px;
   }
 
   aside#adminSidebar .nav-section-label::before,
@@ -566,20 +564,10 @@
     gap: 3px;
     margin: 2px 0 4px 17px;
     padding: 2px 0 2px 10px;
-    border-left: 1px solid #e8bbc5;
   }
 
   aside#adminSidebar .logs-menu[hidden] {
     display: none;
-  }
-
-  aside#adminSidebar .logs-link::before {
-    position: absolute;
-    top: 50%;
-    left: -11px;
-    width: 11px;
-    border-top: 1px solid #e8bbc5;
-    content: "";
   }
 
   aside#adminSidebar > div:last-child {
@@ -726,14 +714,24 @@ aside#adminSidebar button:focus-visible,
     box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
   }
 
+  #mobileMenu > div {
+    gap: 2px;
+  }
+
   #mobileMenu .nav-section-label {
     display: block;
-    margin: 12px 10px 4px;
+    margin: 23px 10px 8px;
     padding: 0;
     color: var(--nav-muted);
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 700;
     letter-spacing: 0.12em;
     line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  #mobileMenu .nav-section-label:first-of-type {
+    margin-top: 0;
   }
 
   #mobileMenu .nav-section-label::before,
@@ -747,11 +745,13 @@ aside#adminSidebar button:focus-visible,
     position: relative;
     min-height: 40px;
     gap: 11px;
+    margin: 2px 0;
     padding: 0 11px;
     border-radius: 8px;
     color: #4a5661;
     font-size: 13px;
     font-weight: 500;
+    line-height: 1.4;
   }
 
   #mobileMenu a[data-page]:not([data-settings-child]):not([data-log-tab])[aria-current="page"],
@@ -839,7 +839,6 @@ aside#adminSidebar button:focus-visible,
     gap: 3px;
     margin: 2px 0 4px 17px;
     padding: 2px 0 2px 10px;
-    border-left: 1px solid #e8bbc5;
   }
 
   #mobileMenu .logs-menu[hidden] {
@@ -862,7 +861,40 @@ aside#adminSidebar button:focus-visible,
     transform: translateX(0);
   }
 
+  aside#adminSidebar .logs-toggle {
+    display: flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 4px;
+    padding: 10px 12px;
+    font-size: 15px;
+    line-height: 24px;
+    text-align: left;
+  }
+
+  aside#adminSidebar .logs-toggle [data-lucide] {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+  }
+
+  aside#adminSidebar .logs-toggle span {
+    min-width: 0;
+  }
+
+  aside#adminSidebar .logs-toggle .logs-chevron {
+    margin-left: auto;
+  }
+
+  aside#adminSidebar .logs-menu {
+    margin: 0 0 8px 16px;
+    padding: 0 0 0 10px;
+  }
+
   aside#adminSidebar > nav {
+    overflow-x: hidden;
     padding: 18px 14px;
   }
 

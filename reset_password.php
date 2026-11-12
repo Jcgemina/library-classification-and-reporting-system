@@ -98,7 +98,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
       </form>
     <?php endif; ?>
     <?php if ($userId === null && $success === null): ?><a href="forgot_password.php" class="mt-5 block text-center text-sm font-semibold text-rose-600 hover:underline">Request a new reset link</a><?php endif; ?>
-    <a href="login.php" class="mt-3 block text-center text-sm font-semibold text-slate-500 hover:underline">Back to login</a>
+    <a href="index.php" class="mt-3 block text-center text-sm font-semibold text-slate-500 hover:underline">Back to login</a>
   </main>
 
   <script>

@@ -239,9 +239,9 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     font-weight: 650;
   }
 
-  #adminSidebar a[data-page]:not([data-settings-child])[aria-current="page"]::before,
+  #adminSidebar a[data-page]:not([data-settings-child]):not([data-log-tab])[aria-current="page"]::before,
   #adminSidebar [data-settings-parent][aria-current="location"]::before,
-  #mobileMenu a[data-page]:not([data-settings-child])[aria-current="page"]::before,
+  #mobileMenu a[data-page]:not([data-settings-child]):not([data-log-tab])[aria-current="page"]::before,
   #mobileMenu [data-settings-parent][aria-current="location"]::before {
     position: absolute;
     top: 5px;
@@ -301,8 +301,8 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
       flex: 1;
       min-width: 0;
       justify-content: flex-start;
-      overflow-x: auto;
-      overscroll-behavior-x: contain;
+      overflow-x: hidden;
+      overscroll-behavior-x: none;
       scrollbar-width: thin;
       transform: none;
     }

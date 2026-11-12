@@ -254,107 +254,107 @@ if ($action !== '') {
 
 ?>
 
-<div class="space-y-5 p-1 text-slate-900 sm:p-2">
-    <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+<div class="live-report-page space-y-5">
+    <header class="reports-heading">
         <div>
-            <h2 class="text-2xl font-bold text-slate-900">Detailed Reports</h2>
-            <p class="mt-1 text-sm text-slate-500">Program and major verification progress by quarter and academic year.</p>
+            <h1>Detailed Reports</h1>
+            <p class="page-description">Program and major verification progress by quarter and academic year.</p>
         </div>
     </header>
 
-    <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" aria-label="Program verification report">
-        <div id="reportPreviewModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px]">
-            <div class="flex max-h-[90vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-[#f3f2f1] shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
-                <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-[#f7f7f7] px-4 py-3">
-                    <div class="flex items-center gap-2 text-[13px] font-medium text-slate-600">
-                        <i data-lucide="file-text" class="h-4 w-4 text-slate-700" aria-hidden="true"></i>
-                        <span>Print Preview Layout Document - Verify configuration before exporting.</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" id="reportPreviewPrint" class="inline-flex items-center gap-2 rounded-lg bg-[#d11f49] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[#b3183d] focus:outline-none focus:ring-2 focus:ring-rose-200">
-                            <i data-lucide="printer" class="h-4 w-4" aria-hidden="true"></i>
-                            Print
-                        </button>
-                        <button type="button" id="reportPreviewClose" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200">
-                            <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i>
-                            Close
-                        </button>
-                    </div>
+    <div id="reportPreviewModal" class="report-preview-modal hidden" role="dialog" aria-modal="true" aria-labelledby="reportPreviewTitle">
+        <div class="report-preview-shell">
+            <div class="report-preview-toolbar flex items-center justify-between gap-3 border-b border-slate-200 bg-[#f7f7f7] px-4 py-3">
+                <div class="flex items-center gap-2 text-[13px] font-medium text-slate-600">
+                    <i data-lucide="file-text" class="h-4 w-4 text-slate-700" aria-hidden="true"></i>
+                    <span id="reportPreviewTitle">Print preview · Verify the report before printing.</span>
                 </div>
-                <div class="overflow-auto p-5">
-                    <div id="reportPreviewDocument" class="mx-auto min-h-[860px] max-w-[1120px] bg-white p-0 shadow-[0_18px_48px_rgba(17,24,39,0.12)]"></div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="reportPreviewPrint" class="live-button live-button-primary">
+                        <i data-lucide="printer" class="h-4 w-4" aria-hidden="true"></i>
+                        Print
+                    </button>
+                    <button type="button" id="reportPreviewClose" class="live-button">
+                        <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i>
+                        Close
+                    </button>
                 </div>
             </div>
+            <div class="report-preview-scroll overflow-auto p-5">
+                <div id="reportPreviewDocument" class="mx-auto max-w-[1120px] bg-white p-0 shadow-[0_18px_48px_rgba(17,24,39,0.12)]"></div>
+            </div>
         </div>
+    </div>
 
-        <div class="overflow-x-auto border-b border-slate-200 p-4">
-            <div class="flex w-full min-w-max items-center justify-between gap-6">
-                <div class="flex shrink-0 items-center gap-2">
-                    <label class="sr-only" for="reportCollegeFilter">Filter by college</label>
-                    <select id="reportCollegeFilter" class="w-[170px] shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
+    <section class="report-workspace" aria-label="Program verification report">
+        <div class="report-toolbar">
+            <div class="report-filters">
+                <label class="report-filter-field" for="reportCollegeFilter">College
+                    <select id="reportCollegeFilter" class="report-filter">
                         <option value="">All colleges</option>
                     </select>
-                    <label class="sr-only" for="reportProgramFilter">Filter by program</label>
-                    <select id="reportProgramFilter" class="w-[170px] shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
+                </label>
+                <label class="report-filter-field" for="reportProgramFilter">Program
+                    <select id="reportProgramFilter" class="report-filter">
                         <option value="">All programs</option>
                     </select>
-                    <label class="sr-only" for="reportMajorFilter">Filter by major</label>
-                    <select id="reportMajorFilter" class="w-[170px] shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
+                </label>
+                <label class="report-filter-field" for="reportMajorFilter">Major
+                    <select id="reportMajorFilter" class="report-filter">
                         <option value="">All majors</option>
                     </select>
-                    <label class="sr-only" for="reportYearFilter">Academic year</label>
-                    <select id="reportYearFilter" class="w-[100px] shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
+                </label>
+                <label class="report-filter-field report-year-field" for="reportYearFilter">Academic year
+                    <select id="reportYearFilter" class="report-filter">
                         <?php $currentYear = (int) date('Y'); ?>
                         <?php for ($year = $currentYear - 3; $year <= $currentYear + 1; $year++): ?>
                             <option value="<?php echo $year; ?>" <?php echo $year === $currentYear ? 'selected' : ''; ?>><?php echo $year; ?></option>
                         <?php endfor; ?>
                     </select>
-                </div>
-                <div class="flex shrink-0 items-center gap-2">
-                    <span id="reportResultCount" class="min-w-[72px] shrink-0 text-right text-xs text-slate-500" aria-live="polite">Loading report…</span>
-                    <button type="button" id="reportClearFilters" class="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-200 disabled:cursor-not-allowed disabled:opacity-50" disabled>
-                        Clear filters
-                    </button>
-                    <button type="button" id="reportPreviewButton" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2">
-                        <i data-lucide="eye" class="h-4 w-4" aria-hidden="true"></i>
-                        Preview Report
-                    </button>
-                    <button type="button" id="reportExportButton" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300" disabled>
-                        <i data-lucide="file-down" class="h-4 w-4" aria-hidden="true"></i>
-                        Export System Report
-                    </button>
+                </label>
+            </div>
+            <div class="report-actions">
+                <span id="reportResultCount" class="report-result-count" aria-live="polite">Loading report…</span>
+                <button type="button" id="reportClearFilters" class="live-button" disabled>Clear filters</button>
+                <button type="button" id="reportExportButton" class="live-button live-button-primary report-export-button" aria-haspopup="true" aria-expanded="false" aria-controls="reportExportMenu" disabled>
+                    <i data-lucide="file-down" aria-hidden="true"></i>Export report<i data-lucide="chevron-down" aria-hidden="true"></i>
+                </button>
+                <div class="report-export-menu" id="reportExportMenu" popover="auto" role="menu" aria-label="Export report options">
+                    <button type="button" role="menuitem" class="report-export-option" data-report-export="print"><i data-lucide="printer" aria-hidden="true"></i><span>Print</span></button>
+                    <button type="button" role="menuitem" class="report-export-option" data-report-export="xls"><i data-lucide="file-spreadsheet" aria-hidden="true"></i><span>Excel workbook (.xls)</span></button>
+                    <button type="button" role="menuitem" class="report-export-option" data-report-export="csv"><i data-lucide="file-text" aria-hidden="true"></i><span>CSV file (.csv)</span></button>
                 </div>
             </div>
         </div>
 
-        <div class="flex items-start gap-2.5 border-b border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-            <i data-lucide="info" class="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-700" aria-hidden="true"></i>
+        <div class="report-guidance">
+            <i data-lucide="info" aria-hidden="true"></i>
             <p>Choose the target quarter, record whether it is complete, and set the latest update month. Changes are saved to the database.</p>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[780px] text-left text-sm">
-                <thead class="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <div class="report-table-wrap">
+            <table class="report-table">
+                <thead>
                     <tr>
-                        <th scope="col" class="w-16 px-4 py-3 font-semibold">No.</th>
-                        <th scope="col" class="px-4 py-3 font-semibold">Program / Major</th>
-                        <th scope="col" class="w-36 px-4 py-3 text-center font-semibold">Target Q</th>
-                        <th scope="col" class="w-32 px-4 py-3 text-center font-semibold">Actual</th>
-                        <th scope="col" class="w-48 px-4 py-3 font-semibold">Updated as of</th>
+                        <th scope="col" class="report-number-column">No.</th>
+                        <th scope="col">Program / Major</th>
+                        <th scope="col" class="report-quarter-column">Target Q</th>
+                        <th scope="col" class="report-actual-column">Actual</th>
+                        <th scope="col" class="report-updated-column">Updated as of</th>
                     </tr>
                 </thead>
-                <tbody id="reportTableBody" class="divide-y divide-slate-100">
-                    <tr><td colspan="5" class="px-4 py-8 text-center text-sm text-slate-500">Loading report data…</td></tr>
+                <tbody id="reportTableBody">
+                    <tr><td colspan="5" class="report-empty">Loading report data…</td></tr>
                 </tbody>
             </table>
         </div>
-        <div id="reportNoMatches" class="hidden px-6 py-10 text-center text-sm text-slate-500" role="status">
+        <div id="reportNoMatches" class="report-empty hidden" role="status">
             No academic records match these filters. Clear filters to see all active records.
         </div>
-        <div id="reportEmptyState" class="hidden px-6 py-14 text-center">
-            <i data-lucide="folder-search" class="mx-auto h-8 w-8 text-slate-400" aria-hidden="true"></i>
-            <h3 class="mt-3 text-sm font-semibold text-slate-800">No active academic programs</h3>
-            <p class="mt-1 text-sm text-slate-500">Active programs will appear here once they are added to the academic catalog.</p>
+        <div id="reportEmptyState" class="report-empty hidden">
+            <i data-lucide="folder-search" aria-hidden="true"></i>
+            <strong>No active academic programs</strong>
+            <span>Active programs will appear here once they are added to the academic catalog.</span>
         </div>
     </section>
 </div>
