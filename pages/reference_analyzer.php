@@ -190,69 +190,76 @@ $csrfToken = $_SESSION['inventory_csrf'] ?? bin2hex(random_bytes(32));
 $_SESSION['inventory_csrf'] = $csrfToken;
 ?>
 
-<div class="space-y-6 p-1 text-slate-900 sm:p-2" data-reference-analyzer data-csrf-token="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>" data-can-manage="<?php echo in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true) ? 'true' : 'false'; ?>">
-    <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+<div class="live-reference-page space-y-6" data-reference-analyzer data-csrf-token="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>" data-can-manage="<?php echo in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true) ? 'true' : 'false'; ?>">
+    <header class="reference-heading">
         <div>
-            <h2 class="text-2xl font-bold text-slate-900">Reference Analyzer</h2>
-            <p class="mt-1 max-w-3xl text-sm leading-6 text-slate-600">Review inventory titles, their linked courses, and their assessment against the institution’s configured reference-age policy.</p>
+            <h1>Reference Analyzer</h1>
+            <p class="page-description">Review inventory titles, their linked courses, and how publication years compare with the library’s reference-age policy.</p>
         </div>
-        <button type="button" data-reference-refresh class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">
-            <i data-lucide="refresh-cw" class="h-4 w-4" aria-hidden="true"></i><span data-refresh-label>Refresh assessment</span>
+        <button type="button" data-reference-refresh class="live-button">
+            <i data-lucide="refresh-cw" aria-hidden="true"></i><span data-refresh-label>Refresh assessment</span>
         </button>
     </header>
 
-    <div class="space-y-6" data-reference-overview>
+    <div class="reference-overview" data-reference-overview>
         <section aria-labelledby="referenceOverviewHeading">
-            <div class="mb-3">
-                <h3 id="referenceOverviewHeading" class="text-base font-semibold text-slate-900">Assessment overview</h3>
-                <p class="mt-1 text-sm text-slate-600">Counts reflect the current filters, including policy status.</p>
+            <div class="reference-section-heading">
+                <h2 id="referenceOverviewHeading">Assessment overview</h2>
+                <p>Counts update with the current filters.</p>
             </div>
-            <div class="grid grid-cols-2 gap-3 xl:grid-cols-5">
-                <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Matching books</p><p class="mt-2 text-2xl font-bold tabular-nums text-slate-900" data-summary="total">—</p></section>
-                <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-emerald-800">Meets policy</p><p class="mt-2 text-2xl font-bold tabular-nums text-emerald-900" data-summary="meets_policy">—</p></section>
-                <section class="rounded-xl border border-rose-200 bg-rose-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-rose-800">Outside policy</p><p class="mt-2 text-2xl font-bold tabular-nums text-rose-900" data-summary="outside_policy">—</p></section>
-                <section class="rounded-xl border border-amber-200 bg-amber-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-amber-900">Needs verification</p><p class="mt-2 text-2xl font-bold tabular-nums text-amber-950" data-summary="needs_verification">—</p></section>
-                <section class="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 xl:col-span-1"><p class="text-xs font-semibold uppercase tracking-wide text-slate-700">Missing publication data</p><p class="mt-2 text-2xl font-bold tabular-nums text-slate-900" data-summary="missing_publication_data">—</p></section>
+            <div class="reference-summary" aria-label="Reference policy assessment counts">
+                <div class="reference-summary-item"><div class="reference-summary-label">Matching books</div><div class="reference-summary-value" data-summary="total">—</div></div>
+                <div class="reference-summary-item is-meets"><div class="reference-summary-label">Meets policy</div><div class="reference-summary-value" data-summary="meets_policy">—</div></div>
+                <div class="reference-summary-item is-outside"><div class="reference-summary-label">Outside policy</div><div class="reference-summary-value" data-summary="outside_policy">—</div></div>
+                <div class="reference-summary-item is-review"><div class="reference-summary-label">Needs verification</div><div class="reference-summary-value" data-summary="needs_verification">—</div></div>
+                <div class="reference-summary-item is-missing"><div class="reference-summary-label">Missing publication data</div><div class="reference-summary-value" data-summary="missing_publication_data">—</div></div>
             </div>
         </section>
 
-        <p class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm leading-5 text-slate-700" data-reference-policy-note role="status" aria-live="polite">Loading the configured reference-age policy…</p>
-        <p class="hidden rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" data-reference-error role="alert"></p>
+        <p class="reference-policy-note" data-reference-policy-note role="status" aria-live="polite">Loading the configured reference-age policy…</p>
+        <p class="reference-error hidden" data-reference-error role="alert"></p>
     </div>
 
-    <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-reference-books-panel aria-label="Analyzed books">
-        <form class="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 xl:grid-cols-5" data-reference-filters>
-            <label class="text-xs font-semibold text-slate-700 xl:col-span-2">Title or author
-                <input name="search" type="search" placeholder="Search inventory…" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100">
+    <section class="reference-results-panel" data-reference-books-panel aria-label="Analyzed books">
+        <div class="reference-results-heading">
+            <div><h2>Analyzed books</h2><p>Search inventory titles and review their policy status.</p></div>
+        </div>
+        <form data-reference-filters>
+            <div class="reference-filter-grid">
+            <label class="reference-filter-field is-search">Title or author
+                <input name="search" type="search" placeholder="Search inventory titles…" class="reference-filter-control">
             </label>
-            <label class="text-xs font-semibold text-slate-700">Policy status
-                <select name="status" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100">
+            <label class="reference-filter-field">Policy status
+                <select name="status" class="reference-filter-control">
                     <option value="all">All statuses</option><option value="meets_policy">Meets Policy</option><option value="outside_policy">Outside Policy</option><option value="needs_verification">Needs Verification</option><option value="missing_publication_data">Missing Publication Data</option>
                 </select>
             </label>
-            <label class="text-xs font-semibold text-slate-700">College
-                <select name="college_id" data-filter-college class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"><option value="">All colleges</option></select>
+            <label class="reference-filter-field">College
+                <select name="college_id" data-filter-college class="reference-filter-control"><option value="">All colleges</option></select>
             </label>
-            <label class="text-xs font-semibold text-slate-700">Program
-                <select name="program_id" data-filter-program class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"><option value="">All programs</option></select>
+            <label class="reference-filter-field">Program
+                <select name="program_id" data-filter-program class="reference-filter-control"><option value="">All programs</option></select>
             </label>
-            <label class="text-xs font-semibold text-slate-700 sm:col-span-2 xl:col-span-2">Course
-                <select name="course_id" data-filter-course class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"><option value="">All courses</option></select>
+            <label class="reference-filter-field sm:col-span-2 xl:col-span-2">Course
+                <select name="course_id" data-filter-course class="reference-filter-control"><option value="">All courses</option></select>
             </label>
-            <p class="self-end pb-2 text-xs text-slate-500 sm:col-span-2 xl:col-span-1" data-reference-result-count aria-live="polite">Loading books…</p>
-            <button type="button" data-reference-clear-filters class="inline-flex h-10 w-full self-end items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">Clear filters</button>
+            </div>
+            <div class="reference-filter-tools">
+                <p class="reference-result-count" data-reference-result-count aria-live="polite">Loading books…</p>
+                <button type="button" data-reference-clear-filters class="live-button" disabled>Clear filters</button>
+            </div>
         </form>
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[900px] text-left text-sm">
-                <thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
-                    <tr><th scope="col" class="px-4 py-3">Book</th><th scope="col" class="px-4 py-3">Author</th><th scope="col" class="px-4 py-3">Publication year</th><th scope="col" class="px-4 py-3 text-center">Linked courses</th><th scope="col" class="px-4 py-3">Reference policy</th><th scope="col" class="px-4 py-3 text-right">Details</th></tr>
+        <div class="reference-table-wrap">
+            <table class="reference-table">
+                <thead>
+                    <tr><th scope="col">Book</th><th scope="col">Author</th><th scope="col">Publication year</th><th scope="col">Linked courses</th><th scope="col">Reference policy</th><th scope="col" aria-label="Details"></th></tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100" data-reference-books>
-                    <tr><td colspan="6" class="px-4 py-12 text-center text-sm text-slate-600">Loading books…</td></tr>
+                <tbody data-reference-books>
+                    <tr><td colspan="6" class="reference-empty">Loading books…</td></tr>
                 </tbody>
             </table>
         </div>
     </section>
-    <section class="hidden" data-book-detail-view aria-label="Book details" tabindex="-1"></section>
+    <section class="reference-detail-view hidden" data-book-detail-view aria-label="Book details" tabindex="-1"></section>
 </div>
 <script src="assets/js/reference_analyzer.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/reference_analyzer.js'); ?>"></script>

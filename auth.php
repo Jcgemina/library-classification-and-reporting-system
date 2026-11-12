@@ -6,13 +6,13 @@ require_once __DIR__ . '/includes/functions.php';
 // If the DB connection failed in config/db.php, show the error to the user instead of crashing
 if (!$pdo) {
     setFlash($dbConnectionError ?? 'Database connection error.');
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
 // Only accept POST requests
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -20,7 +20,7 @@ $usernameInput = $_POST['username'] ?? '';
 $passwordInput = $_POST['password'] ?? '';
 if (!is_string($usernameInput) || !is_string($passwordInput)) {
     setFlash('Please enter both username and password.');
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -31,7 +31,7 @@ $ip       = getClientIp();
 // Basic input validation
 if ($username === '' || $password === '') {
     setFlash('Please enter both username and password.');
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -45,7 +45,7 @@ if ($lockSeconds > 0) {
         recordSecurityLog($pdo, null, $username, 'login_blocked', $severity, 'Login blocked after repeated failed attempts from this IP.', $ip);
     }
     setFlash("Too many failed attempts. Please try again in {$formattedTime}.", true);
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -73,7 +73,7 @@ if (!$user || !is_string($user['password'] ?? null) || !password_verify($passwor
     }
     
     setFlash($message, false, $failedCount);
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 

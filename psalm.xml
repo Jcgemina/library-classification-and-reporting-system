@@ -13,7 +13,7 @@
         <file name="auth.php" />
         <file name="create_admin.php" />
         <file name="forgot_password.php" />
-        <file name="login.php" />
+        <file name="index.php" />
         <file name="login2.php" />
         <file name="logout.php" />
         <file name="process_mail_queue.php" />

@@ -27,10 +27,10 @@
         "'": '&#039;'
     };
     const statusClasses = {
-        meets_policy: 'bg-emerald-100 text-emerald-900',
-        outside_policy: 'bg-rose-100 text-rose-900',
-        needs_verification: 'bg-amber-100 text-amber-950',
-        missing_publication_data: 'bg-slate-100 text-slate-800'
+        meets_policy: 'is-meets',
+        outside_policy: 'is-outside',
+        needs_verification: 'is-review',
+        missing_publication_data: 'is-missing'
     };
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => htmlEscapes[character]);
 
@@ -97,22 +97,22 @@
     }
 
     function statusBadge(assessment) {
-        return `<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[assessment.status] || statusClasses.needs_verification}">${escapeHtml(assessment.label)}</span>`;
+        return `<span class="reference-status ${statusClasses[assessment.status] || statusClasses.needs_verification}">${escapeHtml(assessment.label)}</span>`;
     }
 
     function renderBooks(books) {
         if (!books.length) {
-            booksBody.innerHTML = '<tr><td colspan="6" class="px-4 py-12 text-center"><p class="font-semibold text-slate-800">No matching books</p><p class="mt-1 text-sm text-slate-600">Adjust or clear your filters to see inventory titles.</p></td></tr>';
+            booksBody.innerHTML = '<tr><td colspan="6" class="reference-empty"><strong>No matching books</strong><br>Adjust or clear your filters to see inventory titles.</td></tr>';
             return;
         }
         booksBody.innerHTML = books.map((book) => `
-            <tr class="align-top hover:bg-slate-50">
-                <th scope="row" class="max-w-[22rem] px-4 py-4 font-semibold text-slate-900">${escapeHtml(book.title)}</th>
-                <td class="max-w-[15rem] px-4 py-4 text-slate-700">${escapeHtml(book.author || 'Not recorded')}</td>
-                <td class="whitespace-nowrap px-4 py-4 tabular-nums text-slate-800">${book.publication_year ?? 'Not recorded'}</td>
-                <td class="px-4 py-4 text-center tabular-nums text-slate-800">${book.linked_course_count}</td>
-                <td class="px-4 py-4">${statusBadge(book.assessment)}</td>
-                <td class="px-4 py-4 text-right"><button type="button" data-book-detail="${book.book_id}" class="inline-flex min-h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="eye" class="h-4 w-4" aria-hidden="true"></i>Details</button></td>
+            <tr>
+                <th scope="row"><span class="reference-book-title">${escapeHtml(book.title)}</span></th>
+                <td><span class="reference-book-author">${escapeHtml(book.author || 'Not recorded')}</span></td>
+                <td class="whitespace-nowrap tabular-nums">${book.publication_year ?? 'Not recorded'}</td>
+                <td class="reference-course-count">${book.linked_course_count}</td>
+                <td>${statusBadge(book.assessment)}</td>
+                <td class="text-right"><button type="button" data-book-detail="${book.book_id}" class="live-button reference-detail-button"><i data-lucide="eye" aria-hidden="true"></i>Details</button></td>
             </tr>
         `).join('');
         lucide.createIcons({ nodes: [booksBody] });
@@ -121,7 +121,7 @@
     function showError(message) {
         errorNode.textContent = message;
         errorNode.classList.remove('hidden');
-        booksBody.innerHTML = '<tr><td colspan="6" class="px-4 py-12 text-center text-sm text-slate-700">Books could not be loaded. Check the message above and retry.</td></tr>';
+        booksBody.innerHTML = '<tr><td colspan="6" class="reference-empty">Books could not be loaded. Check the message above and retry.</td></tr>';
         resultCount.textContent = 'Unable to load books.';
     }
 
@@ -196,57 +196,59 @@
         const thresholdText = assessment.threshold === null
             ? 'Not configured'
             : `${assessment.threshold} years (${assessment.policy_direction === 'within' ? 'maximum age' : 'minimum age'})`;
+        const detailRow = (label, value) => `<div class="reference-detail-row"><dt>${label}</dt><dd>${value}</dd></div>`;
         const courses = book.courses.length
-            ? `<ul class="mt-3 divide-y divide-slate-200 rounded-lg border border-slate-200">${book.courses.map((course) => `
-                <li class="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="min-w-0">
-                        <p class="font-semibold text-slate-900">${escapeHtml(course.code)} — ${escapeHtml(course.name)}</p>
-                        <p class="mt-1 text-xs leading-5 text-slate-600">${escapeHtml(course.college_name || 'College not assigned')} · ${escapeHtml(course.program_name || 'Program not assigned')} · ${escapeHtml(course.status)}</p>
+            ? `<ul class="reference-course-list">${book.courses.map((course) => `
+                <li class="reference-course-item">
+                    <div>
+                        <p class="reference-course-name">${escapeHtml(course.code)} — ${escapeHtml(course.name)}</p>
+                        <p class="reference-course-meta">${escapeHtml(course.college_name || 'College not assigned')} · ${escapeHtml(course.program_name || 'Program not assigned')} · ${escapeHtml(course.status)}</p>
                     </div>
-                    <a href="app.php?page=course&course_id=${encodeURIComponent(course.id)}" class="inline-flex w-fit shrink-0 items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">Open course<i data-lucide="arrow-up-right" class="h-4 w-4" aria-hidden="true"></i></a>
+                    <a href="app.php?page=course&course_id=${encodeURIComponent(course.id)}" class="live-button">Open course<i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
                 </li>
             `).join('')}</ul>`
-            : '<p class="mt-3 rounded-lg bg-slate-50 px-4 py-4 text-sm text-slate-600">No courses currently reference this book.</p>';
+            : '<p class="reference-no-courses">No courses currently reference this book.</p>';
         return `
-            <div class="space-y-6">
-                <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <button type="button" data-book-back class="mb-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Back to books</button>
-                    <div class="flex flex-wrap items-start justify-between gap-4">
-                        <div class="min-w-0"><h3 id="referenceBookDetailTitle" tabindex="-1" class="text-2xl font-bold text-slate-900">${escapeHtml(book.title)}</h3><p class="mt-1 text-sm text-slate-600">by ${escapeHtml(book.author || 'Author not recorded')}</p></div>
+            <div class="reference-detail-layout">
+                <header class="reference-detail-header">
+                    <button type="button" data-book-back class="live-button reference-back-button"><i data-lucide="arrow-left" aria-hidden="true"></i>Back to analyzed books</button>
+                    <div class="reference-detail-heading">
+                        <div class="reference-title-group"><h3 id="referenceBookDetailTitle" tabindex="-1" class="reference-detail-title">${escapeHtml(book.title)}</h3><p class="reference-detail-author">by ${escapeHtml(book.author || 'Author not recorded')}</p></div>
                         ${statusBadge(assessment)}
                     </div>
-                </section>
-                <div class="grid gap-6 xl:grid-cols-2">
-                <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="referenceBookInformationHeading">
-                    <h4 id="referenceBookInformationHeading" class="text-sm font-bold text-slate-900">Book information</h4>
-                    <dl class="mt-3 divide-y divide-slate-200 rounded-lg border border-slate-200">
-                        <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Title</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeHtml(book.title)}</dd></div>
-                        <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Author(s)</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeHtml(book.author || 'Not recorded')}</dd></div>
-                        <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">ISBN</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeHtml(book.isbn || 'Not recorded')}</dd></div>
-                        <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Publisher</dt><dd class="text-right text-sm font-medium text-slate-900">${escapeHtml(book.publisher || 'Not recorded')}</dd></div>
-                        <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Publication year</dt><dd class="text-right text-sm font-medium text-slate-900">${book.publication_year ?? 'Not recorded'}</dd></div>
-                        <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Copyright year</dt><dd class="text-right text-sm font-medium text-slate-900">${book.copyright_year ?? 'Not recorded'}</dd></div>
-                        <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-sm text-slate-600">Copies</dt><dd class="text-right text-sm font-medium text-slate-900">${book.copy_count}</dd></div>
-                        <div class="flex flex-col gap-1 px-4 py-3"><dt class="text-sm text-slate-600">Description</dt><dd class="text-sm leading-5 text-slate-900">${escapeHtml(book.description || 'Not recorded')}</dd></div>
+                </header>
+                <div class="reference-detail-grid">
+                <section class="reference-detail-section" aria-labelledby="referenceBookInformationHeading">
+                    <h4 id="referenceBookInformationHeading">Book information</h4>
+                    <dl class="reference-detail-list">
+                        ${detailRow('Title', escapeHtml(book.title))}
+                        ${detailRow('Author(s)', escapeHtml(book.author || 'Not recorded'))}
+                        ${detailRow('ISBN', escapeHtml(book.isbn || 'Not recorded'))}
+                        ${detailRow('Publisher', escapeHtml(book.publisher || 'Not recorded'))}
+                        ${detailRow('Publication year', book.publication_year ?? 'Not recorded')}
+                        ${detailRow('Copyright year', book.copyright_year ?? 'Not recorded')}
+                        ${detailRow('Copies', book.copy_count)}
+                        ${detailRow('Description', escapeHtml(book.description || 'Not recorded'))}
                     </dl>
                 </section>
-                <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="referencePolicyAssessmentHeading">
-                    <div class="flex flex-wrap items-center justify-between gap-2"><h4 id="referencePolicyAssessmentHeading" class="text-sm font-bold text-slate-900">Reference policy assessment</h4>${statusBadge(assessment)}</div>
-                    <dl class="mt-3 grid gap-3 rounded-lg border border-slate-200 p-4 sm:grid-cols-2">
-                        <div><dt class="text-xs font-semibold uppercase text-slate-600">Publication year</dt><dd class="mt-1 text-sm font-medium text-slate-900">${book.publication_year ?? 'Not recorded'}</dd></div>
-                        <div><dt class="text-xs font-semibold uppercase text-slate-600">Calculated age</dt><dd class="mt-1 text-sm font-medium text-slate-900">${ageText}</dd></div>
-                        <div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase text-slate-600">Applicable threshold</dt><dd class="mt-1 text-sm font-medium text-slate-900">${thresholdText}</dd></div>
+                <section class="reference-detail-section" aria-labelledby="referencePolicyAssessmentHeading">
+                    <h4 id="referencePolicyAssessmentHeading">Reference policy assessment</h4>
+                    <dl class="reference-detail-list">
+                        ${detailRow('Publication year', book.publication_year ?? 'Not recorded')}
+                        ${detailRow('Calculated age', ageText)}
+                        ${detailRow('Applicable threshold', thresholdText)}
+                        ${detailRow('Assessment', escapeHtml(assessment.label))}
                     </dl>
-                    <p class="mt-3 text-sm leading-5 text-slate-700">${escapeHtml(assessment.explanation)}</p>
+                    <p class="reference-assessment-explanation">${escapeHtml(assessment.explanation)} Assessments use publication year and do not indicate copyright expiration.</p>
                 </section>
                 </div>
-                <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="linkedCoursesHeading"><div class="flex items-center justify-between gap-3"><h4 id="linkedCoursesHeading" class="text-sm font-bold text-slate-900">Linked courses</h4><span class="text-xs text-slate-600">${book.courses.length} course${book.courses.length === 1 ? '' : 's'}</span></div>${courses}</section>
-                <section class="flex flex-wrap justify-end gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Book actions">
-                <button type="button" data-refresh-book="${book.book_id}" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500"><i data-lucide="refresh-cw" class="h-4 w-4" aria-hidden="true"></i>Recalculate</button>
-                <a href="app.php?page=inventory&book_id=${encodeURIComponent(book.book_id)}&inventory_action=view" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500"><i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>Open inventory</a>
+                <section class="reference-detail-section reference-linked-courses" aria-labelledby="linkedCoursesHeading"><div class="flex items-center justify-between gap-3"><h4 id="linkedCoursesHeading">Linked courses</h4><span class="text-xs text-slate-600">${book.courses.length} course${book.courses.length === 1 ? '' : 's'}</span></div>${courses}</section>
+                <section class="reference-book-actions" aria-label="Book actions">
+                <button type="button" data-refresh-book="${book.book_id}" class="live-button"><i data-lucide="refresh-cw" aria-hidden="true"></i>Recalculate</button>
+                <a href="app.php?page=inventory&book_id=${encodeURIComponent(book.book_id)}&inventory_action=view" class="live-button"><i data-lucide="external-link" aria-hidden="true"></i>Open inventory</a>
                 ${page.dataset.canManage === 'true' ? `
-                    <a href="app.php?page=inventory&book_id=${encodeURIComponent(book.book_id)}&inventory_action=edit" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="pencil" class="h-4 w-4" aria-hidden="true"></i>Edit book</a>
-                    <a href="app.php?page=inventory&book_id=${encodeURIComponent(book.book_id)}&inventory_action=manage-references" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-500">Manage links</a>
+                    <a href="app.php?page=inventory&book_id=${encodeURIComponent(book.book_id)}&inventory_action=edit" class="live-button live-button-primary"><i data-lucide="pencil" aria-hidden="true"></i>Edit book</a>
+                    <a href="app.php?page=inventory&book_id=${encodeURIComponent(book.book_id)}&inventory_action=manage-references" class="live-button">Manage links</a>
                 ` : ''}
                 </section>
             </div>
@@ -259,7 +261,7 @@
         overview.classList.add('hidden');
         detailView.classList.remove('hidden');
         detailView.setAttribute('aria-busy', 'true');
-        detailView.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white px-5 py-12 text-center text-sm text-slate-600" role="status">Loading book details…</div>';
+        detailView.innerHTML = '<div class="reference-detail-section reference-empty" role="status">Loading book details…</div>';
         detailView.focus();
         try {
             const result = await request('book_detail', { book_id: String(bookId) });
@@ -275,7 +277,7 @@
             if (state.activeBookId !== Number(bookId)) {
                 return;
             }
-            detailView.innerHTML = `<section class="rounded-xl border border-rose-200 bg-white p-5" aria-labelledby="bookDetailErrorTitle"><button type="button" data-book-back class="mb-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Back to books</button><h3 id="bookDetailErrorTitle" tabindex="-1" class="font-bold text-slate-900">Book details unavailable</h3><p class="mt-2 text-sm text-rose-800" role="alert">${escapeHtml(error.message)}</p><button type="button" data-refresh-book="${bookId}" class="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">Retry</button></section>`;
+            detailView.innerHTML = `<section class="reference-detail-section" aria-labelledby="bookDetailErrorTitle"><button type="button" data-book-back class="live-button reference-back-button"><i data-lucide="arrow-left" aria-hidden="true"></i>Back to analyzed books</button><h3 id="bookDetailErrorTitle" tabindex="-1" class="reference-detail-title">Book details unavailable</h3><p class="reference-error" role="alert">${escapeHtml(error.message)}</p><button type="button" data-refresh-book="${bookId}" class="live-button live-button-primary">Retry</button></section>`;
             detailView.removeAttribute('aria-busy');
             lucide.createIcons({ nodes: [detailView] });
             detailView.querySelector('#bookDetailErrorTitle')?.focus();

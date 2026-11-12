@@ -118,7 +118,7 @@ function clearAttempts(PDO $pdo, string $username, string $ip): void {
 
 function requireLogin(): void {
     if (empty($_SESSION['authenticated']) || empty($_SESSION['user_id'])) {
-        header('Location: login.php');
+        header('Location: index.php');
         exit;
     }
 }

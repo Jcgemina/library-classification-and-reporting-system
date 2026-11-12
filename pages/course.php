@@ -133,6 +133,13 @@ if ($action !== null) {
                     'total' => (int) $pdo->query('SELECT COUNT(*) FROM courses')->fetchColumn(),
                     'active' => (int) $pdo->query("SELECT COUNT(*) FROM courses WHERE status = 'active'")->fetchColumn(),
                     'inactive' => (int) $pdo->query("SELECT COUNT(*) FROM courses WHERE status = 'inactive'")->fetchColumn(),
+                    'meets_minimum' => (int) $pdo->query(
+                        'SELECT COUNT(*) FROM courses c
+                         WHERE (SELECT COUNT(*)
+                                FROM book_courses bc
+                                INNER JOIN books b ON b.book_id = bc.book_id AND b.deleted_at IS NULL
+                                WHERE bc.course_id = c.id) >= ' . (int) $minimumBooksPerCourse
+                    )->fetchColumn(),
                 ];
 
                 courseJson(['success' => true, 'courses' => $courses, 'counts' => $counts]);
@@ -437,106 +444,67 @@ if ($action !== null) {
 }
 ?>
 
-<div class="space-y-6" data-course-page data-course-admin="<?php echo in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true) ? 'true' : 'false'; ?>">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+<div class="live-course-page space-y-6" data-course-page data-course-admin="<?php echo in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true) ? 'true' : 'false'; ?>">
+    <section class="courses-heading" aria-labelledby="coursesTitle">
         <div>
-            <p class="text-xs font-bold uppercase tracking-[0.18em] text-rose-600">Academic catalog</p>
-            <h2 class="mt-1 text-3xl font-bold text-slate-900">Course Management</h2>
-            <p class="mt-1 text-sm text-slate-500">Maintain course records and their links to colleges, programs, and majors. Book coverage shows whether each course meets the configured minimum.</p>
+            <h1 id="coursesTitle">Courses</h1>
+            <p class="page-description">Review course records, academic assignments, and active book coverage.</p>
         </div>
-
         <?php if (in_array(strtolower((string) ($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)): ?>
             <div class="flex flex-wrap gap-2">
                 <?php if ($courseCsvEnabled): ?>
-                    <button type="button" id="importCoursesBtn" class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50" title="Import a CSV with code, name, and program_id columns">
-                        <i data-lucide="upload" class="h-4 w-4"></i>
-                        Import CSV
+                    <button type="button" id="importCoursesBtn" class="live-button" title="Import a CSV with code, name, and program_id columns">
+                        <i data-lucide="upload" aria-hidden="true"></i>Import CSV
                     </button>
-                    <a href="assets/course-template.csv" download="courses-template.csv" class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
-                        <i data-lucide="download" class="h-4 w-4"></i>
-                        CSV template
+                    <a href="assets/course-template.csv" download="courses-template.csv" class="live-button">
+                        <i data-lucide="download" aria-hidden="true"></i>CSV template
                     </a>
                     <input type="file" id="courseCsvFile" accept=".csv,text/csv" class="hidden" aria-label="Choose course CSV file">
                 <?php endif; ?>
-                <button type="button" id="addCourseBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700">
-                    <i data-lucide="plus" class="h-4 w-4"></i>
-                    Add Course
+                <button type="button" id="addCourseBtn" class="live-button live-button-primary">
+                    <i data-lucide="plus" aria-hidden="true"></i>Add course
                 </button>
             </div>
         <?php endif; ?>
-    </div>
+    </section>
 
-    <div class="grid grid-cols-3 gap-2 sm:gap-3">
-        <div class="min-w-0 rounded-xl border border-slate-200 bg-white p-2.5 sm:p-4">
-            <div class="flex items-center justify-between gap-1">
-                <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Total courses</p>
-                <i data-lucide="book-open" class="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true"></i>
-            </div>
-            <p id="totalCount" class="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">0</p>
-        </div>
-        <div class="min-w-0 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 sm:p-4">
-            <div class="flex items-center justify-between gap-1">
-                <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-emerald-700 sm:text-xs">Active</p>
-                <i data-lucide="circle-check" class="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true"></i>
-            </div>
-            <p id="activeCount" class="mt-1 text-xl font-bold text-emerald-900 sm:text-2xl">0</p>
-        </div>
-        <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-4">
-            <div class="flex items-center justify-between gap-1">
-                <p class="text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs">Inactive</p>
-                <i data-lucide="circle-minus" class="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true"></i>
-            </div>
-            <p id="inactiveCount" class="mt-1 text-xl font-bold text-slate-700 sm:text-2xl">0</p>
-        </div>
-    </div>
+    <section class="courses-summary" aria-label="Course totals">
+        <div class="courses-summary-item"><strong id="totalCount">0</strong><span>Courses</span></div>
+        <div class="courses-summary-item"><strong id="activeCount">0</strong><span>Active</span></div>
+        <div class="courses-summary-item"><strong id="readyCount">0</strong><span>Meet book minimum</span></div>
+        <div class="courses-summary-item"><span id="courseStatusMessage" aria-live="polite">Loading courses…</span></div>
+    </section>
 
-    <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div class="flex flex-1 flex-col gap-2 sm:flex-row">
-                <div class="relative w-full"><i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true"></i><input id="courseSearch" type="search" placeholder="Search code, name, or description" class="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-rose-600 focus:ring-2 focus:ring-rose-100"></div>
-                <select id="courseCollege" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-                    <option value="">All colleges</option>
-                </select>
-                <select id="courseProgram" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-                    <option value="">All programs</option>
-                </select>
-                <select id="courseStatus" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-                    <option value="all">All statuses</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-            </div>
-            <span id="courseStatusMessage" class="text-xs text-slate-500" aria-live="polite">Loading courses...</span>
+    <section class="courses-workspace" aria-labelledby="coursesDirectoryTitle">
+        <div class="courses-directory-heading">
+            <div><h2 id="coursesDirectoryTitle">Course directory</h2><p>Search by code, name, or academic assignment.</p></div>
         </div>
-
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[1120px] table-fixed text-left text-sm">
-                <colgroup>
-                    <col style="width: 120px">
-                    <col style="width: 200px">
-                    <col style="width: 300px">
-                    <col style="width: 115px">
-                    <col style="width: 200px">
-                    <col style="width: 175px">
-                </colgroup>
-                <thead class="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                        <th class="px-3 py-3">Course code</th>
-                        <th class="px-3 py-3">Course name</th>
-                        <th class="px-3 py-3">Academic link</th>
-                        <th class="w-28 px-3 py-3 text-center">Status</th>
-                        <th class="px-3 py-3">Book readiness</th>
-                        <th class="px-3 py-3 text-right">Actions</th>
-                    </tr>
+        <div class="courses-filters">
+            <label class="sr-only" for="courseSearch">Search courses</label>
+            <input id="courseSearch" type="search" placeholder="Search course code, name, program, or major">
+            <label class="sr-only" for="courseCollege">Filter by college</label>
+            <select id="courseCollege"><option value="">All colleges</option></select>
+            <label class="sr-only" for="courseProgram">Filter by program</label>
+            <select id="courseProgram"><option value="">All programs</option></select>
+            <label class="sr-only" for="courseStatus">Filter by status</label>
+            <select id="courseStatus">
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+        </div>
+        <div class="courses-table-wrap">
+            <table class="courses-table">
+                <thead>
+                    <tr><th scope="col">Course</th><th scope="col">Academic link</th><th scope="col">Status</th><th scope="col">Book readiness</th><th scope="col">Actions</th></tr>
                 </thead>
-                <tbody id="courseBody" class="divide-y divide-slate-100"></tbody>
+                <tbody id="courseBody"></tbody>
             </table>
         </div>
     </section>
-</div>
 
-<div id="courseModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-    <form id="courseForm" class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+    <div id="courseModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4">
+    <form id="courseForm" class="course-modal">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-xs font-bold uppercase tracking-wide text-rose-600">Course record</p>
@@ -602,6 +570,7 @@ if ($action !== null) {
             </button>
         </div>
     </form>
+    </div>
 </div>
 
 <script src="assets/js/course.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/course.js'); ?>"></script>

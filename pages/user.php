@@ -78,88 +78,88 @@ if ($action !== '') {
 }
 ?>
 
-<div class="space-y-6">
-  <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+<div class="live-users-page">
+  <section class="users-heading" aria-labelledby="usersTitle">
     <div>
-      <h2 class="text-2xl font-bold text-slate-900">User Module</h2>
-      <p class="text-sm text-slate-500 mt-1">
-        Manage librarian accounts, permissions, and secure access.
-      </p>
+      <h1 id="usersTitle">Users</h1>
+      <p class="page-description">Manage librarian accounts and their access to library administration.</p>
     </div>
-
-    <div class="flex items-center gap-3">
-       <button
-        type="button"
-        id="bulkDeleteBtn"
-        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60">
-        <i data-lucide="trash-2" class="w-4 h-4"></i>
-        <span id="bulkDeleteBtnLabel">Delete selected</span>
-      </button>
-      
-      <button
-        type="button"
-        id="addLibrarianBtn"
-        class="inline-flex items-center gap-2 rounded-xl bg-[#f43f5e] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-900">
-        <i data-lucide="user-plus" class="w-4 h-4"></i>
-        Add Librarian
+    <div class="users-heading-actions">
+      <button type="button" id="addLibrarianBtn" class="users-button users-button-primary">
+        <i data-lucide="user-plus" aria-hidden="true"></i>
+        Add user
       </button>
     </div>
-  </div>
+  </section>
 
-  <div id="bulkActionBar" class="hidden items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-    <div class="flex items-center gap-2 font-semibold">
-      <i data-lucide="check-square" class="h-4 w-4"></i>
+  <div id="bulkActionBar" class="users-bulk-bar hidden" role="status" aria-live="polite">
+    <div class="users-selection-summary">
+      <i data-lucide="check-square" aria-hidden="true"></i>
       <span id="selectedCountLabel">0 selected</span>
     </div>
-    <button type="button" id="clearSelectionBtn" class="text-sm font-semibold text-rose-700 underline-offset-2 hover:underline">
-      Clear selection
-    </button>
-  </div>
-
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
-      <p class="text-sm font-medium text-slate-500">Total Librarians</p>
-      <div class="mt-3 flex items-center justify-between">
-        <h3 class="text-3xl font-bold text-slate-900" data-stat="total">0</h3>
-        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-100 text-rose-700"><i data-lucide="users" class="h-5 w-5"></i></div>
-      </div>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
-      <p class="text-sm font-medium text-slate-500">Active Accounts</p>
-      <div class="mt-3 flex items-center justify-between">
-        <h3 class="text-3xl font-bold text-slate-900" data-stat="active">0</h3>
-        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><i data-lucide="shield-check" class="h-5 w-5"></i></div>
-      </div>
-    </div>
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
-      <p class="text-sm font-medium text-slate-500">Admin Access</p>
-      <div class="mt-3 flex items-center justify-between">
-        <h3 class="text-3xl font-bold text-slate-900" data-stat="admins">0</h3>
-        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><i data-lucide="key-round" class="h-5 w-5"></i></div>
-      </div>
+    <div class="users-bulk-actions">
+      <button type="button" id="bulkDeleteBtn" class="users-button users-button-danger" disabled>
+        <i data-lucide="trash-2" aria-hidden="true"></i>
+        <span id="bulkDeleteBtnLabel">Delete selected</span>
+      </button>
+      <button type="button" id="clearSelectionBtn" class="users-button">Clear selection</button>
     </div>
   </div>
 
-  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-md">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div><h3 class="text-lg font-bold text-slate-900">Librarian Directory</h3><p class="text-sm text-slate-500">Review staff profiles and update access rights.</p></div>
-      <div class="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
-        <div class="relative w-full sm:w-56"><i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i><input id="librarianSearch" type="text" placeholder="Search librarian" aria-label="Search librarian accounts" class="w-full rounded-xl border-2 border-slate-300 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-[#4B5694] focus:bg-white focus:ring-2 focus:ring-[#4B5694]/20" /></div>
-        <label class="sr-only" for="librarianStatusFilter">Filter by account status</label>
-        <select id="librarianStatusFilter" class="w-full rounded-xl border-2 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-[#4B5694] focus:bg-white focus:ring-2 focus:ring-[#4B5694]/20 sm:w-36"><option value="all">All statuses</option><option value="active">Active only</option><option value="inactive">Inactive only</option></select>
-        <label class="sr-only" for="librarianRoleFilter">Filter by account role</label>
-        <select id="librarianRoleFilter" class="w-full rounded-xl border-2 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-[#4B5694] focus:bg-white focus:ring-2 focus:ring-[#4B5694]/20 sm:w-36"><option value="all">All roles</option><option value="librarian">Librarians</option><option value="admin">Admins</option></select>
+  <section class="users-summary" aria-label="Account summary">
+    <div class="users-summary-item"><strong data-stat="total">0</strong><span>Accounts</span></div>
+    <div class="users-summary-item"><strong data-stat="active">0</strong><span>Active</span></div>
+    <div class="users-summary-item"><strong data-stat="admins">0</strong><span>Admin access</span></div>
+    <div class="users-summary-item users-result-summary" id="librarianResultSummary" aria-live="polite"></div>
+  </section>
+
+  <section class="users-directory" aria-labelledby="usersDirectoryTitle">
+    <div class="users-directory-heading">
+      <div>
+        <h2 id="usersDirectoryTitle">Librarian directory</h2>
+        <p>Review profiles, roles, and account status.</p>
+      </div>
+      <div class="users-filters">
+        <label class="sr-only" for="librarianSearch">Search accounts</label>
+        <input id="librarianSearch" type="search" placeholder="Search name, email, or username" autocomplete="off">
+        <label class="sr-only" for="librarianRoleFilter">Filter by role</label>
+        <select id="librarianRoleFilter">
+          <option value="all">All roles</option>
+          <option value="librarian">Librarians</option>
+          <option value="admin">Admins</option>
+        </select>
+        <label class="sr-only" for="librarianStatusFilter">Filter by status</label>
+        <select id="librarianStatusFilter">
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
       </div>
     </div>
-    <p id="librarianResultSummary" class="mt-4 text-xs font-medium text-slate-500" aria-live="polite"></p>
-    <div id="librarianList" class="mt-6 space-y-3"></div>
-    <div id="librarianPagination" class="mt-6 flex flex-wrap items-center justify-center gap-2"></div>
-  </div>
+    <div class="users-table-wrap">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th scope="col">Person</th>
+            <th scope="col">Username</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col">Joined</th>
+            <th scope="col"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="librarianList">
+          <tr><td class="users-empty" colspan="6">Loading accounts…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="librarianPagination" class="users-pagination" aria-label="User list pages"></div>
+  </section>
 </div>
 
 <div id="librarianModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
   <div class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
-    <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4"><div><h3 id="modalTitle" class="text-xl font-bold text-slate-900">Add User</h3><p class="text-sm text-slate-500">Create or update access details.</p></div><button type="button" data-close-modal class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close form"><i data-lucide="x" class="h-4 w-4"></i></button></div>
+    <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4"><div><h3 id="modalTitle" class="text-xl font-bold text-slate-900">Add user</h3><p class="text-sm text-slate-500">Create or update access details.</p></div><button type="button" data-close-modal class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close form"><i data-lucide="x" class="h-4 w-4"></i></button></div>
     <form id="librarianForm" class="space-y-5 p-6"><input type="hidden" id="librarianId" name="id" />
       <div class="grid gap-4 md:grid-cols-2">
         <div><label for="fullName" class="mb-1.5 block text-sm font-medium text-slate-700">Full Name</label><input id="fullName" name="fullName" type="text" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" /></div>
