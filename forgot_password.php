@@ -35,13 +35,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Forgot Password - AppSys Library</title>
+<link rel="icon" href="assets/brand/digital/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/svg+xml" href="assets/brand/digital/favicon.svg">
+<link rel="manifest" href="assets/brand/digital/site.webmanifest">
+<link rel="apple-touch-icon" href="assets/brand/digital/apple-touch-icon.png">
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen flex items-center justify-center bg-slate-200 p-6">
     <div class="w-full max-w-md">
         <div class="flex flex-col items-center mb-6">
             <div class="bg-white rounded-2xl border border-slate-200 shadow-[0_18px_45px_rgba(15,23,40,0.22)] p-3 overflow-hidden">
-                <img src="assets/images/library-system-logo.png" alt="AppSys Library logo" class="h-24 w-24 scale-[2.5] object-contain">
+                <img src="assets/images/library-system-logo.png?v=2" alt="AppSys Library logo" class="h-24 w-24 object-contain">
             </div>
             <h1 class="mt-4 text-2xl font-bold text-slate-900">AppSys Library</h1>
             <p class="text-sm text-slate-500">Librarian Management Portal</p>

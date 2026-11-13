@@ -451,7 +451,15 @@
 }
 
 [data-configure-page][data-active-section="institution"] [data-configure-group="rules"],
-[data-configure-page][data-active-section="rules"] [data-configure-group="institution"] {
+[data-configure-page][data-active-section="institution"] [data-configure-group="backup"],
+[data-configure-page][data-active-section="rules"] [data-configure-group="institution"],
+[data-configure-page][data-active-section="rules"] [data-configure-group="backup"],
+[data-configure-page][data-active-section="backup"] [data-configure-group="institution"],
+[data-configure-page][data-active-section="backup"] [data-configure-group="rules"] {
+  display: none;
+}
+
+[data-configure-page][data-active-section="backup"] .settings-actions {
   display: none;
 }
 

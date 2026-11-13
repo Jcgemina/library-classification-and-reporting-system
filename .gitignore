@@ -22,8 +22,21 @@
 # Uploaded prospectus documents are local application data
 /uploads/prospectuses/*.pdf
 
+# Local database backups contain application data
+/backups/
+
+# Local design tools and exploratory concepts are not application assets
+/assets/
+/.github/skills/
+/logo-design-skill/
+/assets/logo-concepts/
+/assets/brand/presentation.html
+/assets/brand/presentation-slides/
+
 # Markdown notes and documentation
 *.md
+!markdowns/BACKUP_SETUP.md
+!assets/brand/brand-guidelines.md
 
 # Operating system and editor files
 .DS_Store

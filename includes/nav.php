@@ -17,6 +17,7 @@ $settingsItems = [
     ['label' => 'Preference', 'page' => 'preferences', 'subpage' => 'preferences', 'href' => 'app.php?page=preferences', 'icon' => 'sliders-horizontal'],
     ['label' => 'Institutional Profile', 'page' => 'configure', 'subpage' => 'institution', 'href' => 'app.php?page=configure&section=institution#institutionProfileSettings', 'icon' => 'building-2'],
     ['label' => 'Library Rules', 'page' => 'configure', 'subpage' => 'rules', 'href' => 'app.php?page=configure&section=rules#libraryRulesSettings', 'icon' => 'list-checks'],
+    ['label' => 'Backup & Restore', 'page' => 'configure', 'subpage' => 'backup', 'href' => 'app.php?page=configure&section=backup#backupRestoreSettings', 'icon' => 'database-backup'],
 ];
 if (!$isAdmin) {
     $settingsItems = array_values(array_filter($settingsItems, static function ($item) {
@@ -365,7 +366,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     <!-- Logo section (left) -->
     <div class="flex items-center gap-1.5 md:gap-3 flex-shrink-0 min-w-0">
       <div class="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-white flex items-center justify-center shadow-sm flex-shrink-0 overflow-hidden">
-        <img src="assets/images/library-system-logo.png" alt="AppSys Library logo" class="h-full w-full scale-[2.5] object-contain">
+        <img src="assets/images/library-system-logo.png?v=2" alt="AppSys Library logo" class="h-full w-full object-contain">
       </div>
 
       <div class="leading-tight min-w-0">
@@ -559,7 +560,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
 <aside id="adminSidebar" class="admin-sidebar fixed inset-y-0 left-0 z-50 flex w-64 -translate-x-full flex-col border-r border-slate-200 bg-white shadow-xl md:translate-x-0 md:shadow-none" aria-label="Admin navigation">
   <div class="flex h-[76px] items-center gap-3 border-b border-slate-200 px-5">
     <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
-      <img src="assets/images/library-system-logo.png" alt="" class="h-full w-full scale-[2.5] object-contain">
+      <img src="assets/images/library-system-logo.png?v=2" alt="" class="h-full w-full object-contain">
     </div>
     <div class="min-w-0 leading-tight">
       <h1 class="truncate text-base font-bold text-slate-900">AppSys Library</h1>

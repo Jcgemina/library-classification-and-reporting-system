@@ -25,6 +25,8 @@ function configureJsonResponse(array $payload, int $status = 200): never
 
 $csrfToken = $_SESSION['configure_csrf'] ?? bin2hex(random_bytes(32));
 $_SESSION['configure_csrf'] = $csrfToken;
+$backupCsrfToken = $_SESSION['backup_csrf'] ?? bin2hex(random_bytes(32));
+$_SESSION['backup_csrf'] = $backupCsrfToken;
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!$pdo instanceof PDO) {
@@ -281,19 +283,39 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
 <div
     class="settings-screen"
     data-configure-page
-    data-active-section="<?php echo ($_GET['section'] ?? '') === 'rules' ? 'rules' : 'institution'; ?>"
+    data-active-section="<?php echo in_array(($_GET['section'] ?? ''), ['rules', 'backup'], true) ? ($_GET['section'] ?? '') : 'institution'; ?>"
     data-csrf-token="<?php echo $escapeConfigureValue($csrfToken); ?>"
+    data-backup-csrf-token="<?php echo $escapeConfigureValue($backupCsrfToken); ?>"
     data-saved-reference-policy-direction="<?php echo $escapeConfigureValue($referencePolicyDirection); ?>"
     data-saved-reference-policy-years="<?php echo $escapeConfigureValue($referencePolicyYears); ?>"
 >
     <header class="settings-page-heading">
         <div>
-            <h1 id="configurePageHeading"><?php echo ($_GET['section'] ?? '') === 'rules' ? 'Library Rules' : 'Institutional Profile'; ?></h1>
-            <p class="page-description" id="configurePageDescription"><?php echo ($_GET['section'] ?? '') === 'rules'
-                ? 'Set the reporting and coverage rules used by library reports and prospectus records.'
-                : 'Manage the institution details shown in report previews.'; ?></p>
+            <h1 id="configurePageHeading"><?php
+                $section = $_GET['section'] ?? '';
+                if ($section === 'rules') {
+                    echo 'Library Rules';
+                } elseif ($section === 'backup') {
+                    echo 'Backup & Restore';
+                } else {
+                    echo 'Institutional Profile';
+                }
+            ?></h1>
+            <p class="page-description" id="configurePageDescription"><?php
+                $section = $_GET['section'] ?? '';
+                if ($section === 'rules') {
+                    echo 'Set the reporting and coverage rules used by library reports and prospectus records.';
+                } elseif ($section === 'backup') {
+                    echo 'Create a ZIP backup of the library database and uploaded files, or restore them from a saved backup.';
+                } else {
+                    echo 'Manage the institution details shown in report previews.';
+                }
+            ?></p>
         </div>
-        <span class="settings-preview-chip"><i data-lucide="settings-2" aria-hidden="true"></i>Administrative settings</span>
+        <span id="configureContextBadge" class="<?php echo ($_GET['section'] ?? '') === 'backup' ? 'backup-access-label' : 'settings-preview-chip'; ?>">
+            <i data-lucide="<?php echo ($_GET['section'] ?? '') === 'backup' ? 'shield-check' : 'settings-2'; ?>" aria-hidden="true"></i>
+            <?php echo ($_GET['section'] ?? '') === 'backup' ? 'Admin only' : 'Administrative settings'; ?>
+        </span>
     </header>
 
     <?php if ($loadError !== null): ?>
@@ -307,64 +329,74 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
             <section class="settings-section" aria-labelledby="institutionProfileHeading">
                 <div>
                     <h2 class="settings-section-title" id="institutionProfileHeading">Institution profile</h2>
-                    <p class="settings-section-copy">Add your institution and library details for identification in report previews. All fields are optional.</p>
+                    <p class="settings-section-copy">These names and contact details appear in the report header. All fields are optional.</p>
                 </div>
                 <div class="settings-fields">
-                <label for="institutionName" class="settings-field">
-                    Institution name
+                <div class="settings-field">
+                    <label for="institutionName">Institution name</label>
                     <input
                         id="institutionName"
                         name="institution_name"
                         type="text"
                         maxlength="180"
+                        aria-describedby="institutionNameHelp"
                         value="<?php echo $escapeConfigureValue($institutionName); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
-                <label for="libraryName" class="settings-field">
-                    Library name
+                    <span class="settings-field-help" id="institutionNameHelp">Shown as the main heading in report previews.</span>
+                </div>
+                <div class="settings-field">
+                    <label for="libraryName">Library name</label>
                     <input
                         id="libraryName"
                         name="library_name"
                         type="text"
                         maxlength="180"
+                        aria-describedby="libraryNameHelp"
                         value="<?php echo $escapeConfigureValue($libraryName); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
-                <label for="institutionAddress" class="settings-field is-wide">
-                    Address
+                    <span class="settings-field-help" id="libraryNameHelp">Shown below the institution name in report previews.</span>
+                </div>
+                <div class="settings-field is-wide">
+                    <label for="institutionAddress">Institution address</label>
                     <input
                         id="institutionAddress"
                         name="institution_address"
                         type="text"
                         maxlength="255"
+                        aria-describedby="institutionAddressHelp"
                         value="<?php echo $escapeConfigureValue($institutionAddress); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
-                <label for="contactEmail" class="settings-field">
-                    Contact email
+                    <span class="settings-field-help" id="institutionAddressHelp">Shown with the contact details in report previews.</span>
+                </div>
+                <div class="settings-field">
+                    <label for="contactEmail">Contact email</label>
                     <input
                         id="contactEmail"
                         name="contact_email"
                         type="email"
                         maxlength="254"
+                        aria-describedby="contactEmailHelp"
                         value="<?php echo $escapeConfigureValue($contactEmail); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
-                <label for="contactPhone" class="settings-field">
-                    Contact phone
+                    <span class="settings-field-help" id="contactEmailHelp">Shown with the address and phone in report previews.</span>
+                </div>
+                <div class="settings-field">
+                    <label for="contactPhone">Contact phone</label>
                     <input
                         id="contactPhone"
                         name="contact_phone"
                         type="tel"
                         maxlength="40"
+                        aria-describedby="contactPhoneHelp"
                         value="<?php echo $escapeConfigureValue($contactPhone); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
+                    <span class="settings-field-help" id="contactPhoneHelp">Shown with the address and email in report previews.</span>
+                </div>
             </div>
             </section>
         </div>
@@ -486,6 +518,51 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
         </section>
         </div>
 
+        <div id="backupRestoreSettings" class="settings-sheet scroll-mt-24" data-configure-group="backup">
+            <section class="settings-section" aria-labelledby="backupCreateTitle">
+                <div>
+                    <h2 class="settings-section-title" id="backupCreateTitle">Create a backup</h2>
+                    <p class="settings-section-copy">Save a copy of the library database and uploaded files.</p>
+                </div>
+                <div>
+                    <div class="backup-scope-row"><i data-lucide="check" aria-hidden="true"></i><strong>Backup includes</strong><span class="backup-scope-tag">Database</span><span class="backup-scope-tag">Uploaded files</span></div>
+                    <p class="settings-help" style="margin:8px 0 13px">The ZIP is saved in Backup history, where you can download it.</p>
+                    <button type="button" class="button button-primary" id="createBackupButton"><i data-lucide="database-backup" aria-hidden="true"></i>Create backup</button>
+                </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="backupRestoreTitle">
+                <div>
+                    <h2 class="settings-section-title" id="backupRestoreTitle">Restore from a backup</h2>
+                    <p class="settings-section-copy">Upload a backup ZIP here, or restore one from Backup history.</p>
+                </div>
+                <div>
+                    <label class="settings-field" for="backupRestoreFile">Backup ZIP file
+                        <input id="backupRestoreFile" type="file" accept=".zip" aria-describedby="backupRestoreHelp">
+                    </label>
+                    <p class="settings-help" id="backupRestoreHelp" style="margin:8px 0 13px">Choose a ZIP made by this system. It must include the database and uploaded files.</p>
+                    <p class="backup-selected-file" id="backupSelectedFile" hidden></p>
+                    <button type="button" class="button button-danger" id="previewRestoreButton" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i>Check backup</button>
+                </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="backupHistoryTitle">
+                <div>
+                    <h2 class="settings-section-title" id="backupHistoryTitle">Backup history</h2>
+                    <p class="settings-section-copy">Download or restore a saved backup.</p>
+                </div>
+                <div class="backup-history-wrap">
+                    <table class="backup-history">
+                        <thead><tr><th scope="col">Created</th><th scope="col">Contents</th><th scope="col">Size</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+                        <tbody>
+                            <!-- Loaded by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <p class="backup-status" id="backupActionStatus" role="status" aria-live="polite"></p>
+        </div>
+
         <div class="settings-actions">
             <p
                 id="configureMessage"
@@ -513,4 +590,18 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
         </div>
     </form>
 </div>
-<script src="assets/js/configure.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/configure.js'); ?>"></script>
+
+<dialog class="prototype-dialog backup-restore-dialog" id="backupRestoreDialog" aria-labelledby="backupRestoreDialogTitle" aria-describedby="backupRestoreDialogDescription">
+  <h2 id="backupRestoreDialogTitle">Restore this backup?</h2>
+  <p class="backup-restore-selection">Selected backup: <strong id="backupRestoreSelection"></strong></p>
+  <div class="backup-restore-warning" id="backupRestoreDialogDescription">
+    <i data-lucide="triangle-alert" aria-hidden="true"></i>
+    <span>This replaces the current database and uploaded files with the selected backup. You cannot undo this. Create a backup of the current data first if you need to keep it.</span>
+  </div>
+  <div class="dialog-actions backup-confirm-actions">
+    <button type="button" class="button" id="cancelBackupRestore">Cancel</button>
+    <button type="button" class="button button-danger" id="confirmBackupRestore">Restore backup</button>
+  </div>
+</dialog>
+
+<script src="assets/js/backup.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/backup.js'); ?>"></script>
