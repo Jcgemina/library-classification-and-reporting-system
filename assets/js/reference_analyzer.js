@@ -150,9 +150,13 @@
             });
             resultCount.textContent = `${result.summary.total} matching book${result.summary.total === 1 ? '' : 's'}`;
             const policy = result.policy;
-            policyNote.textContent = policy.direction
-                ? `Configured reference-age policy: ${policy.direction === 'within' ? 'published within' : 'at least'} ${policy.years} years. Assessments use publication year and do not indicate copyright expiration.`
-                : 'Reference-age policy is not configured. Books with a recorded publication year are marked Needs Verification until an administrator confirms the institutional rule in Library Settings.';
+            if (policy.direction) {
+                const policySource = policy.source ? ` Source: ${policy.source}.` : ' Policy source is not recorded.';
+                const effectiveDate = policy.effective_date ? ` Effective ${policy.effective_date}.` : ' Effective date is not recorded.';
+                policyNote.textContent = `Configured reference-age policy: ${policy.direction === 'within' ? 'published within' : 'at least'} ${policy.years} years.${policySource}${effectiveDate} Assessments use publication year and do not indicate copyright expiration.`;
+            } else {
+                policyNote.textContent = 'Reference-age policy is not configured. Books with a recorded publication year are marked Needs Verification until an administrator confirms the institutional rule in Library Settings.';
+            }
         } catch (error) {
             if (requestNumber === state.requestNumber) {
                 showError(error.message);

@@ -92,7 +92,7 @@
 
     function renderRows() {
         const rows = visibleRows();
-        resultCount.textContent = `${rows.length} ${rows.length === 1 ? 'record' : 'records'}`;
+        resultCount.textContent = `${rows.length} active ${rows.length === 1 ? 'scope' : 'scopes'}`;
         clearButton.disabled = !collegeFilter.value && !programFilter.value && !majorFilter.value;
         exportButton.disabled = rows.length === 0;
         noMatches.classList.toggle('hidden', rows.length !== 0 || reportRows.length === 0);
@@ -276,16 +276,17 @@
                     <h2>${escapeHtml(institutionName)}</h2>
                     <p>${escapeHtml(libraryName)}</p>
                     ${profileDetails ? `<p>${escapeHtml(profileDetails)}</p>` : ''}
-                    <h3>Program and Major Verification Progress</h3>
-                    <p>Academic year ${escapeHtml(reportYear)}</p>
+                    <h3>Program and Major Completion Progress</h3>
+                    <p>Calendar year ${escapeHtml(reportYear)}</p>
                 </header>
                 <div class="report-print-meta">
                     <span><strong>Generated On:</strong> ${escapeHtml(generatedOn)}</span>
-                    <span><strong>Academic Year:</strong> ${escapeHtml(reportYear)}</span>
-                    <span><strong>Records:</strong> ${rows.length}</span>
+                    <span><strong>Calendar Year:</strong> ${escapeHtml(reportYear)}</span>
+                    <span><strong>Filtered Scopes:</strong> ${rows.length}</span>
                 </div>
+                <p class="report-print-methodology">Complete is a staff-entered status, not an evidence review. Updated as of is the latest update month recorded for the selected target quarter.</p>
                 <table class="report-print-table">
-                    <thead><tr><th>No.</th><th>College</th><th>Program</th><th>Major</th><th>Target Q</th><th>Actual</th><th>Updated as of</th></tr></thead>
+                    <thead><tr><th>No.</th><th>College</th><th>Program</th><th>Major</th><th>Target Q</th><th>Complete</th><th>Updated as of</th></tr></thead>
                     <tbody>${rows.map((row, index) => {
                         const target = row.target_quarter || 'Q1';
                         return `<tr>
@@ -349,7 +350,7 @@
 
     function currentExportRows() {
         return [
-            ['College', 'Program', 'Major', 'Year', 'Target quarter', 'Actual', 'Updated as of'],
+            ['College', 'Program', 'Major', 'Calendar year', 'Target quarter', 'Staff-entered completion', 'Updated as of'],
             ...visibleRows().map(row => {
                 const target = row.target_quarter || 'Q1';
                 return [

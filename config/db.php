@@ -32,6 +32,8 @@ $DB_PORT = $getConfig('DB_PORT', '3306');
 $DB_NAME = $getConfig('DB_NAME');
 $DB_USER = $getConfig('DB_USER');
 $DB_PASS = $getConfig('DB_PASS');
+$BACKUP_DB_USER = $getConfig('BACKUP_DB_USER', $DB_USER);
+$BACKUP_DB_PASS = $getConfig('BACKUP_DB_PASS', $DB_PASS);
 
 const MAIL_FROM = 'no-reply@library.local';
 

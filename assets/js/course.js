@@ -147,6 +147,13 @@
             <aside class="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="courseDetailsTitle">
                 <div class="flex items-start justify-between border-b border-slate-200 px-6 py-5">
                     <div>
+                        <nav class="app-breadcrumbs" aria-label="Breadcrumb">
+                            <ol>
+                                <li><a href="app.php?page=course">Courses</a></li>
+                                ${[course.collegeName, course.programName, course.majorName].filter(Boolean).map((name) => `<li><span>${esc(name)}</span></li>`).join('')}
+                                <li aria-current="page"><span>${esc(course.code)} - ${esc(course.name)}</span></li>
+                            </ol>
+                        </nav>
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600">Course record</p>
                         <h3 id="courseDetailsTitle" class="mt-1 text-xl font-bold text-slate-900">${esc(course.code)} - ${esc(course.name)}</h3>
                     </div>

@@ -4,19 +4,19 @@
         return;
     }
 
-    const themeSelect = document.getElementById('preferenceTheme');
     const densitySelect = document.getElementById('preferenceDensity');
     const rowsPerPageSelect = document.getElementById('preferenceRowsPerPage');
     const textSizeSelect = document.getElementById('preferenceTextSize');
+    const themeSelect = document.getElementById('preferenceTheme');
     const message = document.getElementById('preferencesMessage');
     const resetButton = document.getElementById('resetPreferencesButton');
 
     function updateControls() {
         const preferences = window.AppPreferences.get();
-        themeSelect.value = preferences.theme;
         densitySelect.value = preferences.density;
         rowsPerPageSelect.value = String(preferences.rowsPerPage);
         textSizeSelect.value = preferences.textSize;
+        themeSelect.value = preferences.theme;
     }
 
     if (!window.AppPreferences.isStorageAvailable()) {
@@ -36,15 +36,15 @@
         }
     }
 
-    themeSelect.addEventListener('change', () => savePreference('theme', themeSelect.value));
     densitySelect.addEventListener('change', () => savePreference('density', densitySelect.value));
     rowsPerPageSelect.addEventListener('change', () => savePreference('rowsPerPage', rowsPerPageSelect.value));
     textSizeSelect.addEventListener('change', () => savePreference('textSize', textSizeSelect.value));
+    themeSelect.addEventListener('change', () => savePreference('theme', themeSelect.value));
     resetButton.addEventListener('click', () => {
         try {
             window.AppPreferences.reset();
             updateControls();
-            message.textContent = 'Preferences restored to device theme, comfortable spacing, 10 rows per page, and default text size.';
+            message.textContent = 'Preferences restored to the light theme, comfortable spacing, 10 rows per page, and default text size.';
             message.className = 'settings-status is-success';
         } catch (error) {
             message.textContent = error instanceof Error ? error.message : 'Preferences could not be reset.';

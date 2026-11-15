@@ -41,6 +41,69 @@
   let expandedTreeProgramIds = new Set();
   let renderedTreeCollegeId = null;
   let academicActionMenuId = 0;
+  function updateOrganizationBreadcrumb(action, item = {}, parent = '', major = '') {
+      const entity = action.replace(/^(add|edit)_/, '');
+      const colleges = organizationData.colleges || [];
+      let college = null;
+      let program = null;
+      let majorRecord = null;
+
+      if (entity === 'college') {
+          college = colleges.find(candidate => String(candidate.id) === String(item.id));
+      } else if (entity === 'program') {
+          college = colleges.find(candidate => String(candidate.id) === String(parent || item.college_id));
+          program = (college?.programs || []).find(candidate => String(candidate.id) === String(item.id));
+      } else if (entity === 'major' || entity === 'course') {
+          for (const candidate of colleges) {
+              const parentProgram = (candidate.programs || []).find(entry => String(entry.id) === String(parent || item.program_id));
+              if (parentProgram) {
+                  college = candidate;
+                  program = parentProgram;
+                  break;
+              }
+          }
+          const majorId = major || item.major_id;
+          if (majorId) {
+              majorRecord = (program?.majors || []).find(candidate => String(candidate.id) === String(majorId));
+          }
+          if (entity === 'major') {
+              majorRecord = (program?.majors || []).find(candidate => String(candidate.id) === String(item.id));
+          }
+      }
+
+      const segments = ['Academics'];
+      if (entity !== 'college' && college) segments.push(college.name);
+      if (entity !== 'program' && program) segments.push(program.name);
+      if (entity !== 'major' && majorRecord) segments.push(majorRecord.name);
+      const currentName = entity === 'college'
+          ? college?.name || item.name
+          : entity === 'program'
+          ? program?.name || item.name
+          : entity === 'major'
+          ? majorRecord?.name || item.name
+          : item.name;
+      segments.push(currentName || `New ${entity}`);
+
+      let breadcrumb = form.querySelector('[data-organization-breadcrumb]');
+      if (!breadcrumb) {
+          breadcrumb = document.createElement('nav');
+          breadcrumb.className = 'app-breadcrumbs';
+          breadcrumb.setAttribute('aria-label', 'Breadcrumb');
+          breadcrumb.dataset.organizationBreadcrumb = '';
+          form.querySelector('#organizationModalTitle').parentElement.after(breadcrumb);
+      }
+
+      const list = document.createElement('ol');
+      segments.forEach((segment, index) => {
+          const itemElement = document.createElement('li');
+          const text = document.createElement('span');
+          text.textContent = segment;
+          if (index === segments.length - 1) itemElement.setAttribute('aria-current', 'page');
+          itemElement.append(text);
+          list.append(itemElement);
+      });
+      breadcrumb.replaceChildren(list);
+  }
   function closeDialog(dialog) { dialog?.classList.add('hidden'); dialog?.classList.remove('flex'); }
   function openDialog(dialog) { dialog?.classList.remove('hidden'); dialog?.classList.add('flex'); }
   let prospectusDataLoaded = false;
@@ -156,12 +219,19 @@
       parentLabel.classList.toggle('hidden', !isEdit || entity === 'college');
       if (isEdit && entity !== 'college') {
           parentSelect.innerHTML = parentOptions(entity, parent);
-          parentSelect.onchange = () => { document.getElementById('organizationParent').value = parentSelect.value; };
+          parentSelect.onchange = () => {
+              document.getElementById('organizationParent').value = parentSelect.value;
+              updateOrganizationBreadcrumb(action, item, parentSelect.value, document.getElementById('organizationMajor').value);
+          };
       } else if (isCreate && entity !== 'college') {
           parentSelect.innerHTML = parentOptions(entity, parent);
           parentSelect.value = String(parent || '');
           document.getElementById('organizationParent').value = parent || '';
           parentLabel.classList.remove('hidden');
+          parentSelect.onchange = () => {
+              document.getElementById('organizationParent').value = parentSelect.value;
+              updateOrganizationBreadcrumb(action, item, parentSelect.value, document.getElementById('organizationMajor').value);
+          };
       }
 
       const majorLabel = document.getElementById('majorSelectLabel');
@@ -169,14 +239,27 @@
       if (isEdit && entity === 'course') {
           const program = organizationData.colleges.flatMap(c => c.programs || []).find(p => Number(p.id) === Number(parent));
           document.getElementById('majorSelect').innerHTML = '<option value="">No major</option>' + (program?.majors || []).map(majorItem => `<option value="${majorItem.id}" ${Number(majorItem.id) === Number(item.major_id) ? 'selected' : ''}>${esc(majorItem.name)}</option>`).join('');
-          document.getElementById('majorSelect').onchange = () => { document.getElementById('organizationMajor').value = document.getElementById('majorSelect').value; };
+          document.getElementById('majorSelect').onchange = () => {
+              document.getElementById('organizationMajor').value = document.getElementById('majorSelect').value;
+              updateOrganizationBreadcrumb(action, item, parentSelect.value || parent, document.getElementById('majorSelect').value);
+          };
       } else if (isCreate && entity === 'course') {
           const program = organizationData.colleges.flatMap(c => c.programs || []).find(p => Number(p.id) === Number(parent));
           document.getElementById('majorSelect').innerHTML = '<option value="">No major</option>' + (program?.majors || []).map(majorItem => `<option value="${majorItem.id}" ${majorItem.id === major ? 'selected' : ''}>${esc(majorItem.name)}</option>`).join('');
           document.getElementById('majorSelect').value = String(major || '');
           document.getElementById('organizationMajor').value = major || '';
+          document.getElementById('majorSelect').onchange = () => {
+              document.getElementById('organizationMajor').value = document.getElementById('majorSelect').value;
+              updateOrganizationBreadcrumb(action, item, parentSelect.value || parent, document.getElementById('majorSelect').value);
+          };
           majorLabel.classList.remove('hidden');
       }
+      updateOrganizationBreadcrumb(
+          action,
+          item,
+          document.getElementById('organizationParent').value,
+          document.getElementById('organizationMajor').value
+      );
       modal.classList.remove('hidden'); modal.classList.add('flex'); document.getElementById('organizationName').focus();
   };
     const hierarchyEditAction = (entity, item, parent = '') => `<button type="button" data-edit="${entity}" data-id="${Number(item.id)}" ${parent ? `data-parent="${Number(parent)}"` : ''} data-item='${esc(JSON.stringify(item))}' aria-label="Edit ${entity} ${esc(item.name)}" class="academic-row-action"><i data-lucide="pencil" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Edit ${entity}</span></button>`;
@@ -186,7 +269,7 @@
         const menuId = `organization-actions-${++academicActionMenuId}`;
         return `<span class="academic-tree-action-anchor">
           <button type="button" class="academic-tree-action-trigger" data-academic-menu-trigger aria-label="${esc(label)}" aria-haspopup="true" aria-expanded="false" aria-controls="${menuId}"><i data-lucide="ellipsis" aria-hidden="true"></i><span>Actions</span></button>
-          <div class="academic-action-menu-options" id="${menuId}" data-academic-action-menu popover="manual">${actionsMarkup}</div>
+          <div class="academic-action-menu-options" id="${menuId}" data-academic-action-menu hidden>${actionsMarkup}</div>
         </span>`;
     };
     const hierarchyControls = item => academicActionsDisclosure(
@@ -579,7 +662,7 @@
     }
 
     function positionAcademicActionMenu(menu) {
-        if (!menu.matches(':popover-open')) return;
+        if (menu.hidden) return;
         const trigger = menu.parentElement.querySelector('[data-academic-menu-trigger]');
         if (!trigger) return;
         const triggerRect = trigger.getBoundingClientRect();
@@ -594,26 +677,22 @@
     }
 
     function closeAcademicActionMenu(menu) {
-        if (!menu?.matches(':popover-open')) return;
-        menu.hidePopover();
+        if (!menu || menu.hidden) return;
+        menu.hidden = true;
+        menu.classList.remove('is-open');
         menu.parentElement.querySelector('[data-academic-menu-trigger]')?.setAttribute('aria-expanded', 'false');
     }
 
     function toggleAcademicActionMenu(trigger) {
         const menu = trigger.parentElement.querySelector('[data-academic-action-menu]');
         if (!menu) return;
-        if (!menu.dataset.ariaSync) {
-            menu.addEventListener('toggle', () => {
-                trigger.setAttribute('aria-expanded', String(menu.matches(':popover-open')));
-            });
-            menu.dataset.ariaSync = 'true';
-        }
-        if (menu.matches(':popover-open')) {
+        if (!menu.hidden) {
             closeAcademicActionMenu(menu);
             return;
         }
-        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(closeAcademicActionMenu);
-        menu.showPopover();
+        document.querySelectorAll('[data-academic-action-menu]:not([hidden])').forEach(closeAcademicActionMenu);
+        menu.hidden = false;
+        menu.classList.add('is-open');
         trigger.setAttribute('aria-expanded', 'true');
         positionAcademicActionMenu(menu);
     }
@@ -657,23 +736,23 @@
             toggleAcademicActionMenu(trigger);
             return;
         }
-        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(menu => {
+        document.querySelectorAll('[data-academic-action-menu]:not([hidden])').forEach(menu => {
             if (!menu.contains(event.target)) closeAcademicActionMenu(menu);
         });
     });
     document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
-        const menu = document.querySelector('[data-academic-action-menu]:popover-open');
+        const menu = document.querySelector('[data-academic-action-menu]:not([hidden])');
         if (!menu) return;
         const trigger = menu.parentElement.querySelector('[data-academic-menu-trigger]');
         closeAcademicActionMenu(menu);
         trigger?.focus();
     });
     document.addEventListener('scroll', () => {
-        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(positionAcademicActionMenu);
+        document.querySelectorAll('[data-academic-action-menu]:not([hidden])').forEach(positionAcademicActionMenu);
     }, true);
     window.addEventListener('resize', () => {
-        document.querySelectorAll('[data-academic-action-menu]:popover-open').forEach(positionAcademicActionMenu);
+        document.querySelectorAll('[data-academic-action-menu]:not([hidden])').forEach(positionAcademicActionMenu);
     });
     document.getElementById('collegeChoices').addEventListener('click', event => {
         const choice = event.target.closest('[data-academic-college]');

@@ -22,8 +22,30 @@
 # Uploaded prospectus documents are local application data
 /uploads/prospectuses/*.pdf
 
+# Local database backups contain application data
+/backups/
+
+# Local design tools and exploratory concepts are not application assets
+/assets/
+!/assets/
+/assets/*
+!/assets/css/
+/assets/css/*
+!/assets/css/app.css
+!/assets/css/tailwind.css
+!/assets/css/inventory.css
+!/assets/css/backup.css
+!/assets/css/design-tokens.css
+/.github/skills/
+/logo-design-skill/
+/assets/logo-concepts/
+/assets/brand/presentation.html
+/assets/brand/presentation-slides/
+
 # Markdown notes and documentation
 *.md
+!markdowns/BACKUP_SETUP.md
+!assets/brand/brand-guidelines.md
 
 # Operating system and editor files
 .DS_Store
@@ -35,7 +57,6 @@ Thumbs.db
 /node_modules/
 
 # Impeccable lock file for Node.js dependencies
-package-lock.json
 
 # Codex and other AI-generated files
 *.codex

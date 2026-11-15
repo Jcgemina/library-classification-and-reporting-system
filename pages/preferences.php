@@ -13,7 +13,7 @@ requireLogin();
 <div class="settings-screen" data-preferences-page>
     <header class="settings-page-heading">
         <div>
-            <h1>Preference</h1>
+            <h1>Preferences</h1>
             <p class="page-description">Adjust how AppSys Library looks for you. These choices do not affect other users.</p>
         </div>
         <span class="settings-preview-chip"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>Personal settings</span>
@@ -23,17 +23,17 @@ requireLogin();
         <section class="settings-section" aria-labelledby="appearanceHeading">
             <div>
                 <h2 class="settings-section-title" id="appearanceHeading">Appearance</h2>
-                <p class="settings-section-copy">Choose how your workspace looks and how much information fits on screen.</p>
+                <p class="settings-section-copy">Choose your preferred appearance and how much information fits on screen.</p>
             </div>
             <div class="settings-fields">
                 <label for="preferenceTheme" class="settings-field">
                     <span class="settings-field-label">Theme</span>
                     <select id="preferenceTheme">
-                        <option value="system">Use device setting</option>
                         <option value="light">Light</option>
                         <option value="dark">Dark</option>
+                        <option value="system">Follow system</option>
                     </select>
-                    <span class="settings-field-help">Device setting follows your operating system’s light or dark mode.</span>
+                    <span class="settings-field-help">Follow system matches your device appearance and updates when it changes.</span>
                 </label>
                 <label for="preferenceDensity" class="settings-field">
                     <span class="settings-field-label">Table spacing</span>

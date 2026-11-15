@@ -25,6 +25,8 @@ function configureJsonResponse(array $payload, int $status = 200): never
 
 $csrfToken = $_SESSION['configure_csrf'] ?? bin2hex(random_bytes(32));
 $_SESSION['configure_csrf'] = $csrfToken;
+$backupCsrfToken = $_SESSION['backup_csrf'] ?? bin2hex(random_bytes(32));
+$_SESSION['backup_csrf'] = $backupCsrfToken;
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!$pdo instanceof PDO) {
@@ -54,10 +56,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $referencePolicyYearsInput = trim(requestString($_POST, 'reference_policy_years'));
     $referencePolicyDirection = $referencePolicyDirectionInput !== '' ? $referencePolicyDirectionInput : null;
     $referencePolicyYears = $referencePolicyYearsInput !== '' ? filter_var($referencePolicyYearsInput, FILTER_VALIDATE_INT) : null;
+    $referencePolicySourceInput = trim(requestString($_POST, 'reference_policy_source'));
+    $referencePolicySource = $referencePolicySourceInput !== '' ? $referencePolicySourceInput : null;
+    $referencePolicyEffectiveDateInput = trim(requestString($_POST, 'reference_policy_effective_date'));
+    $referencePolicyEffectiveDate = $referencePolicyEffectiveDateInput !== '' ? $referencePolicyEffectiveDateInput : null;
     $referencePolicyConfirmed = requestString($_POST, 'reference_policy_confirmed') === '1';
     try {
         $currentConfiguration = $pdo->query(
-            'SELECT reference_policy_direction, reference_policy_years FROM library_configuration WHERE id = 1'
+            'SELECT reference_policy_direction, reference_policy_years, reference_policy_source, reference_policy_effective_date
+             FROM library_configuration WHERE id = 1'
         )->fetch(PDO::FETCH_ASSOC);
     } catch (PDOException $exception) {
         error_log('Library configuration could not be checked before saving: ' . $exception->getMessage());
@@ -78,8 +85,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $currentReferencePolicyYears = $currentConfiguration['reference_policy_years'] !== null
         ? (int) $currentConfiguration['reference_policy_years']
         : null;
+    $currentReferencePolicySource = $currentConfiguration['reference_policy_source'];
+    $currentReferencePolicyEffectiveDate = $currentConfiguration['reference_policy_effective_date'];
     $referencePolicyChanged = $referencePolicyDirection !== $currentReferencePolicyDirection
-        || $referencePolicyYears !== $currentReferencePolicyYears;
+        || $referencePolicyYears !== $currentReferencePolicyYears
+        || $referencePolicySource !== $currentReferencePolicySource
+        || $referencePolicyEffectiveDate !== $currentReferencePolicyEffectiveDate;
 
     foreach ($copyrightRanges as $index => $yearsThreshold) {
         if ($yearsThreshold === false || $yearsThreshold < 1 || $yearsThreshold > 1000) {
@@ -165,12 +176,38 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'field' => 'reference_policy_years',
         ], 422);
     }
+    $referencePolicySourceLength = $referencePolicySource !== null
+        ? (function_exists('mb_strlen') ? mb_strlen($referencePolicySource, 'UTF-8') : strlen($referencePolicySource))
+        : 0;
+    if ($referencePolicyChanged && ($referencePolicySource === null || $referencePolicySourceLength > 255)) {
+        configureJsonResponse([
+            'success' => false,
+            'message' => 'Enter the title or reference for the approved policy, using no more than 255 characters.',
+            'field' => 'reference_policy_source',
+        ], 422);
+    }
+    $validPolicyEffectiveDate = $referencePolicyEffectiveDate !== null
+        && isValidCalendarDate($referencePolicyEffectiveDate);
+    if ($referencePolicyChanged && !$validPolicyEffectiveDate) {
+        configureJsonResponse([
+            'success' => false,
+            'message' => 'Enter the effective date shown in the approved reference-age policy.',
+            'field' => 'reference_policy_effective_date',
+        ], 422);
+    }
     if ($referencePolicyChanged && !$referencePolicyConfirmed) {
         configureJsonResponse([
             'success' => false,
-            'message' => 'Confirm that the changed reference-age rule and threshold match the institution’s approved policy.',
+            'message' => 'Confirm that the rule, source, and effective date match the institution’s approved policy.',
             'field' => 'reference_policy_confirmed',
         ], 422);
+    }
+    $policyChangedBy = filter_var($_SESSION['user_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($referencePolicyChanged && ($policyChangedBy === false || $policyChangedBy < 1)) {
+        configureJsonResponse([
+            'success' => false,
+            'message' => 'Your session could not be verified. Sign in again before changing the reference-age policy.',
+        ], 401);
     }
 
     try {
@@ -187,9 +224,36 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ]);
         }
 
+        if ($referencePolicyChanged) {
+            $historyStatement = $pdo->prepare(
+                'INSERT INTO reference_age_policy_versions (direction, years_threshold, policy_source, effective_date, changed_by)
+                 VALUES (:direction, :years_threshold, :policy_source, :effective_date, :changed_by)'
+            );
+            $historyStatement->execute([
+                ':direction' => $referencePolicyDirection,
+                ':years_threshold' => $referencePolicyYears,
+                ':policy_source' => $referencePolicySource,
+                ':effective_date' => $referencePolicyEffectiveDate,
+                ':changed_by' => $policyChangedBy,
+            ]);
+            $historyVersionStatement = $pdo->prepare(
+                'SELECT v.direction, v.years_threshold, v.policy_source, v.effective_date, v.changed_at, u.full_name AS changed_by_name
+                 FROM reference_age_policy_versions v
+                 LEFT JOIN users u ON u.id = v.changed_by
+                 WHERE v.id = :id'
+            );
+            $historyVersionStatement->execute([':id' => (int) $pdo->lastInsertId()]);
+            $savedPolicyVersion = $historyVersionStatement->fetch(PDO::FETCH_ASSOC);
+            if ($savedPolicyVersion === false) {
+                throw new PDOException('The saved reference-age policy version could not be loaded.');
+            }
+        } else {
+            $savedPolicyVersion = null;
+        }
+
         $configurationStatement = $pdo->prepare(
-            'INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address, contact_email, contact_phone, reference_policy_direction, reference_policy_years)
-             VALUES (1, :minimum_books_per_course, :default_curriculum_year, :institution_name, :library_name, :institution_address, :contact_email, :contact_phone, :reference_policy_direction, :reference_policy_years)
+            'INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address, contact_email, contact_phone, reference_policy_direction, reference_policy_years, reference_policy_source, reference_policy_effective_date)
+             VALUES (1, :minimum_books_per_course, :default_curriculum_year, :institution_name, :library_name, :institution_address, :contact_email, :contact_phone, :reference_policy_direction, :reference_policy_years, :reference_policy_source, :reference_policy_effective_date)
              ON DUPLICATE KEY UPDATE
                 minimum_books_per_course = VALUES(minimum_books_per_course),
                 default_curriculum_year = VALUES(default_curriculum_year),
@@ -199,7 +263,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 contact_email = VALUES(contact_email),
                 contact_phone = VALUES(contact_phone),
                 reference_policy_direction = VALUES(reference_policy_direction),
-                reference_policy_years = VALUES(reference_policy_years)'
+                reference_policy_years = VALUES(reference_policy_years),
+                reference_policy_source = VALUES(reference_policy_source),
+                reference_policy_effective_date = VALUES(reference_policy_effective_date)'
         );
         $configurationStatement->execute([
             ':minimum_books_per_course' => $minimumBooks,
@@ -211,10 +277,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ':contact_phone' => $contactPhone,
             ':reference_policy_direction' => $referencePolicyDirection,
             ':reference_policy_years' => $referencePolicyDirection !== null ? $referencePolicyYears : null,
+            ':reference_policy_source' => $referencePolicyDirection !== null ? $referencePolicySource : null,
+            ':reference_policy_effective_date' => $referencePolicyDirection !== null ? $referencePolicyEffectiveDate : null,
         ]);
         $pdo->commit();
 
-        configureJsonResponse(['success' => true, 'message' => 'Settings saved.']);
+        configureJsonResponse([
+            'success' => true,
+            'message' => 'Settings saved.',
+            'policy_version' => $savedPolicyVersion,
+        ]);
     } catch (PDOException $exception) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
@@ -237,6 +309,9 @@ $contactEmail = '';
 $contactPhone = '';
 $referencePolicyDirection = null;
 $referencePolicyYears = null;
+$referencePolicySource = null;
+$referencePolicyEffectiveDate = null;
+$referencePolicyHistory = [];
 $loadError = null;
 if (!$pdo instanceof PDO) {
     $loadError = 'The database connection is unavailable. Settings cannot be loaded or changed.';
@@ -246,8 +321,17 @@ if (!$pdo instanceof PDO) {
             'SELECT years_threshold FROM copyright_year_ranges WHERE is_active = 1 ORDER BY sort_order, years_threshold'
         )->fetchAll(PDO::FETCH_COLUMN);
         $configuration = $pdo->query(
-            'SELECT minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address, contact_email, contact_phone, reference_policy_direction, reference_policy_years FROM library_configuration WHERE id = 1'
+            'SELECT minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address,
+                    contact_email, contact_phone, reference_policy_direction, reference_policy_years,
+                    reference_policy_source, reference_policy_effective_date
+             FROM library_configuration WHERE id = 1'
         )->fetch(PDO::FETCH_ASSOC);
+        $referencePolicyHistory = $pdo->query(
+            'SELECT v.direction, v.years_threshold, v.policy_source, v.effective_date, v.changed_at, u.full_name AS changed_by_name
+             FROM reference_age_policy_versions v
+             LEFT JOIN users u ON u.id = v.changed_by
+             ORDER BY v.changed_at DESC, v.id DESC LIMIT 10'
+        )->fetchAll(PDO::FETCH_ASSOC);
 
         if (count($rangeRows) !== 3 || $configuration === false) {
             throw new PDOException('Required library configuration records are missing.');
@@ -265,6 +349,8 @@ if (!$pdo instanceof PDO) {
         $referencePolicyYears = $configuration['reference_policy_years'] !== null
             ? (int) $configuration['reference_policy_years']
             : null;
+        $referencePolicySource = $configuration['reference_policy_source'];
+        $referencePolicyEffectiveDate = $configuration['reference_policy_effective_date'];
         if ($defaultCurriculumYear === '') {
             $defaultCurriculumYear = date('Y') . '-' . ((int) date('Y') + 1);
         }
@@ -275,25 +361,58 @@ if (!$pdo instanceof PDO) {
 }
 
 $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+$section = $_GET['section'] ?? '';
+$section = in_array($section, ['rules', 'backup'], true) ? $section : 'institution';
+$configureBreadcrumbLabel = $section === 'rules'
+    ? 'Library Rules'
+    : ($section === 'backup' ? 'Backup & Restore' : 'Institutional Profile');
 
 ?>
 
 <div
     class="settings-screen"
     data-configure-page
-    data-active-section="<?php echo ($_GET['section'] ?? '') === 'rules' ? 'rules' : 'institution'; ?>"
+    data-active-section="<?php echo in_array(($_GET['section'] ?? ''), ['rules', 'backup'], true) ? ($_GET['section'] ?? '') : 'institution'; ?>"
     data-csrf-token="<?php echo $escapeConfigureValue($csrfToken); ?>"
+    data-backup-csrf-token="<?php echo $escapeConfigureValue($backupCsrfToken); ?>"
     data-saved-reference-policy-direction="<?php echo $escapeConfigureValue($referencePolicyDirection); ?>"
     data-saved-reference-policy-years="<?php echo $escapeConfigureValue($referencePolicyYears); ?>"
+    data-saved-reference-policy-source="<?php echo $escapeConfigureValue($referencePolicySource); ?>"
+    data-saved-reference-policy-effective-date="<?php echo $escapeConfigureValue($referencePolicyEffectiveDate); ?>"
 >
     <header class="settings-page-heading">
         <div>
-            <h1 id="configurePageHeading"><?php echo ($_GET['section'] ?? '') === 'rules' ? 'Library Rules' : 'Institutional Profile'; ?></h1>
-            <p class="page-description" id="configurePageDescription"><?php echo ($_GET['section'] ?? '') === 'rules'
-                ? 'Set the reporting and coverage rules used by library reports and prospectus records.'
-                : 'Manage the institution details shown in report previews.'; ?></p>
+            <nav class="app-breadcrumbs" aria-label="Breadcrumb">
+                <ol>
+                    <li><a href="app.php?page=account">Settings</a></li>
+                    <li aria-current="page"><span id="configureBreadcrumbCurrent"><?php echo $escapeConfigureValue($configureBreadcrumbLabel); ?></span></li>
+                </ol>
+            </nav>
+            <h1 id="configurePageHeading"><?php
+                $section = $_GET['section'] ?? '';
+                if ($section === 'rules') {
+                    echo 'Library Rules';
+                } elseif ($section === 'backup') {
+                    echo 'Backup & Restore';
+                } else {
+                    echo 'Institutional Profile';
+                }
+            ?></h1>
+            <p class="page-description" id="configurePageDescription"><?php
+                $section = $_GET['section'] ?? '';
+                if ($section === 'rules') {
+                    echo 'Set the reporting and coverage rules used by library reports and prospectus records.';
+                } elseif ($section === 'backup') {
+                    echo 'Create a ZIP backup of the library database and uploaded files, or restore them from a saved backup.';
+                } else {
+                    echo 'Manage the institution details shown in report previews.';
+                }
+            ?></p>
         </div>
-        <span class="settings-preview-chip"><i data-lucide="settings-2" aria-hidden="true"></i>Administrative settings</span>
+        <span id="configureContextBadge" class="<?php echo ($_GET['section'] ?? '') === 'backup' ? 'backup-access-label' : 'settings-preview-chip'; ?>">
+            <i data-lucide="<?php echo ($_GET['section'] ?? '') === 'backup' ? 'shield-check' : 'settings-2'; ?>" aria-hidden="true"></i>
+            <?php echo ($_GET['section'] ?? '') === 'backup' ? 'Admin only' : 'Administrative settings'; ?>
+        </span>
     </header>
 
     <?php if ($loadError !== null): ?>
@@ -307,64 +426,74 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
             <section class="settings-section" aria-labelledby="institutionProfileHeading">
                 <div>
                     <h2 class="settings-section-title" id="institutionProfileHeading">Institution profile</h2>
-                    <p class="settings-section-copy">Add your institution and library details for identification in report previews. All fields are optional.</p>
+                    <p class="settings-section-copy">These names and contact details appear in the report header. All fields are optional.</p>
                 </div>
                 <div class="settings-fields">
-                <label for="institutionName" class="settings-field">
-                    Institution name
+                <div class="settings-field">
+                    <label for="institutionName">Institution name</label>
                     <input
                         id="institutionName"
                         name="institution_name"
                         type="text"
                         maxlength="180"
+                        aria-describedby="institutionNameHelp"
                         value="<?php echo $escapeConfigureValue($institutionName); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
-                <label for="libraryName" class="settings-field">
-                    Library name
+                    <span class="settings-field-help" id="institutionNameHelp">Shown as the main heading in report previews.</span>
+                </div>
+                <div class="settings-field">
+                    <label for="libraryName">Library name</label>
                     <input
                         id="libraryName"
                         name="library_name"
                         type="text"
                         maxlength="180"
+                        aria-describedby="libraryNameHelp"
                         value="<?php echo $escapeConfigureValue($libraryName); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
-                <label for="institutionAddress" class="settings-field is-wide">
-                    Address
+                    <span class="settings-field-help" id="libraryNameHelp">Shown below the institution name in report previews.</span>
+                </div>
+                <div class="settings-field is-wide">
+                    <label for="institutionAddress">Institution address</label>
                     <input
                         id="institutionAddress"
                         name="institution_address"
                         type="text"
                         maxlength="255"
+                        aria-describedby="institutionAddressHelp"
                         value="<?php echo $escapeConfigureValue($institutionAddress); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
-                <label for="contactEmail" class="settings-field">
-                    Contact email
+                    <span class="settings-field-help" id="institutionAddressHelp">Shown with the contact details in report previews.</span>
+                </div>
+                <div class="settings-field">
+                    <label for="contactEmail">Contact email</label>
                     <input
                         id="contactEmail"
                         name="contact_email"
                         type="email"
                         maxlength="254"
+                        aria-describedby="contactEmailHelp"
                         value="<?php echo $escapeConfigureValue($contactEmail); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
-                <label for="contactPhone" class="settings-field">
-                    Contact phone
+                    <span class="settings-field-help" id="contactEmailHelp">Shown with the address and phone in report previews.</span>
+                </div>
+                <div class="settings-field">
+                    <label for="contactPhone">Contact phone</label>
                     <input
                         id="contactPhone"
                         name="contact_phone"
                         type="tel"
                         maxlength="40"
+                        aria-describedby="contactPhoneHelp"
                         value="<?php echo $escapeConfigureValue($contactPhone); ?>"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                </label>
+                    <span class="settings-field-help" id="contactPhoneHelp">Shown with the address and email in report previews.</span>
+                </div>
             </div>
             </section>
         </div>
@@ -472,6 +601,32 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                     >
                 </label>
                 <p id="referencePolicyHelp" class="settings-help">“Published within” means no older than the threshold; “at least” means the title is that many years old or older. The threshold must come from the institution’s approved policy.</p>
+                <label for="referencePolicySource" class="settings-field">
+                    Approved policy source
+                    <input
+                        id="referencePolicySource"
+                        name="reference_policy_source"
+                        type="text"
+                        maxlength="255"
+                        placeholder="Policy title or document reference"
+                        value="<?php echo $escapeConfigureValue($referencePolicySource); ?>"
+                        aria-describedby="referencePolicySourceHelp"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                    >
+                    <span class="settings-field-help" id="referencePolicySourceHelp">Record the title or reference of the institution-approved policy; do not enter a rule from memory.</span>
+                </label>
+                <label for="referencePolicyEffectiveDate" class="settings-field">
+                    Policy effective date
+                    <input
+                        id="referencePolicyEffectiveDate"
+                        name="reference_policy_effective_date"
+                        type="date"
+                        value="<?php echo $escapeConfigureValue($referencePolicyEffectiveDate); ?>"
+                        aria-describedby="referencePolicyEffectiveDateHelp"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                    >
+                    <span class="settings-field-help" id="referencePolicyEffectiveDateHelp">Use the effective date stated by the policy. Existing rules without recorded metadata are not backfilled.</span>
+                </label>
                 <label for="referencePolicyConfirmed" class="settings-check-row">
                     <input
                         id="referencePolicyConfirmed"
@@ -480,10 +635,70 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                         value="1"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                    <span>I confirm this new or changed rule and threshold match an approved institutional reference-age policy.</span>
+                    <span>I confirm the rule, source, and effective date match the approved institutional reference-age policy.</span>
                 </label>
             </div>
+            <div class="settings-policy-history" aria-labelledby="referencePolicyHistoryHeading">
+                <h3 id="referencePolicyHistoryHeading" class="settings-section-title">Recorded policy changes</h3>
+                <ul data-policy-history-list>
+                    <?php foreach ($referencePolicyHistory as $policyVersion): ?>
+                        <li>
+                            <strong><?php echo $escapeConfigureValue($policyVersion['direction'] === 'within' ? 'Published within ' . $policyVersion['years_threshold'] . ' years' : 'At least ' . $policyVersion['years_threshold'] . ' years old'); ?></strong>
+                            <span><?php echo $escapeConfigureValue($policyVersion['policy_source']); ?> · Effective <?php echo $escapeConfigureValue($policyVersion['effective_date']); ?></span>
+                            <time datetime="<?php echo $escapeConfigureValue(str_replace(' ', 'T', (string) $policyVersion['changed_at'])); ?>">Recorded <?php echo $escapeConfigureValue($policyVersion['changed_at']); ?><?php echo $policyVersion['changed_by_name'] !== null ? ' by ' . $escapeConfigureValue($policyVersion['changed_by_name']) : ''; ?></time>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php if ($referencePolicyHistory === []): ?>
+                    <p class="settings-field-help" data-policy-history-empty>No policy changes have been recorded since version history was enabled.</p>
+                <?php endif; ?>
+            </div>
         </section>
+        </div>
+
+        <div id="backupRestoreSettings" class="settings-sheet scroll-mt-24" data-configure-group="backup">
+            <section class="settings-section" aria-labelledby="backupCreateTitle">
+                <div>
+                    <h2 class="settings-section-title" id="backupCreateTitle">Create a backup</h2>
+                    <p class="settings-section-copy">Save a copy of the library database and uploaded files.</p>
+                </div>
+                <div>
+                    <div class="backup-scope-row"><i data-lucide="check" aria-hidden="true"></i><strong>Backup includes</strong><span class="backup-scope-tag">Database</span><span class="backup-scope-tag">Uploaded files</span></div>
+                    <p class="settings-help" style="margin:8px 0 13px">The ZIP is saved in Backup history, where you can download it.</p>
+                    <button type="button" class="button button-primary" id="createBackupButton"><i data-lucide="database-backup" aria-hidden="true"></i>Create backup</button>
+                </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="backupRestoreTitle">
+                <div>
+                    <h2 class="settings-section-title" id="backupRestoreTitle">Restore from a backup</h2>
+                    <p class="settings-section-copy">Upload a backup ZIP here, or restore one from Backup history.</p>
+                </div>
+                <div>
+                    <label class="settings-field" for="backupRestoreFile">Backup ZIP file
+                        <input id="backupRestoreFile" type="file" accept=".zip" aria-describedby="backupRestoreHelp">
+                    </label>
+                    <p class="settings-help" id="backupRestoreHelp" style="margin:8px 0 13px">Choose a ZIP made by this system. It must include the database and uploaded files.</p>
+                    <p class="backup-selected-file" id="backupSelectedFile" hidden></p>
+                    <button type="button" class="button button-danger" id="previewRestoreButton" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i>Check backup</button>
+                </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="backupHistoryTitle">
+                <div>
+                    <h2 class="settings-section-title" id="backupHistoryTitle">Backup history</h2>
+                    <p class="settings-section-copy">Download or restore a saved backup.</p>
+                </div>
+                <div class="backup-history-wrap">
+                    <table class="backup-history">
+                        <thead><tr><th scope="col">Created</th><th scope="col">Contents</th><th scope="col">Size</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+                        <tbody>
+                            <!-- Loaded by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <p class="backup-status" id="backupActionStatus" role="status" aria-live="polite"></p>
         </div>
 
         <div class="settings-actions">
@@ -513,4 +728,18 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
         </div>
     </form>
 </div>
-<script src="assets/js/configure.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/configure.js'); ?>"></script>
+
+<dialog class="prototype-dialog backup-restore-dialog" id="backupRestoreDialog" aria-labelledby="backupRestoreDialogTitle" aria-describedby="backupRestoreDialogDescription">
+  <h2 id="backupRestoreDialogTitle">Restore this backup?</h2>
+  <p class="backup-restore-selection">Selected backup: <strong id="backupRestoreSelection"></strong></p>
+  <div class="backup-restore-warning" id="backupRestoreDialogDescription">
+    <i data-lucide="triangle-alert" aria-hidden="true"></i>
+    <span>This replaces the current database and uploaded files with the selected backup. You cannot undo this. Create a backup of the current data first if you need to keep it.</span>
+  </div>
+  <div class="dialog-actions backup-confirm-actions">
+    <button type="button" class="button" id="cancelBackupRestore">Cancel</button>
+    <button type="button" class="button button-danger" id="confirmBackupRestore">Restore backup</button>
+  </div>
+</dialog>
+
+<script src="assets/js/backup.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/backup.js'); ?>"></script>

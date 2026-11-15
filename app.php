@@ -6,9 +6,9 @@ require_once __DIR__ . '/includes/functions.php';
 requireLogin();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'user', 'logs', 'configure'];
+$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'user', 'logs', 'configure', 'backup'];
 $staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account'];
-$restrictedPages = ['user', 'logs', 'configure'];
+$restrictedPages = ['user', 'logs', 'configure', 'backup'];
 
 $allowedPages = $userRole === 'admin' ? $adminPages : $staffPages;
 $pageParam = $_GET['page'] ?? 'dashboard';
@@ -26,16 +26,22 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AppSys Library - Dashboard</title>
+<link rel="icon" href="assets/brand/digital/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/svg+xml" href="assets/brand/digital/favicon.svg">
+<link rel="manifest" href="assets/brand/digital/site.webmanifest">
+<link rel="apple-touch-icon" href="assets/brand/digital/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/design-tokens.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/design-tokens.css'); ?>">
 <link rel="stylesheet" href="assets/css/preferences.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/preferences.css'); ?>">
 <link rel="stylesheet" href="assets/css/settings.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/settings.css'); ?>">
 <link rel="stylesheet" href="assets/css/organization.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/organization.css'); ?>">
+<link rel="stylesheet" href="assets/css/backup.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/backup.css'); ?>">
 <style>
   html,
   body {
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--app-font-family);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -43,13 +49,13 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
   }
 
   body .text-xs {
-    font-size: 0.8125rem;
-    line-height: 1.25rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
   }
 
   body .text-sm {
-    font-size: 0.9375rem;
-    line-height: 1.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
   }
 
   html,
@@ -58,10 +64,6 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
   }
 
   @media (min-width: 768px) and (max-width: 1440px) {
-    html {
-      font-size: 15px;
-    }
-
     #adminSidebar {
       width: 15rem;
     }
@@ -76,10 +78,6 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
   }
 
   @media (min-width: 768px) and (max-width: 1280px) {
-    html {
-      font-size: 14.5px;
-    }
-
     #pageContent {
       padding: 1.125rem;
     }
@@ -90,7 +88,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     display: none;
   }
 </style>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="assets/css/app.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/app.css'); ?>">
+<link rel="stylesheet" href="assets/css/inventory.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/inventory.css'); ?>">
 <link rel="stylesheet" href="assets/css/catalog-reports.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/catalog-reports.css'); ?>">
 <link rel="stylesheet" href="assets/css/user.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/user.css'); ?>">
 <script src="https://unpkg.com/lucide@latest"></script>
@@ -183,7 +182,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
         const urlParams = new URLSearchParams(window.location.search);
         const activeSettingsSubpage = activePage === 'configure'
-            ? (urlParams.get('section') === 'rules' ? 'rules' : 'institution')
+            ? (urlParams.get('section') === 'rules' ? 'rules' : urlParams.get('section') === 'backup' ? 'backup' : 'institution')
             : activePage;
         document.querySelectorAll('[data-settings-child]').forEach(link => {
             const isActive = settingsActive && link.dataset.settingsChild === activeSettingsSubpage;
@@ -261,7 +260,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     }
 
     function updateConfigureSection(section) {
-      const activeSection = section === 'rules' ? 'rules' : 'institution';
+      const activeSection = section === 'rules' ? 'rules' : section === 'backup' ? 'backup' : 'institution';
       const configurePage = document.querySelector('[data-configure-page]');
       if (!configurePage) {
         return;
@@ -270,10 +269,33 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
       configurePage.dataset.activeSection = activeSection;
       document.getElementById('configurePageHeading').textContent = activeSection === 'rules'
         ? 'Library Rules'
+        : activeSection === 'backup'
+        ? 'Backup & Restore'
         : 'Institutional Profile';
       document.getElementById('configurePageDescription').textContent = activeSection === 'rules'
         ? 'Set the reporting and coverage rules used by library reports and prospectus records.'
+        : activeSection === 'backup'
+        ? 'Create a full system backup or restore the library from a verified backup file.'
         : 'Manage the institution details shown in report previews.';
+      const breadcrumbCurrent = document.getElementById('configureBreadcrumbCurrent');
+      if (breadcrumbCurrent) {
+        breadcrumbCurrent.textContent = activeSection === 'rules'
+          ? 'Library Rules'
+          : activeSection === 'backup'
+          ? 'Backup & Restore'
+          : 'Institutional Profile';
+      }
+      const contextBadge = document.getElementById('configureContextBadge');
+      if (contextBadge) {
+        const isBackup = activeSection === 'backup';
+        contextBadge.classList.toggle('backup-access-label', isBackup);
+        contextBadge.classList.toggle('settings-preview-chip', !isBackup);
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', isBackup ? 'shield-check' : 'settings-2');
+        icon.setAttribute('aria-hidden', 'true');
+        contextBadge.replaceChildren(icon, document.createTextNode(isBackup ? 'Admin only' : 'Administrative settings'));
+        lucide.createIcons();
+      }
     }
 
     function getPageQueryParams(pageName, params) {
@@ -286,7 +308,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
       if (pageName === 'configure') {
         const section = requestedParams.get('section');
-        return section === 'rules' || section === 'institution'
+        return section === 'rules' || section === 'institution' || section === 'backup'
           ? new URLSearchParams([['section', section]])
           : new URLSearchParams();
       }
@@ -335,7 +357,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         account: 'My Account',
         user: 'User Management',
         logs: 'Logs',
-        configure: requestedSection === 'rules' ? 'Library Rules' : 'Institutional Profile',
+        configure: requestedSection === 'rules' ? 'Library Rules' : requestedSection === 'backup' ? 'Backup & Restore' : 'Institutional Profile',
       };
       const pageLabel = pageLabels[safePage] || 'requested';
       const requestId = ++activePageRequestId;
@@ -398,7 +420,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
           : safePage === 'account'
           ? 'My Account'
           : safePage === 'configure'
-          ? (requestedSection === 'rules' ? 'Library Rules' : 'Institutional Profile')
+          ? (requestedSection === 'rules' ? 'Library Rules' : requestedSection === 'backup' ? 'Backup & Restore' : 'Institutional Profile')
           : safePage === 'reference_analyzer'
             ? 'Reference Analyzer'
             : safePage.charAt(0).toUpperCase() + safePage.slice(1);
@@ -449,7 +471,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         history.pushState({ page: 'configure' }, '', sectionUrl);
         updateConfigureSection(preservedParams.get('section'));
         updateActiveTab('configure');
-        document.title = 'AppSys Library - ' + (preservedParams.get('section') === 'rules' ? 'Library Rules' : 'Institutional Profile');
+        document.title = 'AppSys Library - ' + (preservedParams.get('section') === 'rules' ? 'Library Rules' : preservedParams.get('section') === 'backup' ? 'Backup & Restore' : 'Institutional Profile');
         scrollToRouteAnchor(targetUrl.hash, 'smooth');
         return;
       }
@@ -477,7 +499,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
       if (activePage === 'configure' && document.querySelector('[data-configure-page]')) {
         updateConfigureSection(new URLSearchParams(window.location.search).get('section'));
         updateActiveTab(activePage);
-        document.title = 'AppSys Library - ' + (new URLSearchParams(window.location.search).get('section') === 'rules' ? 'Library Rules' : 'Institutional Profile');
+        document.title = 'AppSys Library - ' + (new URLSearchParams(window.location.search).get('section') === 'rules' ? 'Library Rules' : new URLSearchParams(window.location.search).get('section') === 'backup' ? 'Backup & Restore' : 'Institutional Profile');
         scrollToRouteAnchor(window.location.hash);
         return;
       }
