@@ -172,6 +172,15 @@ function environmentValue(string $key, string $fallback = ''): string {
     return $env[$key] ?? $fallback;
 }
 
+function isValidCalendarDate(string $date): bool
+{
+    if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $date, $matches) !== 1) {
+        return false;
+    }
+
+    return checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1]);
+}
+
 function createPasswordResetToken(PDO $pdo, int $userId): string {
     $pdo->prepare('DELETE FROM password_reset_tokens WHERE user_id = :user_id OR expires_at < NOW()')->execute([':user_id' => $userId]);
     $token = bin2hex(random_bytes(32));
@@ -324,7 +333,8 @@ function getCopyrightYearMetrics(PDO $pdo): array {
 function getReferenceAgePolicy(PDO $pdo): array
 {
     $configuration = $pdo->query(
-        'SELECT reference_policy_direction, reference_policy_years FROM library_configuration WHERE id = 1'
+        'SELECT reference_policy_direction, reference_policy_years, reference_policy_source, reference_policy_effective_date
+         FROM library_configuration WHERE id = 1'
     )->fetch(PDO::FETCH_ASSOC);
 
     if ($configuration === false) {
@@ -334,10 +344,20 @@ function getReferenceAgePolicy(PDO $pdo): array
     $direction = $configuration['reference_policy_direction'];
     $years = $configuration['reference_policy_years'];
     if (!in_array($direction, ['within', 'at_least'], true) || $years === null || (int) $years < 1) {
-        return ['direction' => null, 'years' => null];
+        return [
+            'direction' => null,
+            'years' => null,
+            'source' => null,
+            'effective_date' => null,
+        ];
     }
 
-    return ['direction' => $direction, 'years' => (int) $years];
+    return [
+        'direction' => $direction,
+        'years' => (int) $years,
+        'source' => $configuration['reference_policy_source'],
+        'effective_date' => $configuration['reference_policy_effective_date'],
+    ];
 }
 
 function assessReferenceAge(?int $publicationYear, array $policy, ?int $currentYear = null): array

@@ -33,6 +33,7 @@
   const bookActionsMenu = document.getElementById('inventoryBookActionsMenu');
   const bookActionsTitle = document.querySelector('[data-book-actions-title]');
   let bookActionsTrigger = null;
+  let bookActionsPositionFrame = 0;
   const inventoryListView = document.querySelector('[data-inventory-list-view]');
   const inventoryBookDetail = document.querySelector('[data-inventory-book-detail]');
   let activeBookInfoId = null;
@@ -109,6 +110,12 @@
       : '<p class="mt-3 rounded-lg bg-slate-50 px-4 py-4 text-sm text-slate-600">No courses currently reference this book.</p>';
     inventoryBookDetail.innerHTML = `
       <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <nav class="app-breadcrumbs" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="app.php?page=inventory">Inventory</a></li>
+            <li aria-current="page"><span>${escapeInventoryHtml(book.title)}</span></li>
+          </ol>
+        </nav>
         <button type="button" data-inventory-book-back class="mb-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Back to books</button>
         <div class="min-w-0"><h3 id="inventoryBookDetailTitle" class="text-2xl font-bold text-slate-900">${escapeInventoryHtml(book.title)}</h3><p class="mt-1 text-sm text-slate-600">by ${escapeInventoryHtml(book.author || 'Author not recorded')}</p></div>
       </section>
@@ -627,7 +634,15 @@
   function openBookActionsMenu(button) {
     const book = inventoryBooks[button.dataset.bookId];
     if (!book) return;
-    if (bookActionsMenu.matches(':popover-open')) bookActionsMenu.hidePopover();
+    if (bookActionsMenu.matches(':popover-open')) {
+      if (bookActionsTrigger === button) {
+        bookActionsMenu.hidePopover();
+        return;
+      }
+      bookActionsTrigger?.setAttribute('aria-expanded', 'false');
+      bookActionsMenu.hidePopover();
+    }
+
     bookActionsTrigger = button;
     bookActionsTrigger.setAttribute('aria-expanded', 'true');
     bookActionsTitle.textContent = book.title;
@@ -635,19 +650,52 @@
       menuButton.dataset.bookId = book.book_id;
     });
     bookActionsMenu.showPopover();
+    positionBookActionsMenu();
+  }
 
-    const triggerRect = button.getBoundingClientRect();
+  function positionBookActionsMenu() {
+    if (!bookActionsTrigger || !bookActionsMenu.matches(':popover-open')) return;
+    const triggerRect = bookActionsTrigger.getBoundingClientRect();
     const menuRect = bookActionsMenu.getBoundingClientRect();
     const edge = 8;
     const gap = 6;
-    const belowTop = triggerRect.bottom + gap;
-    const top = belowTop + menuRect.height <= window.innerHeight - edge
-      ? belowTop
-      : Math.max(edge, triggerRect.top - menuRect.height - gap);
-    const left = Math.max(edge, Math.min(triggerRect.right - menuRect.width, window.innerWidth - menuRect.width - edge));
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    if (!bookActionsTrigger.isConnected || triggerRect.bottom < 0 || triggerRect.top > viewportHeight) {
+      bookActionsMenu.hidePopover();
+      return;
+    }
+
+    const availableBelow = viewportHeight - triggerRect.bottom - edge - gap;
+    const availableAbove = triggerRect.top - edge - gap;
+    const openBelow = menuRect.height <= availableBelow || availableBelow >= availableAbove;
+    const preferredTop = openBelow
+      ? triggerRect.bottom + gap
+      : triggerRect.top - menuRect.height - gap;
+    const top = Math.max(edge, Math.min(preferredTop, viewportHeight - menuRect.height - edge));
+    const left = Math.max(edge, Math.min(
+      triggerRect.right - menuRect.width,
+      viewportWidth - menuRect.width - edge
+    ));
     bookActionsMenu.style.top = `${top}px`;
     bookActionsMenu.style.left = `${left}px`;
   }
+
+  function scheduleBookActionsPosition() {
+    if (bookActionsPositionFrame) return;
+    bookActionsPositionFrame = window.requestAnimationFrame(() => {
+      bookActionsPositionFrame = 0;
+      positionBookActionsMenu();
+    });
+  }
+
+  bookActionsMenu?.addEventListener('toggle', () => {
+    if (bookActionsMenu.matches(':popover-open')) return;
+    bookActionsTrigger?.setAttribute('aria-expanded', 'false');
+    bookActionsTrigger = null;
+  });
+  window.addEventListener('scroll', scheduleBookActionsPosition, true);
+  window.addEventListener('resize', scheduleBookActionsPosition);
 
   async function restoreBook(bookId) {
     const formData = new FormData();

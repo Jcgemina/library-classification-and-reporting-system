@@ -127,8 +127,120 @@ html[data-app-theme="dark"] #reportPreviewDocument .text-slate-500 {
   color: #334155 !important;
 }
 
+html[data-app-theme="dark"] #reportPreviewDocument .text-slate-900 {
+  color: #0f172a !important;
+}
+
 html[data-app-theme="dark"] #reportPreviewDocument .border-slate-300 {
   border-color: #cbd5e1 !important;
+}
+
+html[data-app-theme="dark"] {
+  --nav-ink: #e2e8f0;
+  --nav-muted: #cbd5e1;
+  --nav-line: #334155;
+  --nav-rose-dark: #fda4af;
+  --nav-active: #3b1c29;
+}
+
+html[data-app-theme="dark"] #adminSidebar,
+html[data-app-theme="dark"] #mobileMenu {
+  border-color: #334155;
+  background-color: #111827;
+  color: #e2e8f0;
+}
+
+html[data-app-theme="dark"] #adminSidebar .nav-item,
+html[data-app-theme="dark"] #adminSidebar .settings-submenu-link,
+html[data-app-theme="dark"] #adminSidebar .logs-link,
+html[data-app-theme="dark"] #mobileMenu .nav-item,
+html[data-app-theme="dark"] #mobileMenu .settings-submenu-link,
+html[data-app-theme="dark"] #mobileMenu .logs-link {
+  color: #cbd5e1;
+}
+
+html[data-app-theme="dark"] #adminSidebar .nav-item:hover,
+html[data-app-theme="dark"] #adminSidebar .settings-submenu-link:hover,
+html[data-app-theme="dark"] #adminSidebar .logs-link:hover,
+html[data-app-theme="dark"] #mobileMenu .nav-item:hover,
+html[data-app-theme="dark"] #mobileMenu .settings-submenu-link:hover,
+html[data-app-theme="dark"] #mobileMenu .logs-link:hover {
+  background-color: #273449;
+  color: #f1f5f9;
+}
+
+html[data-app-theme="dark"] #adminSidebar .nav-item[aria-current="page"],
+html[data-app-theme="dark"] #adminSidebar .nav-item[aria-current="location"],
+html[data-app-theme="dark"] #adminSidebar .settings-submenu-link[aria-current="page"],
+html[data-app-theme="dark"] #adminSidebar .logs-link[aria-current="page"],
+html[data-app-theme="dark"] #mobileMenu [aria-current="page"],
+html[data-app-theme="dark"] #mobileMenu [aria-current="location"] {
+  background-color: #3b1c29;
+  color: #fda4af;
+}
+
+html[data-app-theme="dark"] .bg-emerald-50,
+html[data-app-theme="dark"] .bg-green-50 {
+  background-color: #12352c !important;
+}
+
+html[data-app-theme="dark"] .bg-emerald-100 {
+  background-color: #1b493b !important;
+}
+
+html[data-app-theme="dark"] .bg-amber-50,
+html[data-app-theme="dark"] .bg-amber-100,
+html[data-app-theme="dark"] .bg-yellow-50 {
+  background-color: #3d2c17 !important;
+}
+
+html[data-app-theme="dark"] .bg-red-50,
+html[data-app-theme="dark"] .bg-red-100 {
+  background-color: #421f27 !important;
+}
+
+html[data-app-theme="dark"] .bg-rose-50,
+html[data-app-theme="dark"] .bg-rose-100,
+html[data-app-theme="dark"] .bg-rose-200 {
+  background-color: #3b1c29 !important;
+}
+
+html[data-app-theme="dark"] .bg-blue-50,
+html[data-app-theme="dark"] .bg-sky-50 {
+  background-color: #132d43 !important;
+}
+
+html[data-app-theme="dark"] .text-emerald-600,
+html[data-app-theme="dark"] .text-emerald-700,
+html[data-app-theme="dark"] .text-emerald-800,
+html[data-app-theme="dark"] .text-green-800 {
+  color: #6ee7b7 !important;
+}
+
+html[data-app-theme="dark"] .text-amber-600,
+html[data-app-theme="dark"] .text-amber-700,
+html[data-app-theme="dark"] .text-amber-800,
+html[data-app-theme="dark"] .text-amber-900 {
+  color: #fcd34d !important;
+}
+
+html[data-app-theme="dark"] .text-red-600,
+html[data-app-theme="dark"] .text-red-700,
+html[data-app-theme="dark"] .text-red-800,
+html[data-app-theme="dark"] .text-rose-600,
+html[data-app-theme="dark"] .text-rose-700,
+html[data-app-theme="dark"] .text-rose-800 {
+  color: #fda4af !important;
+}
+
+html[data-app-theme="dark"] .border-slate-100,
+html[data-app-theme="dark"] .border-slate-200,
+html[data-app-theme="dark"] .border-rose-100,
+html[data-app-theme="dark"] .border-rose-200,
+html[data-app-theme="dark"] .border-emerald-200,
+html[data-app-theme="dark"] .border-amber-200,
+html[data-app-theme="dark"] .border-red-200 {
+  border-color: #334155 !important;
 }
 
 html[data-app-density="compact"] table th,
@@ -139,6 +251,15 @@ html[data-app-density="compact"] table td {
 html[data-app-density="comfortable"] table th,
 html[data-app-density="comfortable"] table td {
   padding-block: 0.75rem;
+}
+
+#pageContent [class~="text-[7px]"],
+#pageContent [class~="text-[8px]"],
+#pageContent [class~="text-[9px]"],
+#pageContent [class~="text-[10px]"],
+#pageContent [class~="text-[11px]"] {
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
 }
 
 html[data-app-text-size="large"] .text-xs {

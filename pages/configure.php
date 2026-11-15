@@ -56,10 +56,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $referencePolicyYearsInput = trim(requestString($_POST, 'reference_policy_years'));
     $referencePolicyDirection = $referencePolicyDirectionInput !== '' ? $referencePolicyDirectionInput : null;
     $referencePolicyYears = $referencePolicyYearsInput !== '' ? filter_var($referencePolicyYearsInput, FILTER_VALIDATE_INT) : null;
+    $referencePolicySourceInput = trim(requestString($_POST, 'reference_policy_source'));
+    $referencePolicySource = $referencePolicySourceInput !== '' ? $referencePolicySourceInput : null;
+    $referencePolicyEffectiveDateInput = trim(requestString($_POST, 'reference_policy_effective_date'));
+    $referencePolicyEffectiveDate = $referencePolicyEffectiveDateInput !== '' ? $referencePolicyEffectiveDateInput : null;
     $referencePolicyConfirmed = requestString($_POST, 'reference_policy_confirmed') === '1';
     try {
         $currentConfiguration = $pdo->query(
-            'SELECT reference_policy_direction, reference_policy_years FROM library_configuration WHERE id = 1'
+            'SELECT reference_policy_direction, reference_policy_years, reference_policy_source, reference_policy_effective_date
+             FROM library_configuration WHERE id = 1'
         )->fetch(PDO::FETCH_ASSOC);
     } catch (PDOException $exception) {
         error_log('Library configuration could not be checked before saving: ' . $exception->getMessage());
@@ -80,8 +85,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $currentReferencePolicyYears = $currentConfiguration['reference_policy_years'] !== null
         ? (int) $currentConfiguration['reference_policy_years']
         : null;
+    $currentReferencePolicySource = $currentConfiguration['reference_policy_source'];
+    $currentReferencePolicyEffectiveDate = $currentConfiguration['reference_policy_effective_date'];
     $referencePolicyChanged = $referencePolicyDirection !== $currentReferencePolicyDirection
-        || $referencePolicyYears !== $currentReferencePolicyYears;
+        || $referencePolicyYears !== $currentReferencePolicyYears
+        || $referencePolicySource !== $currentReferencePolicySource
+        || $referencePolicyEffectiveDate !== $currentReferencePolicyEffectiveDate;
 
     foreach ($copyrightRanges as $index => $yearsThreshold) {
         if ($yearsThreshold === false || $yearsThreshold < 1 || $yearsThreshold > 1000) {
@@ -167,12 +176,38 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'field' => 'reference_policy_years',
         ], 422);
     }
+    $referencePolicySourceLength = $referencePolicySource !== null
+        ? (function_exists('mb_strlen') ? mb_strlen($referencePolicySource, 'UTF-8') : strlen($referencePolicySource))
+        : 0;
+    if ($referencePolicyChanged && ($referencePolicySource === null || $referencePolicySourceLength > 255)) {
+        configureJsonResponse([
+            'success' => false,
+            'message' => 'Enter the title or reference for the approved policy, using no more than 255 characters.',
+            'field' => 'reference_policy_source',
+        ], 422);
+    }
+    $validPolicyEffectiveDate = $referencePolicyEffectiveDate !== null
+        && isValidCalendarDate($referencePolicyEffectiveDate);
+    if ($referencePolicyChanged && !$validPolicyEffectiveDate) {
+        configureJsonResponse([
+            'success' => false,
+            'message' => 'Enter the effective date shown in the approved reference-age policy.',
+            'field' => 'reference_policy_effective_date',
+        ], 422);
+    }
     if ($referencePolicyChanged && !$referencePolicyConfirmed) {
         configureJsonResponse([
             'success' => false,
-            'message' => 'Confirm that the changed reference-age rule and threshold match the institution’s approved policy.',
+            'message' => 'Confirm that the rule, source, and effective date match the institution’s approved policy.',
             'field' => 'reference_policy_confirmed',
         ], 422);
+    }
+    $policyChangedBy = filter_var($_SESSION['user_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($referencePolicyChanged && ($policyChangedBy === false || $policyChangedBy < 1)) {
+        configureJsonResponse([
+            'success' => false,
+            'message' => 'Your session could not be verified. Sign in again before changing the reference-age policy.',
+        ], 401);
     }
 
     try {
@@ -189,9 +224,36 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ]);
         }
 
+        if ($referencePolicyChanged) {
+            $historyStatement = $pdo->prepare(
+                'INSERT INTO reference_age_policy_versions (direction, years_threshold, policy_source, effective_date, changed_by)
+                 VALUES (:direction, :years_threshold, :policy_source, :effective_date, :changed_by)'
+            );
+            $historyStatement->execute([
+                ':direction' => $referencePolicyDirection,
+                ':years_threshold' => $referencePolicyYears,
+                ':policy_source' => $referencePolicySource,
+                ':effective_date' => $referencePolicyEffectiveDate,
+                ':changed_by' => $policyChangedBy,
+            ]);
+            $historyVersionStatement = $pdo->prepare(
+                'SELECT v.direction, v.years_threshold, v.policy_source, v.effective_date, v.changed_at, u.full_name AS changed_by_name
+                 FROM reference_age_policy_versions v
+                 LEFT JOIN users u ON u.id = v.changed_by
+                 WHERE v.id = :id'
+            );
+            $historyVersionStatement->execute([':id' => (int) $pdo->lastInsertId()]);
+            $savedPolicyVersion = $historyVersionStatement->fetch(PDO::FETCH_ASSOC);
+            if ($savedPolicyVersion === false) {
+                throw new PDOException('The saved reference-age policy version could not be loaded.');
+            }
+        } else {
+            $savedPolicyVersion = null;
+        }
+
         $configurationStatement = $pdo->prepare(
-            'INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address, contact_email, contact_phone, reference_policy_direction, reference_policy_years)
-             VALUES (1, :minimum_books_per_course, :default_curriculum_year, :institution_name, :library_name, :institution_address, :contact_email, :contact_phone, :reference_policy_direction, :reference_policy_years)
+            'INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address, contact_email, contact_phone, reference_policy_direction, reference_policy_years, reference_policy_source, reference_policy_effective_date)
+             VALUES (1, :minimum_books_per_course, :default_curriculum_year, :institution_name, :library_name, :institution_address, :contact_email, :contact_phone, :reference_policy_direction, :reference_policy_years, :reference_policy_source, :reference_policy_effective_date)
              ON DUPLICATE KEY UPDATE
                 minimum_books_per_course = VALUES(minimum_books_per_course),
                 default_curriculum_year = VALUES(default_curriculum_year),
@@ -201,7 +263,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 contact_email = VALUES(contact_email),
                 contact_phone = VALUES(contact_phone),
                 reference_policy_direction = VALUES(reference_policy_direction),
-                reference_policy_years = VALUES(reference_policy_years)'
+                reference_policy_years = VALUES(reference_policy_years),
+                reference_policy_source = VALUES(reference_policy_source),
+                reference_policy_effective_date = VALUES(reference_policy_effective_date)'
         );
         $configurationStatement->execute([
             ':minimum_books_per_course' => $minimumBooks,
@@ -213,10 +277,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ':contact_phone' => $contactPhone,
             ':reference_policy_direction' => $referencePolicyDirection,
             ':reference_policy_years' => $referencePolicyDirection !== null ? $referencePolicyYears : null,
+            ':reference_policy_source' => $referencePolicyDirection !== null ? $referencePolicySource : null,
+            ':reference_policy_effective_date' => $referencePolicyDirection !== null ? $referencePolicyEffectiveDate : null,
         ]);
         $pdo->commit();
 
-        configureJsonResponse(['success' => true, 'message' => 'Settings saved.']);
+        configureJsonResponse([
+            'success' => true,
+            'message' => 'Settings saved.',
+            'policy_version' => $savedPolicyVersion,
+        ]);
     } catch (PDOException $exception) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
@@ -239,6 +309,9 @@ $contactEmail = '';
 $contactPhone = '';
 $referencePolicyDirection = null;
 $referencePolicyYears = null;
+$referencePolicySource = null;
+$referencePolicyEffectiveDate = null;
+$referencePolicyHistory = [];
 $loadError = null;
 if (!$pdo instanceof PDO) {
     $loadError = 'The database connection is unavailable. Settings cannot be loaded or changed.';
@@ -248,8 +321,17 @@ if (!$pdo instanceof PDO) {
             'SELECT years_threshold FROM copyright_year_ranges WHERE is_active = 1 ORDER BY sort_order, years_threshold'
         )->fetchAll(PDO::FETCH_COLUMN);
         $configuration = $pdo->query(
-            'SELECT minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address, contact_email, contact_phone, reference_policy_direction, reference_policy_years FROM library_configuration WHERE id = 1'
+            'SELECT minimum_books_per_course, default_curriculum_year, institution_name, library_name, institution_address,
+                    contact_email, contact_phone, reference_policy_direction, reference_policy_years,
+                    reference_policy_source, reference_policy_effective_date
+             FROM library_configuration WHERE id = 1'
         )->fetch(PDO::FETCH_ASSOC);
+        $referencePolicyHistory = $pdo->query(
+            'SELECT v.direction, v.years_threshold, v.policy_source, v.effective_date, v.changed_at, u.full_name AS changed_by_name
+             FROM reference_age_policy_versions v
+             LEFT JOIN users u ON u.id = v.changed_by
+             ORDER BY v.changed_at DESC, v.id DESC LIMIT 10'
+        )->fetchAll(PDO::FETCH_ASSOC);
 
         if (count($rangeRows) !== 3 || $configuration === false) {
             throw new PDOException('Required library configuration records are missing.');
@@ -267,6 +349,8 @@ if (!$pdo instanceof PDO) {
         $referencePolicyYears = $configuration['reference_policy_years'] !== null
             ? (int) $configuration['reference_policy_years']
             : null;
+        $referencePolicySource = $configuration['reference_policy_source'];
+        $referencePolicyEffectiveDate = $configuration['reference_policy_effective_date'];
         if ($defaultCurriculumYear === '') {
             $defaultCurriculumYear = date('Y') . '-' . ((int) date('Y') + 1);
         }
@@ -277,6 +361,11 @@ if (!$pdo instanceof PDO) {
 }
 
 $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+$section = $_GET['section'] ?? '';
+$section = in_array($section, ['rules', 'backup'], true) ? $section : 'institution';
+$configureBreadcrumbLabel = $section === 'rules'
+    ? 'Library Rules'
+    : ($section === 'backup' ? 'Backup & Restore' : 'Institutional Profile');
 
 ?>
 
@@ -288,9 +377,17 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
     data-backup-csrf-token="<?php echo $escapeConfigureValue($backupCsrfToken); ?>"
     data-saved-reference-policy-direction="<?php echo $escapeConfigureValue($referencePolicyDirection); ?>"
     data-saved-reference-policy-years="<?php echo $escapeConfigureValue($referencePolicyYears); ?>"
+    data-saved-reference-policy-source="<?php echo $escapeConfigureValue($referencePolicySource); ?>"
+    data-saved-reference-policy-effective-date="<?php echo $escapeConfigureValue($referencePolicyEffectiveDate); ?>"
 >
     <header class="settings-page-heading">
         <div>
+            <nav class="app-breadcrumbs" aria-label="Breadcrumb">
+                <ol>
+                    <li><a href="app.php?page=account">Settings</a></li>
+                    <li aria-current="page"><span id="configureBreadcrumbCurrent"><?php echo $escapeConfigureValue($configureBreadcrumbLabel); ?></span></li>
+                </ol>
+            </nav>
             <h1 id="configurePageHeading"><?php
                 $section = $_GET['section'] ?? '';
                 if ($section === 'rules') {
@@ -504,6 +601,32 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                     >
                 </label>
                 <p id="referencePolicyHelp" class="settings-help">“Published within” means no older than the threshold; “at least” means the title is that many years old or older. The threshold must come from the institution’s approved policy.</p>
+                <label for="referencePolicySource" class="settings-field">
+                    Approved policy source
+                    <input
+                        id="referencePolicySource"
+                        name="reference_policy_source"
+                        type="text"
+                        maxlength="255"
+                        placeholder="Policy title or document reference"
+                        value="<?php echo $escapeConfigureValue($referencePolicySource); ?>"
+                        aria-describedby="referencePolicySourceHelp"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                    >
+                    <span class="settings-field-help" id="referencePolicySourceHelp">Record the title or reference of the institution-approved policy; do not enter a rule from memory.</span>
+                </label>
+                <label for="referencePolicyEffectiveDate" class="settings-field">
+                    Policy effective date
+                    <input
+                        id="referencePolicyEffectiveDate"
+                        name="reference_policy_effective_date"
+                        type="date"
+                        value="<?php echo $escapeConfigureValue($referencePolicyEffectiveDate); ?>"
+                        aria-describedby="referencePolicyEffectiveDateHelp"
+                        <?php echo $loadError !== null ? 'disabled' : ''; ?>
+                    >
+                    <span class="settings-field-help" id="referencePolicyEffectiveDateHelp">Use the effective date stated by the policy. Existing rules without recorded metadata are not backfilled.</span>
+                </label>
                 <label for="referencePolicyConfirmed" class="settings-check-row">
                     <input
                         id="referencePolicyConfirmed"
@@ -512,8 +635,23 @@ $escapeConfigureValue = static fn (mixed $value): string => htmlspecialchars((st
                         value="1"
                         <?php echo $loadError !== null ? 'disabled' : ''; ?>
                     >
-                    <span>I confirm this new or changed rule and threshold match an approved institutional reference-age policy.</span>
+                    <span>I confirm the rule, source, and effective date match the approved institutional reference-age policy.</span>
                 </label>
+            </div>
+            <div class="settings-policy-history" aria-labelledby="referencePolicyHistoryHeading">
+                <h3 id="referencePolicyHistoryHeading" class="settings-section-title">Recorded policy changes</h3>
+                <ul data-policy-history-list>
+                    <?php foreach ($referencePolicyHistory as $policyVersion): ?>
+                        <li>
+                            <strong><?php echo $escapeConfigureValue($policyVersion['direction'] === 'within' ? 'Published within ' . $policyVersion['years_threshold'] . ' years' : 'At least ' . $policyVersion['years_threshold'] . ' years old'); ?></strong>
+                            <span><?php echo $escapeConfigureValue($policyVersion['policy_source']); ?> · Effective <?php echo $escapeConfigureValue($policyVersion['effective_date']); ?></span>
+                            <time datetime="<?php echo $escapeConfigureValue(str_replace(' ', 'T', (string) $policyVersion['changed_at'])); ?>">Recorded <?php echo $escapeConfigureValue($policyVersion['changed_at']); ?><?php echo $policyVersion['changed_by_name'] !== null ? ' by ' . $escapeConfigureValue($policyVersion['changed_by_name']) : ''; ?></time>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php if ($referencePolicyHistory === []): ?>
+                    <p class="settings-field-help" data-policy-history-empty>No policy changes have been recorded since version history was enabled.</p>
+                <?php endif; ?>
             </div>
         </section>
         </div>

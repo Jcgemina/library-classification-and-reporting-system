@@ -257,8 +257,8 @@ if ($action !== '') {
 <div class="live-report-page space-y-5">
     <header class="reports-heading">
         <div>
-            <h1>Detailed Reports</h1>
-            <p class="page-description">Program and major verification progress by quarter and academic year.</p>
+            <h1>Reports</h1>
+            <p class="page-description">Completion progress for active programs and majors by quarter and calendar year.</p>
         </div>
     </header>
 
@@ -304,7 +304,7 @@ if ($action !== '') {
                         <option value="">All majors</option>
                     </select>
                 </label>
-                <label class="report-filter-field report-year-field" for="reportYearFilter">Academic year
+                <label class="report-filter-field report-year-field" for="reportYearFilter">Calendar year
                     <select id="reportYearFilter" class="report-filter">
                         <?php $currentYear = (int) date('Y'); ?>
                         <?php for ($year = $currentYear - 3; $year <= $currentYear + 1; $year++): ?>
@@ -329,7 +329,7 @@ if ($action !== '') {
 
         <div class="report-guidance">
             <i data-lucide="info" aria-hidden="true"></i>
-            <p>Choose the target quarter, record whether it is complete, and set the latest update month. Changes are saved to the database.</p>
+            <p>Each row is one active program scope (when it has no active majors) or one active major scope. The count above is the denominator after filters. “Complete” is a staff-entered status, not an evidence review; “Updated as of” records the latest update month. This report uses calendar years.</p>
         </div>
 
         <div class="report-table-wrap">
@@ -339,7 +339,7 @@ if ($action !== '') {
                         <th scope="col" class="report-number-column">No.</th>
                         <th scope="col">Program / Major</th>
                         <th scope="col" class="report-quarter-column">Target Q</th>
-                        <th scope="col" class="report-actual-column">Actual</th>
+                        <th scope="col" class="report-actual-column">Complete</th>
                         <th scope="col" class="report-updated-column">Updated as of</th>
                     </tr>
                 </thead>

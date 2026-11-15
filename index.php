@@ -30,21 +30,25 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
   <link rel="icon" type="image/svg+xml" href="assets/brand/digital/favicon.svg">
   <link rel="manifest" href="assets/brand/digital/site.webmanifest">
   <link rel="apple-touch-icon" href="assets/brand/digital/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/design-tokens.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/design-tokens.css'); ?>">
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     :root {
       color-scheme: light;
       --canvas: #f5f5f4;
-      --surface: #fff;
-      --ink: #0f172a;
-      --muted: #475569;
-      --line: #e2e8f0;
-      --line-strong: #cbd5e1;
-      --rose: #be123c;
-      --rose-dark: #9f1239;
-      --rose-soft: #fff1f2;
+      --surface: var(--app-color-surface);
+      --ink: var(--app-color-ink);
+      --muted: var(--app-color-muted);
+      --line: var(--app-color-border);
+      --line-strong: var(--app-color-border-strong);
+      --rose: var(--app-color-primary);
+      --rose-dark: var(--app-color-primary-hover);
+      --rose-soft: var(--app-color-primary-soft);
       --red-soft: #fef2f2;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: var(--app-font-family);
       font-synthesis: none;
       text-rendering: optimizeLegibility;
       -webkit-font-smoothing: antialiased;
@@ -69,11 +73,11 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
     button, input { font: inherit; }
     button, a, input { -webkit-tap-highlight-color: transparent; }
     button:focus-visible, a:focus-visible, input:focus-visible {
-      outline: 3px solid rgba(190, 18, 60, .3);
+      outline: 3px solid var(--app-color-focus);
       outline-offset: 2px;
     }
 
-    ::selection { background: #ffe4e6; color: var(--ink); }
+    ::selection { background: var(--app-color-primary-soft); color: var(--ink); }
     input { caret-color: var(--rose); }
 
     .login-layout { width: min(100%, 1080px); }
@@ -113,8 +117,8 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
     .brand-name { font-size: 19px; font-weight: 750; letter-spacing: -.035em; }
     .brand-subtitle {
       margin-top: 2px;
-      color: #64707b;
-      font-size: 10px;
+      color: var(--app-color-muted);
+      font-size: 12px;
       font-weight: 650;
       letter-spacing: .13em;
       text-transform: uppercase;
@@ -139,11 +143,11 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
       border-radius: 8px;
       background: rgba(255,255,255,.72);
       color: #56333c;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
     }
     .portal-label [data-lucide] { width: 15px; height: 15px; color: var(--rose-dark); }
-    .brand-footer { display: flex; align-items: center; gap: 8px; color: #58636f; font-size: 11px; }
+    .brand-footer { display: flex; align-items: center; gap: 8px; color: var(--app-color-muted); font-size: 12px; }
     .brand-footer [data-lucide] { width: 15px; height: 15px; color: var(--rose-dark); }
 
     .form-panel {
@@ -194,7 +198,7 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
       border-radius: 9px;
       background: white;
       color: var(--ink);
-      font-size: 13px;
+      font-size: 14px;
       transition: border-color .16s ease, box-shadow .16s ease;
     }
     .field input::placeholder { color: #64707b; }
@@ -233,7 +237,7 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
       border-radius: 9px;
       background: var(--rose);
       color: white;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 680;
       cursor: pointer;
       transition: background-color .16s ease, border-color .16s ease;

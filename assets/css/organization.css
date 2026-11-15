@@ -32,7 +32,7 @@
   border-radius: 8px;
   background: #fff;
   color: #0f172a;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .academic-tree-search input:focus-visible {
@@ -58,7 +58,7 @@
   border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
   color: #475569;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -72,7 +72,7 @@
   padding: 9px 12px;
   border-top: 1px solid #f1f5f9;
   color: #334155;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .academic-tree-table tbody tr:hover {
@@ -148,7 +148,7 @@
   display: inline-flex;
   padding: 4px 8px;
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -173,7 +173,7 @@
   border-radius: 6px;
   background: transparent;
   color: #334155;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -187,9 +187,10 @@
   height: 14px;
 }
 
-.academic-action-menu-options[popover] {
+.academic-action-menu-options {
   position: fixed;
-  inset: auto;
+  z-index: 80;
+  display: none;
   width: max-content;
   min-width: 170px;
   max-width: calc(100vw - 16px);
@@ -202,6 +203,14 @@
   background: #fff;
   box-shadow: 0 12px 30px rgb(15 23 42 / .16);
   color: #0f172a;
+}
+
+.academic-action-menu-options.is-open {
+  display: block;
+}
+
+.academic-action-menu-options[hidden] {
+  display: none;
 }
 
 .academic-action-menu-options .academic-row-action {
@@ -217,7 +226,7 @@
   border-radius: 5px;
   background: transparent;
   color: #66717b;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .academic-action-menu-options .academic-row-action [data-lucide] {

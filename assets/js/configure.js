@@ -8,10 +8,14 @@
     const button = document.getElementById('saveConfigureButton');
     const discardButton = document.getElementById('discardConfigureButton');
     const message = document.getElementById('configureMessage');
+    const policyHistoryList = page.querySelector('[data-policy-history-list]');
+    const policyHistoryEmpty = page.querySelector('[data-policy-history-empty]');
     const isReadOnly = button.dataset.readonly === 'true';
     let isSaving = false;
     let savedReferencePolicyDirection = page.dataset.savedReferencePolicyDirection || '';
     let savedReferencePolicyYears = page.dataset.savedReferencePolicyYears || '';
+    let savedReferencePolicySource = page.dataset.savedReferencePolicySource || '';
+    let savedReferencePolicyEffectiveDate = page.dataset.savedReferencePolicyEffectiveDate || '';
 
     function getSettingsState() {
         const formData = new FormData(form);
@@ -30,25 +34,60 @@
         window.AppToast.show(text, 'success');
     }
 
+    function appendPolicyVersion(version) {
+        if (!version || !policyHistoryList) {
+            return;
+        }
+
+        const item = document.createElement('li');
+        const summary = document.createElement('strong');
+        summary.textContent = version.direction === 'within'
+            ? `Published within ${version.years_threshold} years`
+            : `At least ${version.years_threshold} years old`;
+        const source = document.createElement('span');
+        source.textContent = `${version.policy_source} · Effective ${version.effective_date}`;
+        const recorded = document.createElement('time');
+        recorded.dateTime = String(version.changed_at || '').replace(' ', 'T');
+        recorded.textContent = `Recorded ${version.changed_at}${version.changed_by_name ? ` by ${version.changed_by_name}` : ''}`;
+
+        item.append(summary, source, recorded);
+        policyHistoryList.prepend(item);
+        if (policyHistoryList.children.length > 10) {
+            policyHistoryList.lastElementChild.remove();
+        }
+        if (policyHistoryEmpty) {
+            policyHistoryEmpty.hidden = true;
+        }
+    }
+
     function hasConfirmedPolicyChange() {
         const direction = form.elements.reference_policy_direction.value;
         const years = form.elements.reference_policy_years.value.trim();
         const policyChanged = direction !== savedReferencePolicyDirection
-            || years !== savedReferencePolicyYears;
+            || years !== savedReferencePolicyYears
+            || form.elements.reference_policy_source.value.trim() !== savedReferencePolicySource
+            || form.elements.reference_policy_effective_date.value !== savedReferencePolicyEffectiveDate;
 
         return !policyChanged || (['within', 'at_least'].includes(direction)
             && /^(?:[1-9]\d{0,2}|1000)$/.test(years)
+            && form.elements.reference_policy_source.value.trim().length <= 255
+            && form.elements.reference_policy_source.value.trim() !== ''
+            && /^\d{4}-\d{2}-\d{2}$/.test(form.elements.reference_policy_effective_date.value)
             && form.elements.reference_policy_confirmed.checked);
     }
 
     function updateFormState(statusText, statusType = 'status') {
         const policyChanged = form.elements.reference_policy_direction.value !== savedReferencePolicyDirection
-            || form.elements.reference_policy_years.value.trim() !== savedReferencePolicyYears;
+            || form.elements.reference_policy_years.value.trim() !== savedReferencePolicyYears
+            || form.elements.reference_policy_source.value.trim() !== savedReferencePolicySource
+            || form.elements.reference_policy_effective_date.value !== savedReferencePolicyEffectiveDate;
         const isDirty = getSettingsState() !== savedState;
         const policyConfirmed = hasConfirmedPolicyChange();
 
         form.elements.reference_policy_direction.required = policyChanged;
         form.elements.reference_policy_years.required = policyChanged;
+        form.elements.reference_policy_source.required = policyChanged;
+        form.elements.reference_policy_effective_date.required = policyChanged;
         form.elements.reference_policy_confirmed.required = policyChanged;
         button.disabled = isReadOnly || isSaving || !isDirty || !policyConfirmed;
         discardButton.disabled = isReadOnly || isSaving || !isDirty;
@@ -67,6 +106,10 @@
             setMessage('Choose an approved reference-age rule before changing the policy.', 'warning');
         } else if (policyChanged && !form.elements.reference_policy_years.value.trim()) {
             setMessage('Enter the threshold from the approved rule before changing the policy.', 'warning');
+        } else if (policyChanged && !form.elements.reference_policy_source.value.trim()) {
+            setMessage('Record the approved policy source before changing the policy.', 'warning');
+        } else if (policyChanged && !form.elements.reference_policy_effective_date.value) {
+            setMessage('Record the effective date shown in the approved policy.', 'warning');
         } else if (policyChanged && !form.elements.reference_policy_confirmed.checked) {
             setMessage('Confirm the new or changed policy to enable saving.', 'warning');
         } else {
@@ -140,8 +183,12 @@
 
         const direction = form.elements.reference_policy_direction.value;
         const years = form.elements.reference_policy_years.value.trim();
+        const source = form.elements.reference_policy_source.value.trim();
+        const effectiveDate = form.elements.reference_policy_effective_date.value;
         const policyChanged = direction !== savedReferencePolicyDirection
-            || years !== savedReferencePolicyYears;
+            || years !== savedReferencePolicyYears
+            || source !== savedReferencePolicySource
+            || effectiveDate !== savedReferencePolicyEffectiveDate;
         if (policyChanged) {
             if (!['within', 'at_least'].includes(direction)) {
                 showFieldError('reference_policy_direction', 'Choose an approved reference-age rule before changing the policy.');
@@ -149,6 +196,14 @@
             }
             if (!/^(?:[1-9]\d{0,2}|1000)$/.test(years)) {
                 showFieldError('reference_policy_years', 'Enter the threshold from the approved rule, from 1 to 1,000 years.');
+                return;
+            }
+            if (!source || source.length > 255) {
+                showFieldError('reference_policy_source', 'Record the approved policy source using no more than 255 characters.');
+                return;
+            }
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
+                showFieldError('reference_policy_effective_date', 'Enter the effective date shown in the approved policy.');
                 return;
             }
             if (!form.elements.reference_policy_confirmed.checked) {
@@ -194,6 +249,11 @@
             savedState = getSettingsState();
             savedReferencePolicyDirection = direction;
             savedReferencePolicyYears = years;
+            savedReferencePolicySource = source;
+            savedReferencePolicyEffectiveDate = effectiveDate;
+            if (policyChanged) {
+                appendPolicyVersion(result.policy_version);
+            }
             showSuccessToast(result.message || 'Settings saved.');
             updateFormState();
         } catch (error) {

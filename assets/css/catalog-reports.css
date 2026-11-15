@@ -2,15 +2,16 @@
 .live-report-page,
 .live-reference-page {
     max-width: 1500px;
-    color: #18232d;
+    color: var(--app-color-ink);
+    font-family: var(--app-font-family);
 }
 
 .live-course-page h1,
 .live-report-page h1,
 .live-reference-page h1 {
     margin: 0;
-    color: #18232d;
-    font-size: 24px;
+    color: var(--app-color-ink);
+    font-size: 29px;
     font-weight: 700;
     line-height: 1.25;
 }
@@ -26,7 +27,7 @@
 .live-reference-page .page-description {
     max-width: 760px;
     margin: 5px 0 0;
-    color: #52606d;
+    color: var(--app-color-muted);
     font-size: 12px;
     line-height: 1.6;
 }
@@ -55,12 +56,12 @@
     justify-content: center;
     gap: 7px;
     padding: 0 11px;
-    border: 1px solid #d5d9de;
-    border-radius: 7px;
+    border: 1px solid var(--app-color-border);
+    border-radius: var(--app-radius-control);
     background: #fff;
-    color: #35414b;
+    color: var(--app-color-body);
     font: inherit;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 650;
     text-decoration: none;
     white-space: nowrap;
@@ -71,30 +72,31 @@
 .live-course-page .live-button:hover,
 .live-report-page .live-button:hover,
 .live-reference-page .live-button:hover {
-    border-color: #bfc5cb;
-    background: #f7f8f9;
+    border-color: var(--app-color-border-strong);
+    background: var(--app-color-subtle);
+    color: var(--app-color-ink);
 }
 
 .live-course-page .live-button:focus-visible,
 .live-report-page .live-button:focus-visible,
 .live-reference-page .live-button:focus-visible {
-    outline: 2px solid #8e6e75;
+    outline: 2px solid var(--app-color-primary);
     outline-offset: 2px;
 }
 
 .live-course-page .live-button-primary,
 .live-report-page .live-button-primary,
 .live-reference-page .live-button-primary {
-    border-color: #a51f43;
-    background: #a51f43;
+    border-color: var(--app-color-primary);
+    background: var(--app-color-primary);
     color: #fff;
 }
 
 .live-course-page .live-button-primary:hover,
 .live-report-page .live-button-primary:hover,
 .live-reference-page .live-button-primary:hover {
-    border-color: #861a37;
-    background: #861a37;
+    border-color: var(--app-color-primary-hover);
+    background: var(--app-color-primary-hover);
 }
 
 .live-course-page .live-button:disabled,
@@ -135,7 +137,7 @@
 }
 
 .live-course-page .courses-summary-item span {
-    color: #52606d;
+    color: var(--app-color-muted);
     font-size: 11px;
 }
 
@@ -159,7 +161,7 @@
 .live-reference-page .reference-section-heading h2,
 .live-reference-page .reference-results-heading h2 {
     margin: 0;
-    color: #18232d;
+    color: var(--app-color-ink);
     font-size: 15px;
     font-weight: 650;
 }
@@ -168,7 +170,7 @@
 .live-reference-page .reference-section-heading p,
 .live-reference-page .reference-results-heading p {
     margin: 4px 0 0;
-    color: #52606d;
+    color: var(--app-color-muted);
     font-size: 11px;
 }
 
@@ -644,7 +646,7 @@
 .live-report-page .report-table input[type="checkbox"] {
     width: 16px;
     height: 16px;
-    accent-color: #a51f43;
+    accent-color: var(--app-color-primary);
     cursor: pointer;
 }
 
@@ -1412,4 +1414,135 @@
         break-inside: avoid;
         page-break-inside: avoid;
     }
+}
+
+@media screen {
+    .live-course-page .live-button,
+    .live-report-page .live-button,
+    .live-reference-page .live-button {
+        font-size: 13px;
+    }
+
+    .live-course-page .courses-filters input,
+    .live-course-page .courses-filters select,
+    .live-report-page .report-filter,
+    .live-reference-page .reference-filter-control {
+        font-size: 14px;
+    }
+
+    .live-report-page .report-table select,
+    .live-report-page .report-table input[type="month"] {
+        font-size: 12px;
+    }
+
+    .live-course-page .courses-table th,
+    .live-report-page .report-table th,
+    .live-reference-page .reference-table th {
+        font-size: 12px;
+    }
+
+    .live-course-page .courses-table td,
+    .live-report-page .report-table td,
+    .live-reference-page .reference-table td {
+        font-size: 13px;
+    }
+
+    .live-course-page .courses-summary-item span,
+    .live-course-page .courses-directory-heading p,
+    .live-reference-page .reference-section-heading p,
+    .live-reference-page .reference-results-heading p,
+    .live-report-page .report-guidance p,
+    .live-report-page .report-result-count {
+        font-size: 12px;
+    }
+
+    .live-course-page .course-name-label,
+    .live-course-page .course-academic-detail,
+    .live-course-page .course-status,
+    .live-course-page .course-readiness,
+    .live-course-page .course-readiness-detail,
+    .live-course-page .course-actions-menu button,
+    .live-report-page .report-filter-field,
+    .live-report-page .report-export-option,
+    .live-report-page .report-guidance,
+    .live-report-page .report-major-name,
+    .live-report-page .report-college-name,
+    .live-report-page #reportEmptyState span,
+    .live-reference-page .reference-summary-label,
+    .live-reference-page .reference-guidance,
+    .live-reference-page .reference-error,
+    .live-reference-page .reference-filter-field,
+    .live-reference-page .reference-result-count,
+    .live-reference-page .reference-status,
+    .live-reference-page .reference-detail-button,
+    .live-reference-page .reference-back-button,
+    .live-reference-page .reference-detail-row,
+    .live-reference-page .reference-assessment-explanation,
+    .live-reference-page .reference-no-courses,
+    .live-reference-page .reference-course-name,
+    .live-reference-page .reference-course-meta {
+        font-size: 12px;
+    }
+
+    .live-course-page .courses-table td[data-label]::before {
+        font-size: 12px;
+    }
+
+    .live-report-page .report-print-methodology {
+        color: #475569;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+}
+
+.app-breadcrumbs {
+    margin: 0 0 6px;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.app-breadcrumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.app-breadcrumbs li {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+}
+
+.app-breadcrumbs li + li::before {
+    color: #64748b;
+    content: "/";
+}
+
+.app-breadcrumbs a {
+    border-radius: 2px;
+    color: #475569;
+    text-decoration: none;
+    text-underline-offset: 3px;
+}
+
+.app-breadcrumbs a:hover {
+    color: #9f1239;
+    text-decoration: underline;
+}
+
+.app-breadcrumbs a:focus-visible {
+    outline: 2px solid #be123c;
+    outline-offset: 2px;
+}
+
+.app-breadcrumbs [aria-current="page"] {
+    overflow-wrap: anywhere;
+    color: #0f172a;
+    font-weight: 600;
 }

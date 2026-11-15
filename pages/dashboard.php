@@ -144,7 +144,7 @@ $copyrightCoverageMetrics = array_map(static function (array $metric) use ($tota
   <header class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
     <div>
       <h2 class="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h2>
-      <p class="mt-1 text-sm text-slate-600">Collection coverage and academic progress · <?php echo $currentYear; ?></p>
+      <p class="mt-1 text-sm text-slate-600">Collection coverage and progress for calendar year <?php echo $currentYear; ?></p>
     </div>
     <a href="app.php?page=report" data-page="report" class="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-rose-300 hover:text-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-300">
       <i data-lucide="file-chart-column" class="h-4 w-4" aria-hidden="true"></i>
@@ -171,19 +171,19 @@ $copyrightCoverageMetrics = array_map(static function (array $metric) use ($tota
       <div class="flex flex-col justify-center border-b border-slate-200 pb-4 sm:border-b-0 sm:pb-0">
         <span class="text-xs font-medium text-slate-600">Active book titles</span>
         <strong class="mt-1 text-2xl font-bold leading-tight tabular-nums tracking-tight text-slate-900"><?php echo $dashboardDataAvailable ? number_format($totalBookTitles) : '&mdash;'; ?></strong>
-        <span class="mt-1 text-[11px] text-slate-600">catalog records</span>
+        <span class="mt-1 text-xs text-slate-600">catalog records</span>
       </div>
       <?php foreach ($copyrightCoverageMetrics as $metric): ?>
         <div class="min-w-0 border-b border-slate-200 pb-4 last:border-b-0 sm:border-b-0 sm:pb-0">
           <div class="flex items-baseline justify-between gap-2">
             <span class="text-xs font-medium text-slate-600">Within <?php echo $metric['years_threshold']; ?> years</span>
-            <span class="text-[11px] tabular-nums text-slate-600"><?php echo $dashboardDataAvailable ? $metric['percent'] . '%' : '&mdash;'; ?></span>
+            <span class="text-xs tabular-nums text-slate-600"><?php echo $dashboardDataAvailable ? $metric['percent'] . '%' : '&mdash;'; ?></span>
           </div>
           <strong class="mt-1 block text-xl font-bold leading-tight tabular-nums text-slate-900"><?php echo $dashboardDataAvailable ? number_format($metric['title_count']) : '&mdash;'; ?></strong>
           <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Collection titles within <?php echo $metric['years_threshold']; ?> years" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo $dashboardDataAvailable ? $metric['percent'] : 0; ?>">
             <span class="block h-full rounded-full bg-rose-700" style="width: <?php echo $dashboardDataAvailable ? $metric['percent'] : 0; ?>%"></span>
           </div>
-          <span class="mt-1 block text-[11px] text-slate-600">of active titles</span>
+          <span class="mt-1 block text-xs text-slate-600">of active titles</span>
         </div>
       <?php endforeach; ?>
     </div>
@@ -194,14 +194,14 @@ $copyrightCoverageMetrics = array_map(static function (array $metric) use ($tota
       <div class="flex flex-wrap items-baseline justify-between gap-3 border-b border-slate-300 pb-3">
         <div>
           <h2 id="quarterlyProgressTitle" class="text-base font-bold text-slate-900">Quarterly progress</h2>
-          <p class="mt-1 text-xs text-slate-600">Verified program and major scopes · <?php echo $currentYear; ?></p>
+          <p class="mt-1 text-xs text-slate-600">Staff-entered completion for active scopes · calendar year <?php echo $currentYear; ?></p>
         </div>
-        <a href="app.php?page=report" data-page="report" class="text-xs font-semibold text-rose-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-300">View report</a>
+        <a href="app.php?page=report" data-page="report" class="text-xs font-semibold text-rose-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-300">View reports</a>
       </div>
       <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-slate-200 pb-4 text-xs text-slate-600">
         <span class="font-semibold text-slate-900">Current quarter</span>
         <span><?php echo $quarterLabels[$currentQuarterNumber - 1]; ?> · <?php echo $currentQuarterStart->format('M j'); ?>–<?php echo $currentQuarterEnd->format('M j'); ?></span>
-        <span class="tabular-nums"><?php echo $dashboardDataAvailable ? $currentQuarterMetric['completed'] . ' / ' . $progressScopeCount . ' scopes verified' : 'Progress unavailable'; ?></span>
+        <span class="tabular-nums"><?php echo $dashboardDataAvailable ? $currentQuarterMetric['completed'] . ' / ' . $progressScopeCount . ' scopes marked complete' : 'Progress unavailable'; ?></span>
       </div>
       <?php if (!$dashboardDataAvailable): ?>
         <p class="py-5 text-sm text-slate-600">Quarterly progress is unavailable.</p>
@@ -213,7 +213,7 @@ $copyrightCoverageMetrics = array_map(static function (array $metric) use ($tota
             <?php $isCurrentQuarter = $index === $currentQuarterNumber - 1; ?>
             <div class="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 py-3">
               <span class="text-xs font-semibold <?php echo $isCurrentQuarter ? 'text-rose-800' : 'text-slate-700'; ?>">Q<?php echo $index + 1; ?></span>
-              <div class="h-1.5 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Q<?php echo $index + 1; ?> verification progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo $metric['percent']; ?>">
+              <div class="h-1.5 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Q<?php echo $index + 1; ?> completion progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo $metric['percent']; ?>">
                 <span class="block h-full rounded-full <?php echo $isCurrentQuarter ? 'bg-rose-700' : 'bg-slate-500'; ?>" style="width: <?php echo $metric['percent']; ?>%"></span>
               </div>
               <span class="text-right text-xs tabular-nums text-slate-600"><?php echo $metric['completed']; ?> / <?php echo $progressScopeCount; ?> · <?php echo $metric['percent']; ?>%</span>
@@ -221,7 +221,7 @@ $copyrightCoverageMetrics = array_map(static function (array $metric) use ($tota
           <?php endforeach; ?>
         </div>
       <?php endif; ?>
-      <p class="mt-3 text-[11px] text-slate-600">A scope is a program or one of its active majors.</p>
+      <p class="mt-3 text-xs text-slate-600">A scope is each active major, or the program itself when it has no active majors. The denominator is all active scopes for the year shown; “complete” is staff-entered and does not indicate evidence review.</p>
     </section>
 
     <section aria-labelledby="upcomingDeadlinesTitle">
@@ -288,7 +288,7 @@ $copyrightCoverageMetrics = array_map(static function (array $metric) use ($tota
           <?php if ($overdueDeadlineCount === 0 && $upcomingDeadlines === []): ?>
             <div class="flex items-start gap-3 py-5">
               <i data-lucide="circle-check" class="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-700" aria-hidden="true"></i>
-              <div><p class="text-sm font-semibold text-emerald-900">No outstanding targets</p><p class="mt-1 text-sm text-slate-700">All current and upcoming target quarters are verified.</p></div>
+              <div><p class="text-sm font-semibold text-emerald-900">No outstanding targets</p><p class="mt-1 text-sm text-slate-700">No current or upcoming target quarter is marked incomplete.</p></div>
             </div>
           <?php endif; ?>
         </div>
@@ -299,14 +299,17 @@ $copyrightCoverageMetrics = array_map(static function (array $metric) use ($tota
   <section class="flex flex-wrap items-center gap-x-8 gap-y-3 border-y border-slate-300 py-4" aria-labelledby="programsOverviewTitle">
     <div class="mr-auto">
       <h2 id="programsOverviewTitle" class="text-base font-bold text-slate-900">Programs</h2>
-      <p class="mt-1 text-xs text-slate-600">Active program verification</p>
+      <p class="mt-1 text-xs text-slate-600">Programs with at least one quarter marked complete</p>
     </div>
     <div class="flex items-baseline gap-2"><strong class="text-lg tabular-nums text-slate-900"><?php echo $dashboardDataAvailable ? number_format($totalActivePrograms) : '&mdash;'; ?></strong><span class="text-xs text-slate-600">active</span></div>
-    <div class="flex items-baseline gap-2"><strong class="text-lg tabular-nums text-emerald-800"><?php echo $dashboardDataAvailable ? number_format($verifiedPrograms) : '&mdash;'; ?></strong><span class="text-xs text-slate-600">verified</span></div>
-    <div class="flex items-baseline gap-2"><strong class="text-lg tabular-nums text-rose-800"><?php echo $dashboardDataAvailable ? number_format($pendingPrograms) : '&mdash;'; ?></strong><span class="text-xs text-slate-600">pending</span></div>
+    <div class="flex items-baseline gap-2"><strong class="text-lg tabular-nums text-emerald-800"><?php echo $dashboardDataAvailable ? number_format($verifiedPrograms) : '&mdash;'; ?></strong><span class="text-xs text-slate-600">with completion</span></div>
+    <div class="flex items-baseline gap-2"><strong class="text-lg tabular-nums text-rose-800"><?php echo $dashboardDataAvailable ? number_format($pendingPrograms) : '&mdash;'; ?></strong><span class="text-xs text-slate-600">without completion</span></div>
     <a href="app.php?page=academics" data-page="academics" class="text-xs font-semibold text-rose-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-300">View academics</a>
   </section>
   <details class="text-xs text-slate-600">
     <summary class="w-fit cursor-pointer font-semibold underline decoration-slate-300 underline-offset-4 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-300">How collection age is counted</summary>
-    <p class="mt-2 max-w-3xl leading-5">Age uses the copyright year, or publication year when no copyright year is recorded. Thresholds are cumulative, so a title may appear in more than one count.</p>
+    <p class="mt-2 max-w-3xl leading-5">Counts use the current calendar year and all active catalog titles as the denominator. Age uses the copyright year, or publication year when no copyright year is recorded. Configured windows overlap, so a title can appear in more than one count; these counts do not determine legal copyright status.</p>
+    <?php if (strtolower($_SESSION['role'] ?? '') === 'admin'): ?>
+      <a href="app.php?page=configure&section=rules" data-page="configure" class="mt-2 inline-flex text-xs font-semibold text-rose-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-300">Review collection-age windows in Library Rules</a>
+    <?php endif; ?>
   </details>

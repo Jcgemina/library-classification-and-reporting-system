@@ -14,7 +14,7 @@ $isValidatedUser = !empty($_SESSION['authenticated']) && !empty($_SESSION['user_
 $isAdmin = $isValidatedUser && $userRole === 'admin';
 $settingsItems = [
     ['label' => 'My Account', 'page' => 'account', 'subpage' => 'account', 'href' => 'app.php?page=account', 'icon' => 'user-round'],
-    ['label' => 'Preference', 'page' => 'preferences', 'subpage' => 'preferences', 'href' => 'app.php?page=preferences', 'icon' => 'sliders-horizontal'],
+    ['label' => 'Preferences', 'page' => 'preferences', 'subpage' => 'preferences', 'href' => 'app.php?page=preferences', 'icon' => 'sliders-horizontal'],
     ['label' => 'Institutional Profile', 'page' => 'configure', 'subpage' => 'institution', 'href' => 'app.php?page=configure&section=institution#institutionProfileSettings', 'icon' => 'building-2'],
     ['label' => 'Library Rules', 'page' => 'configure', 'subpage' => 'rules', 'href' => 'app.php?page=configure&section=rules#libraryRulesSettings', 'icon' => 'list-checks'],
     ['label' => 'Backup & Restore', 'page' => 'configure', 'subpage' => 'backup', 'href' => 'app.php?page=configure&section=backup#backupRestoreSettings', 'icon' => 'database-backup'],
@@ -33,11 +33,11 @@ $navSections = [
 $navItems = [
     ['label' => 'Dashboard', 'page' => 'dashboard', 'section' => 'overview', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
     ['label' => 'Inventory', 'page' => 'inventory', 'section' => 'operations', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
-    ['label' => 'Report', 'page' => 'report', 'section' => 'operations', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
+    ['label' => 'Reports', 'page' => 'report', 'section' => 'operations', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
     ['label' => 'Academics', 'page' => 'academics', 'section' => 'academics', 'href' => 'app.php?page=academics', 'icon' => 'building-2'],
     ['label' => 'Courses', 'page' => 'course', 'section' => 'academics', 'href' => 'app.php?page=course', 'icon' => 'book-open'],
     ['label' => 'Reference Analyzer', 'page' => 'reference_analyzer', 'section' => 'academics', 'href' => 'app.php?page=reference_analyzer', 'icon' => 'scan-search'],
-    ['label' => 'User', 'page' => 'user', 'section' => 'administration', 'href' => 'app.php?page=user', 'icon' => 'users'],
+    ['label' => 'Users', 'page' => 'user', 'section' => 'administration', 'href' => 'app.php?page=user', 'icon' => 'users'],
     ['label' => 'Logs', 'page' => 'logs', 'section' => 'administration', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text', 'isLogs' => true],
     ['label' => 'Settings', 'page' => 'account', 'section' => 'administration', 'href' => 'app.php?page=account', 'icon' => 'settings-2', 'isSettings' => true],
 ];

@@ -1,12 +1,12 @@
 (() => {
     const userId = String(window.appUserPreferenceId || '');
     const storageKey = `appsys.preferences.v1.${userId}`;
-    const defaults = { theme: 'system', density: 'comfortable', rowsPerPage: 10, textSize: 'default' };
-    const validThemes = ['system', 'light', 'dark'];
+    const defaults = { density: 'comfortable', rowsPerPage: 10, textSize: 'default', theme: 'light' };
     const validDensities = ['comfortable', 'compact'];
     const validPageSizes = [5, 10, 20, 50];
     const validTextSizes = ['default', 'large'];
-    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    const validThemes = ['light', 'dark', 'system'];
+    const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
     let storageAvailable = true;
 
     function readPreferences() {
@@ -21,10 +21,10 @@
                 return { ...defaults };
             }
             return {
-                theme: validThemes.includes(parsed.theme) ? parsed.theme : defaults.theme,
                 density: validDensities.includes(parsed.density) ? parsed.density : defaults.density,
                 rowsPerPage: validPageSizes.includes(Number(parsed.rowsPerPage)) ? Number(parsed.rowsPerPage) : defaults.rowsPerPage,
                 textSize: validTextSizes.includes(parsed.textSize) ? parsed.textSize : defaults.textSize,
+                theme: validThemes.includes(parsed.theme) ? parsed.theme : defaults.theme,
             };
         } catch (error) {
             storageAvailable = false;
@@ -36,12 +36,11 @@
     let preferences = readPreferences();
 
     function applyPreferences() {
-        const theme = preferences.theme === 'system'
-            ? (colorScheme.matches ? 'dark' : 'light')
-            : preferences.theme;
-        document.documentElement.dataset.appTheme = theme;
         document.documentElement.dataset.appDensity = preferences.density;
         document.documentElement.dataset.appTextSize = preferences.textSize;
+        document.documentElement.dataset.appTheme = preferences.theme === 'system'
+            ? (systemThemeQuery.matches ? 'dark' : 'light')
+            : preferences.theme;
     }
 
     function save(nextPreferences) {
@@ -59,18 +58,20 @@
         window.dispatchEvent(new CustomEvent('app-preferences-change', { detail: { ...preferences } }));
     }
 
-    colorScheme.addEventListener('change', () => {
-        if (preferences.theme === 'system') {
-            applyPreferences();
-        }
-    });
-
     window.addEventListener('storage', (event) => {
         if (event.key === storageKey) {
             preferences = readPreferences();
             applyPreferences();
         }
     });
+    const updateSystemTheme = () => {
+        if (preferences.theme === 'system') applyPreferences();
+    };
+    if (typeof systemThemeQuery.addEventListener === 'function') {
+        systemThemeQuery.addEventListener('change', updateSystemTheme);
+    } else {
+        systemThemeQuery.addListener(updateSystemTheme);
+    }
 
     applyPreferences();
 
@@ -82,10 +83,6 @@
             return storageAvailable;
         },
         set(name, value) {
-            if (name === 'theme' && validThemes.includes(value)) {
-                save({ ...preferences, theme: value });
-                return;
-            }
             if (name === 'density' && validDensities.includes(value)) {
                 save({ ...preferences, density: value });
                 return;
@@ -96,6 +93,10 @@
             }
             if (name === 'textSize' && validTextSizes.includes(value)) {
                 save({ ...preferences, textSize: value });
+                return;
+            }
+            if (name === 'theme' && validThemes.includes(value)) {
+                save({ ...preferences, theme: value });
                 return;
             }
             throw new Error('Choose a supported preference option.');

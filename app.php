@@ -33,6 +33,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/design-tokens.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/design-tokens.css'); ?>">
 <link rel="stylesheet" href="assets/css/preferences.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/preferences.css'); ?>">
 <link rel="stylesheet" href="assets/css/settings.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/settings.css'); ?>">
 <link rel="stylesheet" href="assets/css/organization.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/organization.css'); ?>">
@@ -40,7 +41,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <style>
   html,
   body {
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--app-font-family);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -48,13 +49,13 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
   }
 
   body .text-xs {
-    font-size: 0.8125rem;
-    line-height: 1.25rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
   }
 
   body .text-sm {
-    font-size: 0.9375rem;
-    line-height: 1.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
   }
 
   html,
@@ -63,10 +64,6 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
   }
 
   @media (min-width: 768px) and (max-width: 1440px) {
-    html {
-      font-size: 15px;
-    }
-
     #adminSidebar {
       width: 15rem;
     }
@@ -81,10 +78,6 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
   }
 
   @media (min-width: 768px) and (max-width: 1280px) {
-    html {
-      font-size: 14.5px;
-    }
-
     #pageContent {
       padding: 1.125rem;
     }
@@ -95,7 +88,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     display: none;
   }
 </style>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="assets/css/app.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/app.css'); ?>">
+<link rel="stylesheet" href="assets/css/inventory.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/inventory.css'); ?>">
 <link rel="stylesheet" href="assets/css/catalog-reports.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/catalog-reports.css'); ?>">
 <link rel="stylesheet" href="assets/css/user.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/user.css'); ?>">
 <script src="https://unpkg.com/lucide@latest"></script>
@@ -283,6 +277,14 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         : activeSection === 'backup'
         ? 'Create a full system backup or restore the library from a verified backup file.'
         : 'Manage the institution details shown in report previews.';
+      const breadcrumbCurrent = document.getElementById('configureBreadcrumbCurrent');
+      if (breadcrumbCurrent) {
+        breadcrumbCurrent.textContent = activeSection === 'rules'
+          ? 'Library Rules'
+          : activeSection === 'backup'
+          ? 'Backup & Restore'
+          : 'Institutional Profile';
+      }
       const contextBadge = document.getElementById('configureContextBadge');
       if (contextBadge) {
         const isBackup = activeSection === 'backup';

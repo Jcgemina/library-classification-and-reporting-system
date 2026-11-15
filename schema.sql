@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS majors (
     status ENUM('active', 'archived') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_major_program_name (program_id, name),
+    UNIQUE KEY uq_major_program_id_id (program_id, id),
     CONSTRAINT fk_majors_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -66,7 +67,7 @@ CREATE TABLE IF NOT EXISTS program_progress (
     UNIQUE KEY uq_program_progress_scope_year (program_id, progress_year, major_scope_id),
     INDEX idx_program_progress_year (progress_year),
     CONSTRAINT fk_program_progress_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
-    CONSTRAINT fk_program_progress_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
+    CONSTRAINT fk_program_progress_major_program FOREIGN KEY (program_id, major_id) REFERENCES majors(program_id, id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS courses (
@@ -299,7 +300,21 @@ CREATE TABLE IF NOT EXISTS library_configuration (
     contact_phone VARCHAR(40) NOT NULL DEFAULT '',
     reference_policy_direction ENUM('within', 'at_least') DEFAULT NULL,
     reference_policy_years SMALLINT UNSIGNED DEFAULT NULL,
+    reference_policy_source VARCHAR(255) DEFAULT NULL,
+    reference_policy_effective_date DATE DEFAULT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS reference_age_policy_versions (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    direction ENUM('within', 'at_least') NOT NULL,
+    years_threshold SMALLINT UNSIGNED NOT NULL,
+    policy_source VARCHAR(255) NOT NULL,
+    effective_date DATE NOT NULL,
+    changed_by INT DEFAULT NULL,
+    changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_reference_policy_versions_changed_at (changed_at),
+    CONSTRAINT fk_reference_policy_versions_user FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 SET @institution_name_column_exists = (
@@ -408,6 +423,32 @@ SET @add_reference_policy_years_column = IF(
 PREPARE add_reference_policy_years_column FROM @add_reference_policy_years_column;
 EXECUTE add_reference_policy_years_column;
 DEALLOCATE PREPARE add_reference_policy_years_column;
+
+SET @reference_policy_source_column_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'reference_policy_source'
+);
+SET @add_reference_policy_source_column = IF(
+    @reference_policy_source_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN reference_policy_source VARCHAR(255) DEFAULT NULL AFTER reference_policy_years',
+    'SELECT 1'
+);
+PREPARE add_reference_policy_source_column FROM @add_reference_policy_source_column;
+EXECUTE add_reference_policy_source_column;
+DEALLOCATE PREPARE add_reference_policy_source_column;
+
+SET @reference_policy_effective_date_column_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'reference_policy_effective_date'
+);
+SET @add_reference_policy_effective_date_column = IF(
+    @reference_policy_effective_date_column_exists = 0,
+    'ALTER TABLE library_configuration ADD COLUMN reference_policy_effective_date DATE DEFAULT NULL AFTER reference_policy_source',
+    'SELECT 1'
+);
+PREPARE add_reference_policy_effective_date_column FROM @add_reference_policy_effective_date_column;
+EXECUTE add_reference_policy_effective_date_column;
+DEALLOCATE PREPARE add_reference_policy_effective_date_column;
 
 UPDATE library_configuration
 SET default_curriculum_year = CONCAT(YEAR(CURRENT_DATE), '-', YEAR(CURRENT_DATE) + 1)
@@ -528,6 +569,56 @@ SET @create_majors_table = IF(@majors_table_exists = 0,
 PREPARE create_majors_table FROM @create_majors_table;
 EXECUTE create_majors_table;
 DEALLOCATE PREPARE create_majors_table;
+
+SET @major_program_id_key_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors' AND INDEX_NAME = 'uq_major_program_id_id'
+);
+SET @add_major_program_id_key = IF(
+    @major_program_id_key_exists = 0,
+    'ALTER TABLE majors ADD UNIQUE KEY uq_major_program_id_id (program_id, id)',
+    'SELECT 1'
+);
+PREPARE add_major_program_id_key FROM @add_major_program_id_key;
+EXECUTE add_major_program_id_key;
+DEALLOCATE PREPARE add_major_program_id_key;
+
+-- Review any returned rows before resolving them; the composite constraint below
+-- will fail without removing the existing foreign key if the data is inconsistent.
+SELECT pp.progress_id, pp.program_id, pp.major_id, m.program_id AS major_program_id
+FROM program_progress pp
+LEFT JOIN majors m ON m.id = pp.major_id
+WHERE pp.major_id IS NOT NULL AND (m.id IS NULL OR m.program_id <> pp.program_id);
+
+SET @program_progress_composite_fk_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'program_progress'
+      AND CONSTRAINT_NAME = 'fk_program_progress_major_program'
+);
+SET @add_program_progress_composite_fk = IF(
+    @program_progress_composite_fk_exists = 0,
+    'ALTER TABLE program_progress ADD CONSTRAINT fk_program_progress_major_program FOREIGN KEY (program_id, major_id) REFERENCES majors(program_id, id) ON DELETE CASCADE',
+    'SELECT 1'
+);
+PREPARE add_program_progress_composite_fk FROM @add_program_progress_composite_fk;
+EXECUTE add_program_progress_composite_fk;
+DEALLOCATE PREPARE add_program_progress_composite_fk;
+
+SET @program_progress_major_fk_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'program_progress'
+      AND CONSTRAINT_NAME = 'fk_program_progress_major'
+);
+SET @drop_program_progress_major_fk = IF(
+    @program_progress_major_fk_exists = 1,
+    'ALTER TABLE program_progress DROP FOREIGN KEY fk_program_progress_major',
+    'SELECT 1'
+);
+PREPARE drop_program_progress_major_fk FROM @drop_program_progress_major_fk;
+EXECUTE drop_program_progress_major_fk;
+DEALLOCATE PREPARE drop_program_progress_major_fk;
 
 SET @major_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'major_id');
 SET @add_major_column = IF(@major_column_exists = 0,

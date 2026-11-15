@@ -330,8 +330,13 @@ $copyrightMetricStyles = [
   <div data-inventory-list-view>
     <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
+        <nav class="app-breadcrumbs" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="app.php?page=dashboard">Dashboard</a></li>
+            <li aria-current="page"><span>Inventory</span></li>
+          </ol>
+        </nav>
         <h2 class="text-2xl font-bold tracking-tight text-slate-900">Inventory</h2>
-        <p class="mt-1 text-xs text-slate-600">Home <span aria-hidden="true">/</span> Library books</p>
       </div>
       <div class="flex w-full gap-2 sm:w-auto">
         <button type="button" data-inventory-archive-open aria-haspopup="dialog" aria-controls="inventoryArchiveModal" class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 sm:flex-none">
@@ -413,7 +418,7 @@ $copyrightMetricStyles = [
                 <td class="px-4 py-3 text-center"><?php echo $renderCopyrightYearPills($bookCopyrightYear); ?></td>
                 <td class="px-4 py-3">
                   <div class="flex justify-end">
-                    <button type="button" data-book-actions-open data-book-id="<?php echo (int)$book['book_id']; ?>" aria-controls="inventoryBookActionsMenu" aria-expanded="false" aria-label="More actions for <?php echo $escapeInventory($book['title']); ?>" title="More actions" class="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="ellipsis" class="h-4 w-4"></i></button>
+                    <button type="button" data-book-actions-open data-book-id="<?php echo (int)$book['book_id']; ?>" aria-controls="inventoryBookActionsMenu" aria-expanded="false" aria-label="More actions for <?php echo $escapeInventory($book['title']); ?>" title="More actions" class="inventory-book-actions-trigger inline-grid h-8 w-8 place-items-center rounded-lg border border-transparent bg-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:bg-rose-50 focus-visible:text-rose-800"><i data-lucide="ellipsis" class="h-4 w-4"></i></button>
                   </div>
                 </td>
               </tr>
@@ -440,7 +445,7 @@ $copyrightMetricStyles = [
                 <h4 class="break-words text-sm font-semibold text-slate-900"><?php echo $escapeInventory($book['title']); ?></h4>
                 <p class="mt-1 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p>
               </div>
-              <button type="button" data-book-actions-open data-book-id="<?php echo (int)$book['book_id']; ?>" aria-controls="inventoryBookActionsMenu" aria-expanded="false" aria-label="More actions for <?php echo $escapeInventory($book['title']); ?>" title="More actions" class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="ellipsis" class="h-5 w-5"></i></button>
+              <button type="button" data-book-actions-open data-book-id="<?php echo (int)$book['book_id']; ?>" aria-controls="inventoryBookActionsMenu" aria-expanded="false" aria-label="More actions for <?php echo $escapeInventory($book['title']); ?>" title="More actions" class="inventory-book-actions-trigger inline-grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg border border-transparent bg-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:bg-rose-50 focus-visible:text-rose-800"><i data-lucide="ellipsis" class="h-4 w-4"></i></button>
             </div>
             <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
               <div><dt class="text-[11px] font-medium text-slate-500">Publication year</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></dd></div>
@@ -484,18 +489,18 @@ $copyrightMetricStyles = [
 
   <section class="hidden space-y-6" data-inventory-book-detail aria-live="polite" aria-label="Book information"></section>
 
-  <div id="inventoryBookActionsMenu" popover="auto" aria-label="Book actions" class="fixed inset-auto z-[105] m-0 w-[calc(100vw-1rem)] max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-2xl">
-    <div class="border-b border-slate-200 px-4 py-3">
-      <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Book actions</h3>
-      <p data-book-actions-title class="mt-1 max-w-[16rem] truncate text-sm font-semibold text-slate-900"></p>
+  <div id="inventoryBookActionsMenu" popover="auto" aria-label="Book actions" class="inventory-book-actions-menu">
+    <div class="inventory-book-actions-heading">
+      <h3>Book actions</h3>
+      <p data-book-actions-title></p>
     </div>
-    <div class="grid grid-cols-2 gap-2 p-4">
-      <button type="button" data-book-action="view" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"><i data-lucide="eye" class="h-4 w-4"></i>View info</button>
-      <button type="button" data-book-action="edit" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-400"><i data-lucide="pencil" class="h-4 w-4"></i>Edit book</button>
-      <button type="button" data-book-action="reference" <?php echo $activeCourses ? '' : 'disabled title="No active courses available"'; ?> class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-rose-800 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-40"><i data-lucide="link-2" class="h-4 w-4"></i>Add reference</button>
-      <button type="button" data-book-action="manage-references" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-amber-800 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"><i data-lucide="list-checks" class="h-4 w-4"></i>Manage refs</button>
-      <button type="button" data-book-action="ai-course" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-indigo-800 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400"><i data-lucide="sparkles" class="h-4 w-4"></i>AI course</button>
-      <button type="button" data-book-action="delete" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-rose-800 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-4 w-4"></i>Archive</button>
+    <div class="inventory-book-actions-list">
+      <button type="button" data-book-action="view" class="inventory-book-action-item"><i data-lucide="eye" aria-hidden="true"></i><span>View info</span></button>
+      <button type="button" data-book-action="edit" class="inventory-book-action-item"><i data-lucide="pencil" aria-hidden="true"></i><span>Edit book</span></button>
+      <button type="button" data-book-action="reference" <?php echo $activeCourses ? '' : 'disabled title="No active courses available"'; ?> class="inventory-book-action-item"><i data-lucide="link-2" aria-hidden="true"></i><span>Add reference</span></button>
+      <button type="button" data-book-action="manage-references" class="inventory-book-action-item"><i data-lucide="list-checks" aria-hidden="true"></i><span>Manage refs</span></button>
+      <button type="button" data-book-action="ai-course" class="inventory-book-action-item"><i data-lucide="sparkles" aria-hidden="true"></i><span>AI course</span></button>
+      <button type="button" data-book-action="delete" class="inventory-book-action-item is-archive"><i data-lucide="archive" aria-hidden="true"></i><span>Archive</span></button>
     </div>
   </div>
 
