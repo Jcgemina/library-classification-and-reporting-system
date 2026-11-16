@@ -89,7 +89,7 @@
         form.elements.reference_policy_source.required = policyChanged;
         form.elements.reference_policy_effective_date.required = policyChanged;
         form.elements.reference_policy_confirmed.required = policyChanged;
-        button.disabled = isReadOnly || isSaving || !isDirty || !policyConfirmed;
+        button.disabled = isReadOnly || isSaving || !isDirty;
         discardButton.disabled = isReadOnly || isSaving || !isDirty;
 
         if (isReadOnly) {
@@ -111,7 +111,9 @@
         } else if (policyChanged && !form.elements.reference_policy_effective_date.value) {
             setMessage('Record the effective date shown in the approved policy.', 'warning');
         } else if (policyChanged && !form.elements.reference_policy_confirmed.checked) {
-            setMessage('Confirm the new or changed policy to enable saving.', 'warning');
+            setMessage('Confirm the new or changed policy before saving.', 'warning');
+        } else if (policyChanged && !policyConfirmed) {
+            setMessage('Check the policy details and confirm them before saving.', 'warning');
         } else {
             setMessage('Unsaved changes. Save or discard them.', 'warning');
         }

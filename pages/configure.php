@@ -742,4 +742,5 @@ $configureBreadcrumbLabel = $section === 'rules'
   </div>
 </dialog>
 
+<script src="assets/js/configure.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/configure.js'); ?>"></script>
 <script src="assets/js/backup.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/backup.js'); ?>"></script>

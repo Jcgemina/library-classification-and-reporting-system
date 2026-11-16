@@ -47,8 +47,15 @@ if ($action !== '') {
     $email = trim(requestString($_POST, 'email'));
     $username = trim(requestString($_POST, 'username'));
     $password = requestString($_POST, 'password');
+    $passwordConfirmation = requestString($_POST, 'passwordConfirmation');
     $role = strtolower(trim(requestString($_POST, 'role')));
     $adminPassword = requestString($_POST, 'admin_password');
+
+    if ($password !== $passwordConfirmation) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'The passwords do not match.']);
+        exit;
+    }
 
     $result = saveUserRecord($pdo, $id, $fullName, $email, $username, $password, $role, (int) ($_SESSION['user_id'] ?? 0), $adminPassword);
     header('Content-Type: application/json');
@@ -157,18 +164,74 @@ if ($action !== '') {
   </section>
 </div>
 
-<div id="librarianModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" aria-hidden="true">
-  <div class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
-    <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4"><div><h3 id="modalTitle" class="text-xl font-bold text-slate-900">Add user</h3><p class="text-sm text-slate-500">Create or update access details.</p></div><button type="button" data-close-modal class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close form"><i data-lucide="x" class="h-4 w-4"></i></button></div>
-    <form id="librarianForm" class="space-y-5 p-6"><input type="hidden" id="librarianId" name="id" />
-      <div class="grid gap-4 md:grid-cols-2">
-        <div><label for="fullName" class="mb-1.5 block text-sm font-medium text-slate-700">Full Name</label><input id="fullName" name="fullName" type="text" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" /></div>
-        <div><label for="email" class="mb-1.5 block text-sm font-medium text-slate-700">Email Address</label><input id="email" name="email" type="email" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" /></div>
-        <div><label for="username" class="mb-1.5 block text-sm font-medium text-slate-700">Username</label><input id="username" name="username" type="text" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" placeholder="Enter username" /><p class="mt-1 text-xs text-slate-500">Use the account username you want the user to sign in with.</p></div>
-        <div><label for="password" class="mb-1.5 block text-sm font-medium text-slate-700">Password</label><div class="relative"><input id="password" name="password" type="password" minlength="<?= PASSWORD_MIN_LENGTH ?>" maxlength="<?= PASSWORD_MAX_LENGTH ?>" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100" placeholder="Type new password or leave blank for setup email" /><button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" aria-label="Show or hide password"><i data-lucide="eye" class="h-4 w-4"></i></button></div><p class="mt-1 text-xs text-slate-500">Use <?= PASSWORD_MIN_LENGTH ?>-<?= PASSWORD_MAX_LENGTH ?> characters with a letter, number, and special character. Leave blank for a setup link or to keep the current password.</p></div>
-        <div><label for="role" class="mb-1.5 block text-sm font-medium text-slate-700">Role</label><select id="role" name="role" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-2 focus:ring-rose-100"><option value="librarian" selected>Librarian</option><option value="admin">Admin</option></select></div>
+<div id="librarianModal" class="users-modal-overlay fixed inset-0 z-50 hidden items-center justify-center p-4" aria-hidden="true">
+  <div class="users-dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
+    <div class="users-dialog-heading">
+      <div>
+        <h3 id="modalTitle">Add user</h3>
+        <p>Create or update access details.</p>
       </div>
-      <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4"><button type="button" data-close-modal class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Cancel</button><button type="submit" id="saveLibrarianBtn" class="rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-70">Save User</button></div>
+      <button type="button" data-close-modal class="users-dialog-close" aria-label="Close form">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <form id="librarianForm">
+      <input type="hidden" id="librarianId" name="id" />
+      <div class="users-dialog-grid">
+        <label class="users-dialog-field" for="fullName">
+          Full name
+          <input id="fullName" name="fullName" type="text" autocomplete="name" required />
+        </label>
+        <label class="users-dialog-field" for="email">
+          Email address
+          <input id="email" name="email" type="email" autocomplete="email" required />
+        </label>
+        <label class="users-dialog-field is-wide" for="role">
+          Role
+          <select id="role" name="role">
+            <option value="librarian" selected>Librarian</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+      </div>
+      <section class="users-credentials" aria-labelledby="usersCredentialsTitle">
+        <div>
+          <h4 class="users-credentials-heading" id="usersCredentialsTitle">Sign-in credentials</h4>
+          <p class="users-credentials-copy">Set the username used to sign in. Existing passwords are never shown.</p>
+        </div>
+        <label class="users-dialog-field" for="username">
+          Username
+          <input id="username" name="username" type="text" autocomplete="username" aria-describedby="usernameHelp" />
+          <span class="users-credential-help" id="usernameHelp">Use the account username you want the user to sign in with.</span>
+        </label>
+        <details class="users-password-disclosure" id="userPasswordOptions">
+          <summary>Set a password (optional)</summary>
+          <p class="users-credential-help">Use <?= PASSWORD_MIN_LENGTH ?>–<?= PASSWORD_MAX_LENGTH ?> characters with a letter, number, and special character. Leave blank to keep the current password or send a setup link.</p>
+          <div class="users-password-fields">
+            <div class="users-dialog-field">
+              <label for="password">New password</label>
+              <span class="users-password-control">
+                <input id="password" name="password" type="password" minlength="<?= PASSWORD_MIN_LENGTH ?>" maxlength="<?= PASSWORD_MAX_LENGTH ?>" autocomplete="new-password" aria-describedby="passwordHelp" />
+                <button type="button" class="users-password-toggle" data-password-toggle="password" aria-label="Show new password" aria-pressed="false">Show</button>
+              </span>
+            </div>
+            <div class="users-dialog-field">
+              <label for="passwordConfirmation">Confirm password</label>
+              <span class="users-password-control">
+                <input id="passwordConfirmation" name="passwordConfirmation" type="password" minlength="<?= PASSWORD_MIN_LENGTH ?>" maxlength="<?= PASSWORD_MAX_LENGTH ?>" autocomplete="new-password" aria-describedby="passwordHelp" />
+                <button type="button" class="users-password-toggle" data-password-toggle="passwordConfirmation" aria-label="Show password confirmation" aria-pressed="false">Show</button>
+              </span>
+            </div>
+          </div>
+          <span class="users-credential-help" id="passwordHelp">Retype the password to confirm it before saving.</span>
+        </details>
+      </section>
+      <div class="users-dialog-actions">
+        <div class="users-dialog-action-group">
+          <button type="button" data-close-modal class="users-button users-dialog-button">Cancel</button>
+          <button type="submit" id="saveLibrarianBtn" class="users-button users-button-primary users-dialog-button">Save user</button>
+        </div>
+      </div>
     </form>
   </div>
 </div>

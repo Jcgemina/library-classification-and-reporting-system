@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/../config/session.php';
 
 function userJson(array $payload, int $status = 200): never
 {
