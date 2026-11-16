@@ -151,13 +151,6 @@
   }
 
   function bindRowActions() {
-    document.querySelectorAll('[data-action="view"]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const librarian = state.allLibrarians.find((item) => item.id === Number(button.dataset.id));
-        if (librarian) openUserDetail(librarian);
-      });
-    });
-
     document.querySelectorAll('[data-action="edit"]').forEach((button) => {
       button.addEventListener('click', () => {
         const librarian = state.allLibrarians.find((item) => item.id === Number(button.dataset.id));
@@ -254,7 +247,6 @@
           <td data-label="Joined">${esc(librarian.joinedAt || 'Recently')}</td>
           <td data-label="Actions">
             <div class="users-row-actions">
-              <button type="button" data-action="view" data-id="${librarian.id}" aria-label="View ${esc(librarian.fullName)}">View</button>
               <button type="button" data-action="edit" data-id="${librarian.id}" aria-label="Edit ${esc(librarian.fullName)}">Edit</button>
               <button type="button" data-action="toggle-status" data-id="${librarian.id}" aria-label="${isActive ? 'Deactivate' : 'Activate'} ${esc(librarian.fullName)}">${isActive ? 'Deactivate' : 'Activate'}</button>
               <button type="button" data-action="delete" data-id="${librarian.id}" aria-label="Delete ${esc(librarian.fullName)}" ${isSelected ? 'disabled' : ''}>Delete</button>
@@ -314,6 +306,15 @@
     title.textContent = mode === 'edit' ? 'Edit user' : 'Add user';
 
     form.reset();
+    document.getElementById('userPasswordOptions').open = false;
+    document.querySelectorAll('[data-password-toggle]').forEach((toggleButton) => {
+      const passwordInput = document.getElementById(toggleButton.dataset.passwordToggle);
+      const label = toggleButton.dataset.passwordToggle === 'passwordConfirmation' ? 'password confirmation' : 'new password';
+      passwordInput.type = 'password';
+      toggleButton.textContent = 'Show';
+      toggleButton.setAttribute('aria-label', `Show ${label}`);
+      toggleButton.setAttribute('aria-pressed', 'false');
+    });
     document.getElementById('librarianId').value = librarian ? librarian.id : '';
     document.getElementById('fullName').value = librarian ? capitalizeFullName(librarian.fullName) : '';
     document.getElementById('email').value = librarian ? librarian.email : '';
@@ -738,21 +739,19 @@
     }
   });
 
-  document.getElementById('togglePassword').addEventListener('click', (event) => {
-    event.preventDefault();
-    const passwordInput = document.getElementById('password');
-    const toggleBtn = event.currentTarget;
-    const icon = toggleBtn.querySelector('i');
+  document.querySelectorAll('[data-password-toggle]').forEach((toggleButton) => {
+    toggleButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      const button = event.currentTarget;
+      const passwordInput = document.getElementById(button.dataset.passwordToggle);
+      const isPasswordHidden = passwordInput.type === 'password';
+      const label = button.dataset.passwordToggle === 'passwordConfirmation' ? 'password confirmation' : 'new password';
 
-    if (passwordInput.type === 'password') {
-      passwordInput.type = 'text';
-      icon.setAttribute('data-lucide', 'eye-off');
-    } else {
-      passwordInput.type = 'password';
-      icon.setAttribute('data-lucide', 'eye');
-    }
-
-    lucide.createIcons();
+      passwordInput.type = isPasswordHidden ? 'text' : 'password';
+      button.textContent = isPasswordHidden ? 'Hide' : 'Show';
+      button.setAttribute('aria-label', `${isPasswordHidden ? 'Hide' : 'Show'} ${label}`);
+      button.setAttribute('aria-pressed', String(isPasswordHidden));
+    });
   });
 
   document.getElementById('librarianForm').addEventListener('submit', (event) => {
@@ -765,7 +764,9 @@
     payload.set('email', String(formData.get('email') || '').trim());
     payload.set('username', String(formData.get('username') || '').trim());
     const password = String(formData.get('password') || '');
+    const passwordConfirmation = String(formData.get('passwordConfirmation') || '');
     payload.set('password', password);
+    payload.set('passwordConfirmation', passwordConfirmation);
     payload.set('role', String(formData.get('role') || ''));
 
     if (!payload.get('role')) {
@@ -777,9 +778,17 @@
       const passwordError = getPasswordError(password);
       if (passwordError) {
         showToast(passwordError, 'error');
+        document.getElementById('userPasswordOptions').open = true;
         document.getElementById('password').focus();
         return;
       }
+    }
+
+    if (password !== passwordConfirmation) {
+      showToast(password ? 'The passwords do not match.' : 'Enter a password before confirming it.', 'error');
+      document.getElementById('userPasswordOptions').open = true;
+      document.getElementById(password ? 'passwordConfirmation' : 'password').focus();
+      return;
     }
 
     const editingId = document.getElementById('librarianId').value;
