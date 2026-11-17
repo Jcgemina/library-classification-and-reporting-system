@@ -56,6 +56,25 @@ function requestInt(array $source, string $key, int $fallback = 0): int {
     return $validated === false ? $fallback : $validated;
 }
 
+function csrfToken(): string {
+    $token = $_SESSION['csrf_token'] ?? null;
+    if (!is_string($token) || preg_match('/\A[a-f0-9]{64}\z/', $token) !== 1) {
+        $token = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token'] = $token;
+    }
+
+    return $token;
+}
+
+function hasValidCsrfToken(): bool {
+    $submittedToken = requestString($_SERVER, 'HTTP_X_CSRF_TOKEN');
+    if ($submittedToken === '') {
+        $submittedToken = requestString($_POST, 'csrf_token');
+    }
+
+    return $submittedToken !== '' && hash_equals(csrfToken(), $submittedToken);
+}
+
 function isRateLimited(PDO $pdo, string $username, string $ip): int {
     $stmt = $pdo->prepare('SELECT COUNT(*) AS failed_count, UNIX_TIMESTAMP(MAX(attempted_at)) AS last_attempt FROM login_attempts WHERE (username = :username OR ip_address = :ip) AND success = 0');
     $stmt->execute([':username' => $username, ':ip' => $ip]);

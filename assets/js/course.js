@@ -43,6 +43,7 @@
             ...options,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
+                ...(options.method && options.method.toUpperCase() !== 'GET' ? { 'X-CSRF-Token': window.appCsrfToken } : {}),
                 ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/x-www-form-urlencoded' }),
                 ...(options.headers ?? {})
             }

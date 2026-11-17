@@ -136,6 +136,11 @@ if ($action !== '') {
             echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
             exit;
         }
+        if (!hasValidCsrfToken()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Your session has expired. Reload Reports and try again.']);
+            exit;
+        }
 
         $payload = json_decode((string) file_get_contents('php://input'), true);
         if (!is_array($payload)) {

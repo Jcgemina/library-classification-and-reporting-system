@@ -17,6 +17,23 @@ function organizationJson(array $payload, int $status = 200): never {
 }
 
 $action = requestString($_GET, 'action', requestString($_POST, 'action'));
+$method = strtoupper(requestString($_SERVER, 'REQUEST_METHOD', 'GET'));
+$isMutation = in_array($action, [
+    'save_prospectus',
+    'delete_prospectus_record',
+    'upload_prospectus',
+    'delete_prospectus_document',
+    'create_hierarchy',
+], true) || preg_match('/\A(?:add|edit|delete|archive)_(?:college|program|major|course)\z/', $action) === 1;
+if ($isMutation) {
+    if ($method !== 'POST') {
+        organizationJson(['success' => false, 'message' => 'Use POST for this action.'], 405);
+    }
+    if (!hasValidCsrfToken()) {
+        organizationJson(['success' => false, 'message' => 'Your session has expired. Reload the page and try again.'], 403);
+    }
+}
+
 if ($action !== '') {
     if (!$pdo) organizationJson(['success' => false, 'message' => 'Database unavailable.'], 503);
     if (!in_array(strtolower((string)($_SESSION['role'] ?? '')), ['admin', 'librarian'], true)) {

@@ -29,6 +29,14 @@ if ($action !== null) {
     if (!$canManageCourses) {
         courseJson(['success' => false, 'message' => 'Course access required.'], 403);
     }
+    if (in_array($action, ['delete', 'toggle_status', 'import', 'save'], true)) {
+        if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            courseJson(['success' => false, 'message' => 'Use POST for this action.'], 405);
+        }
+        if (!hasValidCsrfToken()) {
+            courseJson(['success' => false, 'message' => 'Your session has expired. Reload Courses and try again.'], 403);
+        }
+    }
 
     try {
         switch ($action) {

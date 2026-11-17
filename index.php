@@ -334,6 +334,7 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
           <?php endif; ?>
 
           <form class="login-form" action="auth.php" method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
             <label class="field" for="username">
               <span>Username</span>
               <span class="field-control">

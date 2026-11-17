@@ -811,7 +811,7 @@
       const submitButton = form.querySelector('button[type="submit"]');
       const submittedAction = data instanceof FormData ? data.get('action') : data.action;
       setBusy(submitButton, true, 'Saving...');
-      return fetch('pages/organization.php', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body: data instanceof FormData ? new URLSearchParams(data) : new URLSearchParams(data)})
+      return fetch('pages/organization.php', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': window.appCsrfToken}, body: data instanceof FormData ? new URLSearchParams(data) : new URLSearchParams(data)})
           .then(r => r.json())
           .then(result => {
               if (!result.success) throw new Error(result.message);
@@ -847,7 +847,7 @@
             data.append('prospectus_id', prospectusId);
             data.append('prospectus', file);
             setBusy(button, true, 'Uploading...');
-            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data })
+            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': window.appCsrfToken }, body: data })
                 .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(true); }).catch(error => toast(error.message, true)).finally(() => setBusy(button, false));
         };
         prospectusRecordsBody.addEventListener('click', event => {
@@ -865,7 +865,7 @@
             }
             const removeButton = event.target.closest('[data-delete-prospectus-pdf]');
             if (removeButton && window.confirm('Remove this prospectus PDF?')) {
-                fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'delete_prospectus_document', prospectus_id: removeButton.dataset.deleteProspectusPdf }) })
+                fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': window.appCsrfToken }, body: new URLSearchParams({ action: 'delete_prospectus_document', prospectus_id: removeButton.dataset.deleteProspectusPdf }) })
                     .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(true); }).catch(error => toast(error.message, true));
             }
         });
@@ -886,7 +886,7 @@
             data.append('prospectus', file);
             const button = uploadForm.querySelector('button[type="submit"]');
             setBusy(button, true, 'Uploading...');
-            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data })
+            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': window.appCsrfToken }, body: data })
                 .then(response => response.json()).then(result => { if (!result.success) throw new Error(result.message); toast(result.message); return loadProspectusData(true); }).catch(error => toast(error.message, true)).finally(() => setBusy(button, false));
         });
         prospectusRecordForm.onsubmit = event => {
@@ -895,7 +895,7 @@
             const data = new FormData(prospectusRecordForm);
             const file = document.getElementById('prospectusRecordFile').files[0];
             data.append('action', 'save_prospectus');
-            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: data })
+            fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': window.appCsrfToken }, body: data })
                 .then(response => response.json())
                 .then(result => {
                     if (!result.success) throw new Error(result.message);
@@ -905,7 +905,7 @@
                     upload.append('action', 'upload_prospectus');
                     upload.append('prospectus_id', result.id);
                     upload.append('prospectus', file);
-                    return fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: upload }).then(response => response.json()).then(uploadResult => { if (!uploadResult.success) throw new Error(uploadResult.message); return uploadResult; });
+                    return fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': window.appCsrfToken }, body: upload }).then(response => response.json()).then(uploadResult => { if (!uploadResult.success) throw new Error(uploadResult.message); return uploadResult; });
                 })
                 .then(result => { closeDialog(document.getElementById('prospectusModal')); toast(result.message); return loadProspectusData(true); })
                 .catch(error => toast(error.message, true));

@@ -4,6 +4,7 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
 requireLogin();
+$csrfToken = csrfToken();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'user', 'logs', 'configure', 'backup'];
@@ -96,6 +97,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <link rel="stylesheet" href="assets/css/navigation.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/navigation.css'); ?>">
 <script>
   window.appUserPreferenceId = <?php echo json_encode((string) ($_SESSION['user_id'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+  window.appCsrfToken = <?php echo json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 </script>
 <script src="assets/js/preferences.js?v=<?php echo (int) filemtime(__DIR__ . '/assets/js/preferences.js'); ?>"></script>
 </head>
@@ -386,7 +388,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
       fetch('pages/' + pageFile + '.php' + pageQuery, {
         method: 'GET',
         headers: {
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-Token': window.appCsrfToken
         }
       })
       .then((response) => {
