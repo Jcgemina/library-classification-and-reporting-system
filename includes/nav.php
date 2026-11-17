@@ -440,14 +440,17 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     <p class="truncate text-sm font-semibold text-slate-900"><?php echo htmlspecialchars($_SESSION['full_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
     <div class="mt-2 flex items-center justify-between gap-3">
       <span class="text-sm capitalize text-slate-500"><?php echo htmlspecialchars($_SESSION['role'] ?? 'admin', ENT_QUOTES, 'UTF-8'); ?></span>
-        <a href="logout.php" class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-300">
+        <button type="button" data-logout-trigger class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-300">
         <i data-lucide="log-out" class="h-3.5 w-3.5"></i>
         <span>Logout</span>
-      </a>
+      </button>
     </div>
   </div>
 </aside>
 
+<form id="logoutForm" action="logout.php" method="post" hidden>
+  <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+</form>
 
 <dialog id="logoutConfirmDialog" class="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-left text-slate-900 shadow-2xl" aria-labelledby="logoutConfirmTitle" aria-describedby="logoutConfirmMessage">
   <div class="flex items-start gap-4">
@@ -523,13 +526,11 @@ document.querySelectorAll('#adminSidebar a[data-page]:not([data-settings-parent]
 const logoutDialog = document.getElementById('logoutConfirmDialog');
 const cancelLogoutButton = document.getElementById('cancelLogoutButton');
 const confirmLogoutButton = document.getElementById('confirmLogoutButton');
-let logoutDestination = 'logout.php';
+const logoutForm = document.getElementById('logoutForm');
 let logoutTrigger = null;
 
-document.querySelectorAll('a[href="logout.php"]').forEach(link => {
-  link.addEventListener('click', function (event) {
-    event.preventDefault();
-    logoutDestination = this.href;
+document.querySelectorAll('[data-logout-trigger]').forEach(button => {
+  button.addEventListener('click', function () {
     logoutTrigger = this;
     logoutDialog.showModal();
     cancelLogoutButton.focus();
@@ -537,7 +538,7 @@ document.querySelectorAll('a[href="logout.php"]').forEach(link => {
 });
 
 cancelLogoutButton.addEventListener('click', () => logoutDialog.close());
-confirmLogoutButton.addEventListener('click', () => window.location.assign(logoutDestination));
+confirmLogoutButton.addEventListener('click', () => logoutForm.requestSubmit());
 logoutDialog.addEventListener('click', event => {
   if (event.target === logoutDialog) {
     logoutDialog.close();

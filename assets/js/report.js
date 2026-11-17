@@ -188,6 +188,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-Token': window.appCsrfToken,
                 },
                 body: JSON.stringify(payload),
             });

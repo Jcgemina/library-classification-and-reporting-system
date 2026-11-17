@@ -16,6 +16,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     exit;
 }
 
+if (!hasValidCsrfToken()) {
+    http_response_code(403);
+    exit('Your session has expired. Reload the login page and try again.');
+}
+
 $usernameInput = $_POST['username'] ?? '';
 $passwordInput = $_POST['password'] ?? '';
 if (!is_string($usernameInput) || !is_string($passwordInput)) {

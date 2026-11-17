@@ -17,7 +17,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' && $userId === null) {
   $error = 'This reset link is missing, invalid, or has expired. Please request a new one.';
 }
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !hasValidCsrfToken()) {
+    http_response_code(403);
+    $error = 'Your session has expired. Reload this page and try again.';
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $error === null) {
     $passwordInput = $_POST['password'] ?? '';
     $confirmationInput = $_POST['password_confirmation'] ?? '';
     $password = is_string($passwordInput) ? $passwordInput : '';
@@ -63,6 +68,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     <?php if ($userId !== null): ?>
       <form method="post" class="mt-6 space-y-4">
         <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
 
         <div>
           <label class="block text-sm font-semibold text-slate-700">New password</label>

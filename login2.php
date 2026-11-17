@@ -138,6 +138,7 @@ $isLocked = $lockSeconds > 0;
             <?php endif; ?>
 
             <form action="auth.php" method="POST" class="mt-7 space-y-5">
+              <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
               <div>
                 <label for="username" class="mb-2 block text-[0.9rem] font-semibold text-slate-700">Email Address <span class="text-red-500">*</span></label>
                 <input

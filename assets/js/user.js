@@ -348,7 +348,8 @@
     return fetch('pages/user.php?' + params.toString(), {
       method: 'GET',
       headers: {
-        'X-Requested-With': 'XMLHttpRequest'
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': window.appCsrfToken
       }
     })
       .then((response) => response.json())
@@ -425,7 +426,8 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest'
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': window.appCsrfToken
       },
       body: formData.toString()
     }).then((response) => response.json());
@@ -556,7 +558,8 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest'
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': window.appCsrfToken
       },
       body: payload.toString()
     })
@@ -606,7 +609,8 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest'
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': window.appCsrfToken
       },
       body: payload.toString()
     })

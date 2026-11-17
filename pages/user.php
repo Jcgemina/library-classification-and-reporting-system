@@ -11,6 +11,21 @@ if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
 
 requireLogin();
 
+$userRole = strtolower($_SESSION['role'] ?? 'librarian');
+if ($userRole !== 'admin') {
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Admin access required.']);
+    exit;
+}
+
+if (!hasValidCsrfToken()) {
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Your session has expired. Reload Users and try again.']);
+    exit;
+}
+
 if (!$pdo) {
     http_response_code(503);
     header('Content-Type: application/json');
@@ -21,15 +36,17 @@ if (!$pdo) {
 ensureUserModuleSchema($pdo);
 seedUserModuleAccounts($pdo);
 
-$userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $action = requestString($_GET, 'action', requestString($_POST, 'action'));
 
 if ($action !== '') {
-    if ($userRole !== 'admin') {
-        http_response_code(403);
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => 'Admin access required.']);
-        exit;
+    if (in_array($action, ['save', 'delete', 'toggle_status'], true)) {
+        if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            header('Allow: POST');
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Use POST for this action.']);
+            exit;
+        }
     }
 
     if ($action === 'list') {
