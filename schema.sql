@@ -163,6 +163,24 @@ CREATE TABLE IF NOT EXISTS course_embeddings (
     CONSTRAINT fk_course_embeddings_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+DROP TRIGGER IF EXISTS trg_books_invalidate_embedding_after_update;
+CREATE TRIGGER trg_books_invalidate_embedding_after_update
+AFTER UPDATE ON books
+FOR EACH ROW
+DELETE FROM book_embeddings
+WHERE book_id = NEW.book_id
+  AND (NOT (OLD.title <=> NEW.title) OR NOT (OLD.description <=> NEW.description));
+
+DROP TRIGGER IF EXISTS trg_courses_invalidate_embedding_after_update;
+CREATE TRIGGER trg_courses_invalidate_embedding_after_update
+AFTER UPDATE ON courses
+FOR EACH ROW
+DELETE FROM course_embeddings
+WHERE course_id = NEW.id
+  AND (NOT (OLD.code <=> NEW.code)
+       OR NOT (OLD.name <=> NEW.name)
+       OR NOT (OLD.description <=> NEW.description));
+
 CREATE TABLE IF NOT EXISTS ai_jobs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     job_type ENUM('embed_book', 'embed_course', 'suggest_courses') NOT NULL,
@@ -288,6 +306,42 @@ FROM (
     UNION ALL SELECT 20, 3
 ) AS defaults
 WHERE NOT EXISTS (SELECT 1 FROM copyright_year_ranges);
+
+DROP FUNCTION IF EXISTS fn_is_within_copyright_year_window;
+CREATE FUNCTION fn_is_within_copyright_year_window(
+    p_effective_year SMALLINT UNSIGNED,
+    p_years_threshold SMALLINT UNSIGNED,
+    p_current_year SMALLINT UNSIGNED
+)
+RETURNS TINYINT UNSIGNED
+DETERMINISTIC
+NO SQL
+RETURN CASE
+    WHEN p_effective_year IS NOT NULL
+     AND p_years_threshold IS NOT NULL
+     AND p_years_threshold > 0
+     AND p_current_year IS NOT NULL
+     AND p_effective_year <= p_current_year
+     AND p_effective_year >= CAST(p_current_year AS SIGNED) - CAST(p_years_threshold AS SIGNED)
+    THEN 1
+    ELSE 0
+END;
+
+DROP PROCEDURE IF EXISTS sp_get_copyright_year_metrics;
+CREATE PROCEDURE sp_get_copyright_year_metrics()
+READS SQL DATA
+SELECT r.range_id, r.years_threshold, COUNT(b.book_id) AS title_count
+FROM copyright_year_ranges r
+LEFT JOIN books b
+  ON b.deleted_at IS NULL
+ AND fn_is_within_copyright_year_window(
+        COALESCE(b.copyright_year, b.publication_year),
+        r.years_threshold,
+        YEAR(CURRENT_DATE)
+     ) = 1
+WHERE r.is_active = 1
+GROUP BY r.range_id, r.years_threshold, r.sort_order
+ORDER BY r.sort_order, r.years_threshold;
 
 CREATE TABLE IF NOT EXISTS library_configuration (
     id TINYINT UNSIGNED PRIMARY KEY,

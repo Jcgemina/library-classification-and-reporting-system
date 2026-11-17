@@ -1,0 +1,79 @@
+@startuml
+title AppSys Library — Logical Data Flow Model
+
+left to right direction
+skinparam shadowing false
+skinparam linetype ortho
+skinparam rectangle {
+  RoundCorner 12
+}
+
+actor "Librarian" as librarian
+actor "Administrator" as admin
+cloud "AI relevance service" as ai
+cloud "Email delivery service" as email
+
+rectangle "1.0\nAuthenticate and\nmanage access" as auth
+rectangle "2.0\nManage library\ncollection" as collection
+rectangle "3.0\nManage academic\nstructure and curricula" as academics
+rectangle "4.0\nAnalyze coverage,\nreferences and reports" as reporting
+rectangle "5.0\nRecommend book–course\nrelationships" as recommendations
+rectangle "6.0\nAdminister policy,\naudit and recovery" as administration
+
+database "D1 Identity and\naccess data" as identity
+database "D2 Collection and\ncourse data" as catalog
+database "D3 Academic structure\nand curriculum data" as curriculum
+database "D4 Configuration, policy\nand operational audit data" as governance
+database "D5 AI work queue and\nrecommendation data" as aiData
+database "D6 Prospectus\ndocuments" as documents
+database "D7 Backup\narchives" as backups
+
+librarian --> auth : credentials / reset request
+auth --> librarian : access status / reset outcome
+auth <--> identity : user profile, credentials,\nreset and login data
+auth --> email : account setup / reset message
+email --> auth : delivery result
+
+librarian --> collection : book and copy details\ncourse links
+collection --> librarian : collection status\nand records
+collection <--> catalog : books, copies,\ncourse assignments
+collection --> governance : activity event
+
+librarian --> academics : college, program, major,\ncourse, progress and prospectus data
+academics --> librarian : academic records\nand curriculum status
+academics <--> curriculum : academic structure,\ncourses and progress
+academics <--> documents : prospectus PDFs
+academics --> governance : activity event
+
+librarian --> reporting : report criteria /\nreference review request
+reporting --> librarian : dashboard, coverage,\nreference assessment, CSV/PDF report
+reporting --> catalog : collection and book–course data
+reporting --> curriculum : programs, courses\nand verification progress
+reporting --> governance : reporting policy\nand institution details
+
+librarian --> recommendations : request suggestions\n/ review decision
+recommendations --> librarian : ranked recommendations\nand job status
+recommendations --> catalog : book details /\napproved course links
+recommendations --> curriculum : course descriptions
+recommendations <--> aiData : job, embeddings,\nruns and decisions
+recommendations <--> ai : source text /\nrelevance results
+recommendations --> governance : activity event
+
+admin --> auth : account administration
+admin --> collection : collection administration
+admin --> academics : academic administration
+admin --> reporting : compliance and management reports
+admin --> administration : policy, settings,\nbackup and restore request
+administration --> admin : configuration, logs\nand backup/restore result
+administration <--> identity : account administration\nand security records
+administration <--> governance : settings, policies,\nactivity and security logs
+administration --> catalog : backup / restore data
+administration --> curriculum : backup / restore data
+administration --> documents : backup / restore files
+administration <--> backups : backup archive /\nrestore package
+
+note bottom
+Logical view: processes express business responsibilities and data stores express business data;
+implementation details such as PHP endpoints, MySQL, file paths, workers and browser technology are intentionally omitted.
+end note
+@enduml
