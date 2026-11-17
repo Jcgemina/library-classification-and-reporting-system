@@ -316,6 +316,26 @@ HTML;
 }
 
 function getCopyrightYearMetrics(PDO $pdo): array {
+    try {
+        $stmt = $pdo->query('CALL sp_get_copyright_year_metrics()');
+        try {
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } finally {
+            $stmt->closeCursor();
+        }
+    } catch (PDOException $exception) {
+        $mysqlErrorCode = isset($exception->errorInfo[1]) ? (int) $exception->errorInfo[1] : 0;
+        if (!in_array($mysqlErrorCode, [1305, 1370], true)) {
+            throw $exception;
+        }
+
+        error_log(
+            'Copyright-year metrics procedure is unavailable to the application account; '
+            . 'using the equivalent query until schema privileges are updated. MySQL error '
+            . $mysqlErrorCode . '.'
+        );
+    }
+
     $stmt = $pdo->query(
         'SELECT r.range_id, r.years_threshold, COUNT(b.book_id) AS title_count
          FROM copyright_year_ranges r
@@ -327,7 +347,7 @@ function getCopyrightYearMetrics(PDO $pdo): array {
          ORDER BY r.sort_order, r.years_threshold'
     );
 
-    return $stmt->fetchAll();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 function getReferenceAgePolicy(PDO $pdo): array

@@ -25,7 +25,8 @@
 /uploads/prospectuses/*.pdf
 
 # Local database backups contain application data
-/backups/
+/backups/*
+!/backups/.htaccess
 
 # Local design tools and exploratory concepts are not application assets
 /assets/

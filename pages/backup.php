@@ -20,7 +20,7 @@ function backupJsonResponse(array $payload, int $status = 200): never {
 }
 
 function backupMysqlClient(string $name): ?string {
-    $configuredPath = getenv(strtoupper($name) . '_PATH');
+    $configuredPath = environmentValue(strtoupper($name) . '_PATH');
     if (is_string($configuredPath) && $configuredPath !== '' && is_file($configuredPath)) {
         return $configuredPath;
     }
@@ -43,6 +43,11 @@ function backupMysqlClient(string $name): ?string {
         }
         foreach (array_unique($roots) as $root) {
             for ($depth = 0; $depth < 8; $depth++) {
+                $standaloneCandidate = $root . DIRECTORY_SEPARATOR . 'MySQL'
+                    . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . $binaryName;
+                if (is_file($standaloneCandidate)) {
+                    return $standaloneCandidate;
+                }
                 $pattern = $root . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'mysql'
                     . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . $binaryName;
                 $candidates = glob($pattern);
@@ -272,12 +277,36 @@ if (!$pdo instanceof PDO) {
 }
 
 $backupAction = requestString($_REQUEST, 'action');
-$backupDir = __DIR__ . '/../backups';
+$backupDir = environmentValue(
+    'BACKUP_DIR',
+    dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . basename(dirname(__DIR__)) . '-backups'
+);
+$documentRoot = realpath(requestString($_SERVER, 'DOCUMENT_ROOT'));
+if ($documentRoot === false) {
+    backupJsonResponse(['success' => false, 'message' => 'The web document root is unavailable.'], 503);
+}
 
 if (!is_dir($backupDir)) {
-    if (!mkdir($backupDir, 0755, true) && !is_dir($backupDir)) {
+    if (!mkdir($backupDir, 0700, true) && !is_dir($backupDir)) {
         backupJsonResponse(['success' => false, 'message' => 'Backup storage is unavailable.'], 503);
     }
+}
+if (PHP_OS_FAMILY !== 'Windows' && !chmod($backupDir, 0700)) {
+    backupJsonResponse(['success' => false, 'message' => 'Backup storage permissions could not be secured.'], 503);
+}
+
+$backupRealPath = realpath($backupDir);
+if ($backupRealPath === false) {
+    backupJsonResponse(['success' => false, 'message' => 'Backup storage is unavailable.'], 503);
+}
+$backupPathPrefix = rtrim($backupRealPath, '/\\') . DIRECTORY_SEPARATOR;
+$documentRootPrefix = rtrim($documentRoot, '/\\') . DIRECTORY_SEPARATOR;
+if (PHP_OS_FAMILY === 'Windows') {
+    $backupPathPrefix = strtolower($backupPathPrefix);
+    $documentRootPrefix = strtolower($documentRootPrefix);
+}
+if ($backupPathPrefix === $documentRootPrefix || str_starts_with($backupPathPrefix, $documentRootPrefix)) {
+    backupJsonResponse(['success' => false, 'message' => 'Backup storage must be outside the web document root.'], 503);
 }
 
 if (empty($backupAction)) {

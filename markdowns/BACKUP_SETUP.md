@@ -2,7 +2,17 @@
 
 This guide covers the Admin **Backup & Restore** feature for `appsys_library`, including Laragon and standalone MySQL installations.
 
-The app creates a ZIP containing a SQL database dump and the `uploads/` directory. Archives are stored in the project's `backups/` directory. The feature is available to Admin users only.
+The app creates a ZIP containing a SQL database dump and the `uploads/` directory. Archives are stored outside the web document root. The feature is available to Admin users only.
+
+The app defaults to a private directory derived from the installation path. Set `BACKUP_DIR` in `.env` to choose another absolute path; it must be writable by PHP and outside all web document roots. The app rejects a backup directory inside the current document root. `backups/.htaccess` is an additional Apache protection only when the active server honors per-directory rules; Nginx does not read `.htaccess`.
+
+For example, on Laragon:
+
+```env
+BACKUP_DIR=C:\laragon\library-classification-and-reporting-system-backups
+```
+
+When upgrading an existing installation, move existing archive files from the old project `backups/` directory into the configured private directory. Preserve filenames so existing backup records and pending restore references continue to work.
 
 ## 1. Configure the database connection
 
@@ -16,19 +26,22 @@ DB_USER=your_application_user
 DB_PASS=your_application_password
 ```
 
-`3306` is a common local MySQL port, not a requirement. Use the port configured for your MySQL server. For example, if the server is listening on `3307`, set `DB_PORT=3307`.
+Laragon's MySQL uses port `3306` in the current team setup. If your selected
+MySQL server uses a different port, set `DB_PORT` to that value.
 
 The app's `DB_HOST`, `DB_PORT`, and `DB_NAME` settings must point to the same database instance where you create the backup account and grants. Do not copy database credentials into this guide or commit `.env`.
 
 ## 2. Create a dedicated backup account
 
-Connect to the intended MySQL server as an administrator. For a local Windows MySQL installation, the command may look like:
+Connect to Laragon's MySQL server as an administrator. For the current MySQL
+installation, the command is:
 
 ```text
-C:\Server\MySQL\bin\mysql.exe -u root -p -h 127.0.0.1 -P 3307
+C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe -u root -p -h 127.0.0.1 -P 3306
 ```
 
-Change the executable path and port to match your installation. Enter the administrator password only at the prompt.
+If Laragon has another MySQL version selected, replace the version folder.
+Enter the administrator password only at the prompt.
 
 For an app connecting locally with `DB_HOST=127.0.0.1`, create a dedicated account for that host and grant it database-level backup permissions:
 
@@ -69,31 +82,38 @@ The PHP process needs to run `mysqldump` to create a backup and `mysql` to resto
 
 ### Laragon
 
-The app searches Laragon's standard `bin\mysql\<version>\bin` location on Windows. Use the MySQL version selected in Laragon and make sure its client tools are installed.
+The app searches Laragon's standard `bin\mysql\<version>\bin` location on
+Windows. Use the MySQL version selected in Laragon and make sure its client
+tools are installed.
 
-### Standalone MySQL on Windows
+### Other standalone MySQL installations on Windows
 
-Add the MySQL `bin` directory to the `PATH` available to the PHP web-server process, or define these Windows environment variables:
+Add the MySQL `bin` directory to the `PATH` available to the PHP web-server
+process, or define these Windows environment variables:
 
 ```text
-MYSQLDUMP_PATH=C:\Server\MySQL\bin\mysqldump.exe
-MYSQL_PATH=C:\Server\MySQL\bin\mysql.exe
+MYSQLDUMP_PATH=C:\path\to\mysql\bin\mysqldump.exe
+MYSQL_PATH=C:\path\to\mysql\bin\mysql.exe
 ```
 
-These two paths are read from the PHP process environment, not from `.env`. Restart the web server or PHP service after changing its environment. A path available in an interactive terminal may not be available to a Windows service.
+You may set these values in `.env` or in the PHP process environment. A process
+environment value takes precedence. Restart the web server or PHP service after
+changing its environment. A path available in an interactive terminal may not
+be available to a Windows service.
 
 ## 5. Enable PHP ZIP and check filesystem access
 
 - Enable the PHP `zip` extension in the `php.ini` used by the web app, then restart the web server or PHP service.
-- Ensure the PHP process can create and write files in the project's `backups/` directory.
+- Ensure the PHP process can create and write files in the configured backup directory.
 - Keep that directory protected from direct public web access. Backup archives contain the database and uploaded files.
+- After deployment, request a backup file's direct URL while signed out and confirm the web server denies access; the authenticated backup download endpoint should continue to work.
 
 ## 6. Verify backup creation
 
 1. Sign in as an Admin and open **Settings → Backup & Restore**.
 2. Select **Create backup**.
 3. Confirm that the success message appears and that a new ZIP is listed in **Backup history**.
-4. Confirm the archive is in the project's `backups/` directory and is non-empty.
+4. Confirm the archive is in the configured backup directory and is non-empty.
 
 Do not treat a small test ZIP or an error message as a successful backup. A valid archive contains `database.sql` and an `uploads/` directory.
 
@@ -113,7 +133,7 @@ Enable `zip` in the `php.ini` used by the web server, not only in a different co
 
 ### Backup directory cannot be written
 
-Grant the PHP/web-server process write access to the project's `backups/` directory. Do not make the entire project or backup directory publicly writable.
+Grant the PHP/web-server process write access to the configured backup directory. Do not make the entire project or backup directory publicly writable.
 
 ## Restore safety
 

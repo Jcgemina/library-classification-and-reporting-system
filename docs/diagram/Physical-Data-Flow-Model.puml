@@ -1,0 +1,88 @@
+@startuml
+title AppSys Library - Physical Data Flow Model
+
+left to right direction
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam shadowing false
+
+actor "Librarian / Staff" as Staff
+actor "Administrator" as Admin
+
+node "Client workstation" as Client {
+  artifact "Web browser\nHTML / CSS / JavaScript" as Browser
+}
+
+node "Web / application server\nApache + PHP" as AppServer {
+  component "Public authentication\nindex.php, auth.php,\nforgot_password.php,\nreset_password.php" as Auth
+  component "Application shell\napp.php" as App
+  component "Feature endpoints\npages/*.php\n(JSON / HTML / CSV)" as Pages
+  component "Shared PHP services\nincludes/*.php" as Services
+  component "AI course worker\nbin/ai_worker.php\n(CLI / scheduled task)" as AiWorker
+  component "Email queue worker\nprocess_mail_queue.php\n(CLI / scheduled task)" as MailWorker
+  component "PHP session handler\n(host-configured storage)" as Sessions
+  component "Backup / restore\npages/backup.php + MySQL CLI" as Backup
+}
+
+database "MySQL database\nappsys_library" as DB
+folder "Prospectus files\nuploads/prospectuses/" as Uploads
+folder "Backup archive directory\nconfigured by BACKUP_DIR" as Backups
+cloud "Google Gemini API\nembeddings / relevance" as Gemini
+cloud "Configured SMTP provider" as SMTP
+
+Staff --> Browser : Library work
+Admin --> Browser : Library work / administration
+
+Browser --> Auth : Sign-in / password reset requests
+Auth --> Browser : Redirects / status
+Browser --> App : Authenticated page request
+App --> Browser : Application shell
+Browser <--> Pages : AJAX requests / HTML and JSON responses
+Browser --> Pages : Prospectus PDF / course CSV uploads
+
+Auth <--> Sessions : Start / update authenticated session
+App <--> Sessions : Validate session / role
+Pages <--> Services : Authentication and shared business logic
+
+Auth <--> DB : Users, login attempts,\nreset tokens and audit logs
+Pages <--> DB : Catalog, academic, reporting,\nconfiguration and audit data
+Services <--> DB : Shared queries / transactions
+
+Pages <--> Uploads : Save / retrieve / remove prospectus PDFs
+Pages --> DB : Store prospectus metadata\nand file paths
+
+Pages --> DB : Enqueue AI job / read job status
+AiWorker <--> DB : Claim jobs / save embeddings,\nsuggestion runs and results
+AiWorker <--> Gemini : Book and course text;\nembeddings / relevance results
+
+Auth --> DB : Queue setup / reset email
+MailWorker <--> DB : Claim email jobs / update delivery status
+MailWorker --> SMTP : Send setup / reset email
+
+Browser --> Backup : Admin backup / restore request
+Backup <--> DB : Export / restore database
+Backup <--> Uploads : Include / restore uploaded files
+Backup <--> Backups : Write / read ZIP archives
+
+note right of DB
+  Main data groups:
+  * Identity: users
+  * Auth and audit: login_attempts,
+    password_reset_tokens, email_queue,
+    activity_logs, security_logs
+  * Catalog: books, book_copies,
+    courses, book_courses
+  * Academic: colleges, programs,
+    majors, program_progress,
+    prospectuses, prospectus_documents
+  * AI: ai_jobs, book_embeddings,
+    course_embeddings,
+    book_course_suggestion_runs,
+    book_course_suggestions
+  * Settings and reporting:
+    library_configuration,
+    copyright_year_ranges,
+    reference_age_policy_versions
+end note
+
+@enduml
