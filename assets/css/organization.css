@@ -252,3 +252,104 @@
   background: #fbf1f2;
   color: #8d414b;
 }
+
+.live-academics-page {
+  color: var(--app-color-ink);
+  font-family: var(--app-font-family);
+}
+
+.academics-button,
+.academic-row-action,
+.academic-tree-action-trigger,
+[data-builder-add],
+[data-builder-remove] {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid var(--app-color-border);
+  border-radius: var(--app-radius-control);
+  background: #fff;
+  color: var(--app-color-body);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.academics-button:hover,
+.academic-row-action:hover,
+.academic-tree-action-trigger:hover,
+[data-builder-add]:hover,
+[data-builder-remove]:hover {
+  border-color: var(--app-color-border-strong);
+  background: var(--app-color-subtle);
+  color: var(--app-color-ink);
+}
+
+.academics-button:focus-visible,
+.academic-row-action:focus-visible,
+.academic-tree-action-trigger:focus-visible,
+[data-builder-add]:focus-visible,
+[data-builder-remove]:focus-visible {
+  outline: 2px solid var(--app-color-primary);
+  outline-offset: 2px;
+}
+
+.academics-button-primary {
+  border-color: var(--app-color-primary);
+  background: var(--app-color-primary);
+  color: #fff;
+}
+
+.academics-button-primary:hover {
+  border-color: var(--app-color-primary-hover);
+  background: var(--app-color-primary-hover);
+  color: #fff;
+}
+
+.academics-button-danger,
+.academic-row-action.is-delete,
+[data-builder-remove] {
+  color: #9f1239;
+}
+
+.academics-button-danger:hover,
+.academic-row-action.is-delete:hover,
+[data-builder-remove]:hover {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: #881337;
+}
+
+.live-academics-page .academics-tab {
+  min-height: 36px;
+  border-radius: var(--app-radius-control);
+  font-size: 13px;
+}
+
+#organizationModal form,
+#prospectusModal form {
+  border: 1px solid var(--app-color-border);
+  border-radius: var(--app-panel-radius, 12px);
+  box-shadow: 0 18px 45px rgb(15 23 42 / .18);
+}
+
+#organizationModal .academics-button-primary,
+#prospectusModal .academics-button-primary {
+  min-height: 40px;
+  width: 100%;
+  border-radius: var(--app-radius-control);
+  font-size: 13px;
+}
+
+.live-academics-page [data-lucide] {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+}
