@@ -155,7 +155,7 @@ if ($action !== '') {
         }
 
         if ($action === 'prospectus_data') {
-            $prospectuses = $pdo->query('SELECT p.id, p.program_id, p.major_id, p.curriculum_year, pr.name AS program_name, m.name AS major_name, pd.file_name AS pdf_file_name, pd.file_path AS pdf_file_path, (pd.id IS NOT NULL) AS has_specific_pdf FROM prospectuses p INNER JOIN programs pr ON pr.id = p.program_id LEFT JOIN majors m ON m.id = p.major_id LEFT JOIN prospectus_documents pd ON pd.prospectus_id = p.id ORDER BY pr.name, p.curriculum_year')->fetchAll();
+            $prospectuses = $pdo->query("SELECT p.id, p.program_id, p.major_id, p.curriculum_year, pr.name AS program_name, m.name AS major_name, pd.file_name AS pdf_file_name, CASE WHEN pd.id IS NOT NULL THEN CONCAT('pages/prospectus_download.php?id=', p.id) ELSE NULL END AS pdf_file_path, (pd.id IS NOT NULL) AS has_specific_pdf FROM prospectuses p INNER JOIN programs pr ON pr.id = p.program_id LEFT JOIN majors m ON m.id = p.major_id LEFT JOIN prospectus_documents pd ON pd.prospectus_id = p.id ORDER BY pr.name, p.curriculum_year")->fetchAll();
             $programs = $pdo->query('SELECT id, name FROM programs WHERE status = \'active\' ORDER BY name')->fetchAll();
             $majors = $pdo->query('SELECT id, program_id, name FROM majors WHERE status = \'active\' ORDER BY name')->fetchAll();
             $defaultCurriculumYear = $pdo->query(
@@ -207,32 +207,66 @@ if ($action !== '') {
             $passwordStmt->execute([':id' => (int)$_SESSION['user_id']]);
             $storedPassword = $passwordStmt->fetchColumn();
             if (!is_string($storedPassword) || !password_verify(requestString($_POST, 'current_password'), $storedPassword)) organizationJson(['success' => false, 'message' => 'The current password is incorrect. Nothing was deleted.'], 403);
+            $documentStmt = $pdo->prepare('SELECT file_path FROM prospectus_documents WHERE prospectus_id = :id LIMIT 1');
+            $documentStmt->execute([':id' => requestInt($_POST, 'id')]);
+            $storedPath = $documentStmt->fetchColumn();
             $stmt = $pdo->prepare('DELETE FROM prospectuses WHERE id = :id');
             $stmt->execute([':id' => requestInt($_POST, 'id')]);
+            if (is_string($storedPath)) {
+                $storedName = basename(str_replace('\\', '/', $storedPath));
+                if (preg_match('/\A[a-f0-9]{24}\.pdf\z/', $storedName) === 1) {
+                    try {
+                        $storedFile = prospectusStorageDirectory() . DIRECTORY_SEPARATOR . $storedName;
+                        if (is_file($storedFile) && !unlink($storedFile)) {
+                            error_log('Deleted prospectus file could not be removed from private storage.');
+                        }
+                    } catch (RuntimeException $exception) {
+                        error_log('Deleted prospectus file cleanup failed: ' . $exception->getMessage());
+                    }
+                }
+            }
             organizationJson(['success' => true, 'message' => 'Prospectus deleted successfully.']);
         }
 
         if ($action === 'upload_prospectus') {
             $prospectusId = requestInt($_POST, 'prospectus_id');
             $file = $_FILES['prospectus'] ?? null;
-            if (!$prospectusId || !$file || $file['error'] !== UPLOAD_ERR_OK || $file['size'] > 10 * 1024 * 1024 || strtolower(pathinfo($file['name'], PATHINFO_EXTENSION)) !== 'pdf') {
+            if ($prospectusId < 1 ||
+                !is_array($file) ||
+                ($file['error'] ?? null) !== UPLOAD_ERR_OK ||
+                !is_string($file['tmp_name'] ?? null) ||
+                !is_uploaded_file($file['tmp_name']) ||
+                !is_string($file['name'] ?? null) ||
+                strtolower(pathinfo($file['name'], PATHINFO_EXTENSION)) !== 'pdf' ||
+                !is_int($file['size'] ?? null) ||
+                $file['size'] < 1 ||
+                $file['size'] > 10 * 1024 * 1024 ||
+                filesize($file['tmp_name']) !== $file['size'] ||
+                !isValidProspectusPdf($file['tmp_name'])) {
                 organizationJson(['success' => false, 'message' => 'Please select a PDF prospectus no larger than 10 MB.'], 422);
             }
             $prospectusStmt = $pdo->prepare('SELECT id FROM prospectuses WHERE id = :id LIMIT 1');
             $prospectusStmt->execute([':id' => $prospectusId]);
             if (!$prospectusStmt->fetchColumn()) organizationJson(['success' => false, 'message' => 'The selected prospectus does not exist.'], 404);
-            $directory = __DIR__ . '/../uploads/prospectuses';
-            if (!is_dir($directory) && !mkdir($directory, 0755, true)) organizationJson(['success' => false, 'message' => 'Upload directory is unavailable.'], 500);
+            try {
+                $directory = prospectusStorageDirectory();
+            } catch (RuntimeException $exception) {
+                error_log('Prospectus storage unavailable: ' . $exception->getMessage());
+                organizationJson(['success' => false, 'message' => 'Prospectus storage is unavailable. Contact an administrator.'], 503);
+            }
             $storedName = bin2hex(random_bytes(12)) . '.pdf';
-            if (!move_uploaded_file($file['tmp_name'], $directory . '/' . $storedName)) organizationJson(['success' => false, 'message' => 'The prospectus could not be uploaded.'], 500);
+            if (!move_uploaded_file($file['tmp_name'], $directory . DIRECTORY_SEPARATOR . $storedName)) organizationJson(['success' => false, 'message' => 'The prospectus could not be uploaded.'], 500);
             $oldStmt = $pdo->prepare('SELECT file_path FROM prospectus_documents WHERE prospectus_id = :prospectus_id LIMIT 1');
             $oldStmt->execute([':prospectus_id' => $prospectusId]);
             $oldPath = $oldStmt->fetchColumn();
             $stmt = $pdo->prepare('INSERT INTO prospectus_documents (prospectus_id, file_name, file_path) VALUES (:prospectus_id, :file_name, :file_path) ON DUPLICATE KEY UPDATE file_name = VALUES(file_name), file_path = VALUES(file_path), uploaded_at = CURRENT_TIMESTAMP');
             $stmt->execute([':prospectus_id' => $prospectusId, ':file_name' => basename($file['name']), ':file_path' => 'uploads/prospectuses/' . $storedName]);
             if ($oldPath) {
-                $oldFile = __DIR__ . '/../' . ltrim((string)$oldPath, '/\\');
-                if (is_file($oldFile)) unlink($oldFile);
+                $oldName = basename(str_replace('\\', '/', (string)$oldPath));
+                if (preg_match('/\A[a-f0-9]{24}\.pdf\z/', $oldName) === 1) {
+                    $oldFile = $directory . DIRECTORY_SEPARATOR . $oldName;
+                    if ($oldName !== $storedName && is_file($oldFile)) unlink($oldFile);
+                }
             }
             organizationJson(['success' => true, 'message' => 'Prospectus uploaded successfully.']);
         }
@@ -245,8 +279,17 @@ if ($action !== '') {
             if (!$filePath) organizationJson(['success' => false, 'message' => 'No prospectus PDF is attached to this record.'], 404);
             $stmt = $pdo->prepare('DELETE FROM prospectus_documents WHERE prospectus_id = :prospectus_id');
             $stmt->execute([':prospectus_id' => $prospectusId]);
-            $file = __DIR__ . '/../' . ltrim((string)$filePath, '/\\');
-            if (is_file($file)) unlink($file);
+            $storedName = basename(str_replace('\\', '/', (string)$filePath));
+            if (preg_match('/\A[a-f0-9]{24}\.pdf\z/', $storedName) === 1) {
+                try {
+                    $storedFile = prospectusStorageDirectory() . DIRECTORY_SEPARATOR . $storedName;
+                    if (is_file($storedFile) && !unlink($storedFile)) {
+                        error_log('Deleted prospectus file could not be removed from private storage.');
+                    }
+                } catch (RuntimeException $exception) {
+                    error_log('Deleted prospectus file cleanup failed: ' . $exception->getMessage());
+                }
+            }
             organizationJson(['success' => true, 'message' => 'Prospectus PDF removed successfully.']);
         }
 

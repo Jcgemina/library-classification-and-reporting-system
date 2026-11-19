@@ -14,23 +14,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $error === null) {
     $email = is_string($emailInput) ? trim($emailInput) : '';
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Enter a valid email address.';
-    } elseif ($pdo) {
-        $stmt = $pdo->prepare('SELECT id, full_name, username, email FROM users WHERE email = :email AND is_active = 1 LIMIT 1');
-        $stmt->execute([':email' => $email]);
-        $user = $stmt->fetch();
-        if ($user) {
-            $token = createPasswordResetToken($pdo, (int)$user['id']);
-            $fullName = (string)$user['full_name'];
-            $username = (string)$user['username'];
-            queuePasswordSetupEmail($pdo, $email, $fullName, $username, $token, 'reset');
-            if (filter_var(environmentValue('DIRECT_PASSWORD_RESET_EMAIL', 'false'), FILTER_VALIDATE_BOOLEAN)) {
-                if (!sendPasswordSetupEmail($email, $fullName, $username, $token, 'reset')) {
-                    error_log('Direct password reset email failed for queued recipient.');
+    } else {
+        $message = 'If an active account uses that email, a password reset link has been sent.';
+        if ($pdo) {
+            try {
+                if (allowPasswordResetRequest($pdo, $email, getClientIp())) {
+                    $stmt = $pdo->prepare('SELECT id, full_name, username, email FROM users WHERE email = :email AND is_active = 1 LIMIT 1');
+                    $stmt->execute([':email' => $email]);
+                    $user = $stmt->fetch();
+                    if ($user) {
+                        $token = createPasswordResetToken($pdo, (int)$user['id']);
+                        $fullName = (string)$user['full_name'];
+                        $username = (string)$user['username'];
+                        queuePasswordSetupEmail($pdo, $email, $fullName, $username, $token, 'reset');
+                        if (filter_var(environmentValue('DIRECT_PASSWORD_RESET_EMAIL', 'false'), FILTER_VALIDATE_BOOLEAN)) {
+                            if (!sendPasswordSetupEmail($email, $fullName, $username, $token, 'reset')) {
+                                error_log('Direct password reset email failed for queued recipient.');
+                            }
+                        }
+                    }
                 }
+            } catch (PDOException $exception) {
+                error_log('Password reset request failed: ' . $exception->getMessage());
+                http_response_code(503);
+                $message = null;
+                $error = 'Password reset requests are temporarily unavailable. Please try again later.';
             }
         }
     }
-    $message = 'If an active account uses that email, a password reset link has been sent.';
 }
 ?>
 <!DOCTYPE html>

@@ -429,6 +429,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'creat
         $uploadDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads';
         $filesBackup = $tempDir . DIRECTORY_SEPARATOR . 'uploads';
         backupCopyDirectory($uploadDir, $filesBackup);
+        backupCopyDirectory(
+            prospectusStorageDirectory(),
+            $filesBackup . DIRECTORY_SEPARATOR . 'prospectuses'
+        );
 
         $zip = new ZipArchive();
         if ($zip->open($archiveTempFile, ZipArchive::CREATE | ZipArchive::EXCL) !== true) {
@@ -604,6 +608,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
         }
 
         $filesRestore = $tempDir . DIRECTORY_SEPARATOR . 'uploads';
+        $restoredProspectuses = $filesRestore . DIRECTORY_SEPARATOR . 'prospectuses';
+        if (is_dir($restoredProspectuses)) {
+            backupCopyDirectory($restoredProspectuses, prospectusStorageDirectory());
+            backupRemovePath($restoredProspectuses);
+        }
         $stagingDir = dirname($uploadDir) . DIRECTORY_SEPARATOR . 'uploads.restore-' . bin2hex(random_bytes(8));
         backupCopyDirectory($filesRestore, $stagingDir);
         if (is_link($uploadDir) || (file_exists($uploadDir) && !is_dir($uploadDir))) {
