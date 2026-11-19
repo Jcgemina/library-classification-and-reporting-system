@@ -14,6 +14,16 @@ BACKUP_DIR=C:\laragon\library-classification-and-reporting-system-backups
 
 When upgrading an existing installation, move existing archive files from the old project `backups/` directory into the configured private directory. Preserve filenames so existing backup records and pending restore references continue to work.
 
+Prospectus PDFs are stored outside the web root in a separate private directory. Set `PROSPECTUS_UPLOAD_DIR` to choose another absolute path; it must be writable by PHP and outside all web document roots. Existing files in `uploads/prospectuses/` must be moved to that directory, preserving their generated filenames. The app serves them only through an authenticated endpoint, and backup creation/restoration includes the private prospectus files. The included `.htaccess` can deny direct Apache requests to legacy files only when the server honors per-directory rules; Nginx does not read it. Remove legacy files from the web root as part of migration or configure an explicit deny rule in the active web-server configuration.
+
+By default, Laragon stores prospectuses in `C:\laragon\<project-folder>-prospectuses`.
+
+Example on Laragon:
+
+```env
+PROSPECTUS_UPLOAD_DIR=C:\laragon\library-classification-and-reporting-system-prospectuses
+```
+
 ## 1. Configure the database connection
 
 Set the application's database settings in its local `.env` file. Use the host and port of the MySQL server that contains the database:

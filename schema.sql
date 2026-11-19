@@ -565,6 +565,16 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS password_reset_requests (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email_hash CHAR(64) NOT NULL,
+    ip_hash CHAR(64) NOT NULL,
+    requested_at DATETIME NOT NULL,
+    INDEX idx_password_reset_request_email_time (email_hash, requested_at),
+    INDEX idx_password_reset_request_ip_time (ip_hash, requested_at),
+    INDEX idx_password_reset_request_time (requested_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS email_queue (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     recipient VARCHAR(255) NOT NULL,

@@ -7,6 +7,9 @@ const MAX_ATTEMPTS = 5;
 const BASE_LOCKOUT_MINUTES = 5;
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 128;
+const PASSWORD_RESET_EMAIL_REQUEST_LIMIT = 1;
+const PASSWORD_RESET_IP_REQUEST_LIMIT = 10;
+const PASSWORD_RESET_RATE_WINDOW_SECONDS = 3600;
 
 function validatePasswordStrength(string $password): ?string {
     $length = strlen($password);
@@ -54,6 +57,85 @@ function requestInt(array $source, string $key, int $fallback = 0): int {
 
     $validated = filter_var($value, FILTER_VALIDATE_INT);
     return $validated === false ? $fallback : $validated;
+}
+
+function prospectusStorageDirectory(): string {
+    $directory = environmentValue(
+        'PROSPECTUS_UPLOAD_DIR',
+        dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . basename(dirname(__DIR__)) . '-prospectuses'
+    );
+    $isAbsolute = PHP_OS_FAMILY === 'Windows'
+        ? preg_match('/\A(?:[A-Za-z]:[\/\\\\]|\\\\\\\\)/', $directory) === 1
+        : str_starts_with($directory, DIRECTORY_SEPARATOR);
+    if (!$isAbsolute) {
+        throw new RuntimeException('Prospectus storage must be an absolute path.');
+    }
+
+    $documentRoot = realpath(requestString($_SERVER, 'DOCUMENT_ROOT'));
+    $parentPath = realpath(dirname($directory));
+    if ($documentRoot === false || $parentPath === false) {
+        throw new RuntimeException('Could not resolve prospectus storage parent or the web document root.');
+    }
+
+    $documentRootPrefix = rtrim($documentRoot, '/\\') . DIRECTORY_SEPARATOR;
+    $parentPrefix = rtrim($parentPath, '/\\') . DIRECTORY_SEPARATOR;
+    if (PHP_OS_FAMILY === 'Windows') {
+        $documentRootPrefix = strtolower($documentRootPrefix);
+        $parentPrefix = strtolower($parentPrefix);
+    }
+    if ($parentPrefix === $documentRootPrefix || str_starts_with($parentPrefix, $documentRootPrefix)) {
+        throw new RuntimeException('Prospectus storage must be outside the web document root.');
+    }
+
+    if (!is_dir($directory)) {
+        if (file_exists($directory) || is_link($directory) || !mkdir($directory, 0700)) {
+            throw new RuntimeException('Could not create prospectus storage.');
+        }
+    }
+
+    $storagePath = realpath($directory);
+    if ($storagePath === false) {
+        throw new RuntimeException('Could not resolve prospectus storage.');
+    }
+    $storagePrefix = rtrim($storagePath, '/\\') . DIRECTORY_SEPARATOR;
+    if (PHP_OS_FAMILY === 'Windows') {
+        $storagePrefix = strtolower($storagePrefix);
+    }
+    if ($storagePrefix === $documentRootPrefix || str_starts_with($storagePrefix, $documentRootPrefix)) {
+        throw new RuntimeException('Prospectus storage must be outside the web document root.');
+    }
+    if (PHP_OS_FAMILY !== 'Windows' && !chmod($storagePath, 0700)) {
+        throw new RuntimeException('Could not secure prospectus storage permissions.');
+    }
+
+    return $storagePath;
+}
+
+function isValidProspectusPdf(string $path): bool {
+    if (!is_file($path) || !is_readable($path) || !class_exists(finfo::class)) {
+        return false;
+    }
+
+    $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+    if ($fileInfo->file($path) !== 'application/pdf') {
+        return false;
+    }
+
+    $fileSize = filesize($path);
+    if ($fileSize === false || $fileSize < 10) {
+        return false;
+    }
+
+    $handle = fopen($path, 'rb');
+    if ($handle === false) {
+        return false;
+    }
+    $signature = fread($handle, 5);
+    fseek($handle, max(0, $fileSize - 1024));
+    $trailer = fread($handle, 1024);
+    fclose($handle);
+
+    return $signature === '%PDF-' && is_string($trailer) && str_contains($trailer, '%%EOF');
 }
 
 function csrfToken(): string {
@@ -135,11 +217,66 @@ function clearAttempts(PDO $pdo, string $username, string $ip): void {
     $stmt->execute([':username' => $username, ':ip' => $ip]);
 }
 
+function refreshAuthenticatedSession(PDO $pdo): bool {
+    $userId = filter_var($_SESSION['user_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($userId === false || $userId < 1) {
+        return false;
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT id, username, full_name, role
+         FROM users
+         WHERE id = :id AND is_active = 1
+         LIMIT 1'
+    );
+    $stmt->execute([':id' => $userId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($user) ||
+        !is_string($user['username'] ?? null) ||
+        !is_string($user['full_name'] ?? null) ||
+        !is_string($user['role'] ?? null)) {
+        return false;
+    }
+
+    $role = strtolower(trim($user['role']));
+    if (!in_array($role, ['admin', 'librarian'], true)) {
+        return false;
+    }
+
+    $_SESSION['user_id'] = (int) $user['id'];
+    $_SESSION['username'] = $user['username'];
+    $_SESSION['full_name'] = $user['full_name'];
+    $_SESSION['role'] = $role;
+
+    return true;
+}
+
 function requireLogin(): void {
     if (empty($_SESSION['authenticated']) || empty($_SESSION['user_id'])) {
         header('Location: index.php');
         exit;
     }
+
+    global $pdo;
+    if (!$pdo instanceof PDO) {
+        http_response_code(503);
+        exit('Authentication is temporarily unavailable. Please try again later.');
+    }
+
+    try {
+        if (refreshAuthenticatedSession($pdo)) {
+            return;
+        }
+    } catch (PDOException $exception) {
+        error_log('Authenticated session validation failed: ' . $exception->getMessage());
+        http_response_code(503);
+        exit('Authentication is temporarily unavailable. Please try again later.');
+    }
+
+    $_SESSION = [];
+    session_regenerate_id(true);
+    header('Location: index.php');
+    exit;
 }
 
 function setFlash(string $message, bool $isLockout = false, ?int $attemptCount = null): void {
@@ -206,6 +343,47 @@ function createPasswordResetToken(PDO $pdo, int $userId): string {
     $stmt = $pdo->prepare('INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (:user_id, :token_hash, DATE_ADD(NOW(), INTERVAL 1 HOUR))');
     $stmt->execute([':user_id' => $userId, ':token_hash' => hash('sha256', $token)]);
     return $token;
+}
+
+function allowPasswordResetRequest(PDO $pdo, string $email, string $ip): bool {
+    $now = time();
+    $requestedAt = gmdate('Y-m-d H:i:s', $now);
+    $windowStart = gmdate('Y-m-d H:i:s', $now - PASSWORD_RESET_RATE_WINDOW_SECONDS);
+    $ipHash = hash('sha256', $ip);
+    $emailHash = hash('sha256', strtolower(trim($email)));
+
+    $pdo->prepare('DELETE FROM password_reset_requests WHERE requested_at < :retention_cutoff')
+        ->execute([':retention_cutoff' => gmdate('Y-m-d H:i:s', $now - 86400)]);
+
+    $ipCount = $pdo->prepare(
+        'SELECT COUNT(*) FROM password_reset_requests
+         WHERE ip_hash = :ip_hash AND requested_at >= :window_start'
+    );
+    $ipCount->execute([':ip_hash' => $ipHash, ':window_start' => $windowStart]);
+    if ((int) $ipCount->fetchColumn() >= PASSWORD_RESET_IP_REQUEST_LIMIT) {
+        return false;
+    }
+
+    $emailCount = $pdo->prepare(
+        'SELECT COUNT(*) FROM password_reset_requests
+         WHERE email_hash = :email_hash AND requested_at >= :window_start'
+    );
+    $emailCount->execute([':email_hash' => $emailHash, ':window_start' => $windowStart]);
+    if ((int) $emailCount->fetchColumn() >= PASSWORD_RESET_EMAIL_REQUEST_LIMIT) {
+        return false;
+    }
+
+    $record = $pdo->prepare(
+        'INSERT INTO password_reset_requests (email_hash, ip_hash, requested_at)
+         VALUES (:email_hash, :ip_hash, :requested_at)'
+    );
+    $record->execute([
+        ':email_hash' => $emailHash,
+        ':ip_hash' => $ipHash,
+        ':requested_at' => $requestedAt,
+    ]);
+
+    return true;
 }
 
 function getPasswordResetUserId(PDO $pdo, string $token): ?int {
