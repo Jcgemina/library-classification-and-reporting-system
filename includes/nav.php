@@ -13,11 +13,11 @@ $userRole = strtolower($_SESSION['role'] ?? 'librarian');
 $isValidatedUser = !empty($_SESSION['authenticated']) && !empty($_SESSION['user_id']);
 $isAdmin = $isValidatedUser && $userRole === 'admin';
 $settingsItems = [
-    ['label' => 'My Account', 'page' => 'account', 'subpage' => 'account', 'href' => 'app.php?page=account', 'icon' => 'user-round'],
-    ['label' => 'Preferences', 'page' => 'preferences', 'subpage' => 'preferences', 'href' => 'app.php?page=preferences', 'icon' => 'sliders-horizontal'],
-    ['label' => 'Institutional Profile', 'page' => 'configure', 'subpage' => 'institution', 'href' => 'app.php?page=configure&section=institution#institutionProfileSettings', 'icon' => 'building-2'],
-    ['label' => 'Library Rules', 'page' => 'configure', 'subpage' => 'rules', 'href' => 'app.php?page=configure&section=rules#libraryRulesSettings', 'icon' => 'list-checks'],
-    ['label' => 'Backup & Restore', 'page' => 'configure', 'subpage' => 'backup', 'href' => 'app.php?page=configure&section=backup#backupRestoreSettings', 'icon' => 'database-backup'],
+    ['label' => 'My Account', 'group' => 'Personal', 'page' => 'account', 'subpage' => 'account', 'href' => 'app.php?page=account', 'icon' => 'user-round'],
+    ['label' => 'Preferences', 'group' => 'Personal', 'page' => 'preferences', 'subpage' => 'preferences', 'href' => 'app.php?page=preferences', 'icon' => 'sliders-horizontal'],
+    ['label' => 'Institutional Profile', 'group' => 'Administration', 'page' => 'configure', 'subpage' => 'institution', 'href' => 'app.php?page=configure&section=institution#institutionProfileSettings', 'icon' => 'building-2'],
+    ['label' => 'Library Rules', 'group' => 'Administration', 'page' => 'configure', 'subpage' => 'rules', 'href' => 'app.php?page=configure&section=rules#libraryRulesSettings', 'icon' => 'list-checks'],
+    ['label' => 'Backup & Restore', 'group' => 'Administration', 'page' => 'configure', 'subpage' => 'backup', 'href' => 'app.php?page=configure&section=backup#backupRestoreSettings', 'icon' => 'database-backup'],
 ];
 if (!$isAdmin) {
     $settingsItems = array_values(array_filter($settingsItems, static function ($item) {
@@ -26,17 +26,17 @@ if (!$isAdmin) {
 }
 $navSections = [
     'overview' => 'Overview',
-    'operations' => 'Library Operations',
-    'academics' => 'Academic Management',
+    'operations' => 'Catalog & Reporting',
+    'academics' => 'Academic Structure',
     'administration' => 'Administration',
 ];
 $navItems = [
     ['label' => 'Dashboard', 'page' => 'dashboard', 'section' => 'overview', 'href' => 'app.php?page=dashboard', 'icon' => 'layout-dashboard'],
     ['label' => 'Inventory', 'page' => 'inventory', 'section' => 'operations', 'href' => 'app.php?page=inventory', 'icon' => 'box'],
     ['label' => 'Reports', 'page' => 'report', 'section' => 'operations', 'href' => 'app.php?page=report', 'icon' => 'file-bar-chart'],
-    ['label' => 'Academics', 'page' => 'academics', 'section' => 'academics', 'href' => 'app.php?page=academics', 'icon' => 'building-2'],
-    ['label' => 'Courses', 'page' => 'course', 'section' => 'academics', 'href' => 'app.php?page=course', 'icon' => 'book-open'],
-    ['label' => 'Reference Analyzer', 'page' => 'reference_analyzer', 'section' => 'academics', 'href' => 'app.php?page=reference_analyzer', 'icon' => 'scan-search'],
+    ['label' => 'Academic Structure', 'page' => 'academics', 'section' => 'academics', 'href' => 'app.php?page=academics', 'icon' => 'building-2'],
+    ['label' => 'Course Catalog', 'page' => 'course', 'section' => 'academics', 'href' => 'app.php?page=course', 'icon' => 'book-open'],
+    ['label' => 'Reference Age', 'page' => 'reference_analyzer', 'section' => 'academics', 'href' => 'app.php?page=reference_analyzer', 'icon' => 'scan-search'],
     ['label' => 'Users', 'page' => 'user', 'section' => 'administration', 'href' => 'app.php?page=user', 'icon' => 'users'],
     ['label' => 'Logs', 'page' => 'logs', 'section' => 'administration', 'href' => 'app.php?page=logs', 'icon' => 'scroll-text', 'isLogs' => true],
     ['label' => 'Settings', 'page' => 'account', 'section' => 'administration', 'href' => 'app.php?page=account', 'icon' => 'settings-2', 'isSettings' => true],
@@ -213,6 +213,15 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
     margin: 0 0 0.5rem 1rem;
     border-left: 1px solid #cbd5e1;
     padding-left: 0.625rem;
+  }
+
+  .settings-submenu-group-label {
+    margin: 0.25rem 0.625rem 0.125rem;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   .settings-submenu-mobile .settings-submenu-link,
@@ -411,7 +420,12 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
             </button>
           </div>
           <div id="adminSettingsMenu" class="settings-submenu settings-submenu-sidebar" data-settings-menu-content <?php echo $settingsExpanded ? '' : 'hidden'; ?>>
+            <?php $activeSettingsGroup = null; ?>
             <?php foreach ($settingsItems as $settingsItem): ?>
+              <?php if ($activeSettingsGroup !== $settingsItem['group']): ?>
+                <?php $activeSettingsGroup = $settingsItem['group']; ?>
+                <p class="settings-submenu-group-label"><?php echo htmlspecialchars($activeSettingsGroup, ENT_QUOTES, 'UTF-8'); ?></p>
+              <?php endif; ?>
               <?php $isSettingsItemActive = $settingsItem['subpage'] === $activeSettingsSubpage; ?>
               <a href="<?php echo htmlspecialchars($settingsItem['href'], ENT_QUOTES, 'UTF-8'); ?>"
                 data-page="<?php echo htmlspecialchars($settingsItem['page'], ENT_QUOTES, 'UTF-8'); ?>"

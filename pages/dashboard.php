@@ -144,7 +144,7 @@ $copyrightCoverageMetrics = array_map(static function (array $metric) use ($tota
   <header class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
     <div>
       <h2 class="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h2>
-      <p class="mt-1 text-sm text-slate-600">Collection coverage and progress for calendar year <?php echo $currentYear; ?></p>
+      <p class="mt-1 text-sm text-slate-600">Collection coverage and staff-entered progress for calendar year <?php echo $currentYear; ?></p>
     </div>
     <a href="app.php?page=report" data-page="report" class="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-rose-300 hover:text-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-300">
       <i data-lucide="file-chart-column" class="h-4 w-4" aria-hidden="true"></i>
@@ -155,7 +155,7 @@ $copyrightCoverageMetrics = array_map(static function (array $metric) use ($tota
   <?php if ($dashboardDataError !== null): ?>
     <div role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
       <p><?php echo $escapeDashboardValue($dashboardDataError); ?></p>
-      <button type="button" data-retry-page="dashboard" class="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400">Try again</button>
+      <button type="button" data-retry-page="dashboard" class="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400">Reload dashboard</button>
     </div>
   <?php endif; ?>
 

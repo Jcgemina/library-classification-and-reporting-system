@@ -222,14 +222,6 @@ $archivedBooks = [];
 $activeCourses = [];
 $inventorySchemaAvailable = false;
 $escapeInventory = static fn(mixed $value): string => htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$shortBookTitle = static function (string $title): string {
-  $words = preg_split('/\s+/', trim($title), -1, PREG_SPLIT_NO_EMPTY);
-  if ($words === false) {
-    return $title;
-  }
-  $words = array_values(array_filter($words, static fn($word): bool => preg_match('/[\pL\pN]/u', $word) === 1));
-  return count($words) > 3 ? implode(' ', array_slice($words, 0, 3)) . '...' : $title;
-};
 $inventorySearchText = static function (array $book): string {
   $referenceText = array_map(
     static fn(array $reference): string => (string)$reference['code'] . ' ' . (string)$reference['name'],
@@ -340,7 +332,7 @@ $copyrightMetricStyles = [
       </div>
       <div class="flex w-full gap-2 sm:w-auto">
         <button type="button" data-inventory-archive-open aria-haspopup="dialog" aria-controls="inventoryArchiveModal" class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 sm:flex-none">
-          <i data-lucide="archive" class="h-4 w-4"></i>Archive <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600"><?php echo count($archivedBooks); ?></span>
+          <i data-lucide="archive" class="h-4 w-4"></i>Archive <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-bold tabular-nums text-slate-600"><?php echo count($archivedBooks); ?></span>
         </button>
         <button type="button" data-inventory-add-open aria-haspopup="dialog" aria-controls="inventoryAddBookModal" class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-rose-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-500 sm:flex-none sm:px-4 sm:text-sm">
           <i data-lucide="plus" class="h-4 w-4"></i>Add book
@@ -353,6 +345,7 @@ $copyrightMetricStyles = [
         <div>
           <h3 id="inventoryBooksTitle" class="text-base font-bold text-slate-900">All books</h3>
           <p class="mt-1 text-xs text-slate-600" data-inventory-result-count>Showing <?php echo number_format(count($activeBooks)); ?> books</p>
+          <p class="mt-1 text-xs text-slate-600">Copyright ranges use the copyright year, or publication year when unavailable.</p>
         </div>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
           <label class="relative block min-w-0 sm:w-64">
@@ -380,7 +373,7 @@ $copyrightMetricStyles = [
 
   <div class="hidden overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-500 xl:block" role="region" aria-label="Book inventory table. Scroll horizontally to view all columns." tabindex="0">
       <table class="w-full min-w-[1040px] text-left text-sm">
-        <thead class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-[0.08em] text-slate-600">
+        <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.08em] text-slate-600">
           <tr>
             <th scope="col" class="px-4 py-3">Book</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3">Pub. Year</th>
@@ -400,13 +393,13 @@ $copyrightMetricStyles = [
             <?php foreach ($activeBooks as $book): ?>
               <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
               <tr data-inventory-book-entry data-inventory-view="table" data-book-id="<?php echo (int)$book['book_id']; ?>" data-copyright-year="<?php echo $bookCopyrightYear; ?>" data-search="<?php echo $escapeInventory($inventorySearchText($book)); ?>">
-                <td class="px-4 py-3"><p title="<?php echo $escapeInventory($book['title']); ?>" class="font-semibold text-slate-900"><?php echo $escapeInventory($shortBookTitle($book['title'])); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
+                <td class="min-w-[220px] px-4 py-3"><p class="break-words font-semibold text-slate-900"><?php echo $escapeInventory($book['title']); ?></p><p class="mt-0.5 break-words text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 break-all font-mono text-xs text-slate-600">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
                 <td class="px-4 py-3">
                   <div class="flex flex-wrap items-center gap-1" data-book-references="<?php echo (int)$book['book_id']; ?>">
                     <?php if (!empty($book['course_references'])): ?>
                       <?php foreach ($book['course_references'] as $reference): ?>
-                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0"><?php echo $escapeInventory($reference['name']); ?></span></span>
+                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0 break-words"><?php echo $escapeInventory($reference['name']); ?></span></span>
                       <?php endforeach; ?>
                     <?php else: ?>
                       <span class="text-xs text-slate-500">No courses linked yet</span>
@@ -448,18 +441,18 @@ $copyrightMetricStyles = [
               <button type="button" data-book-actions-open data-book-id="<?php echo (int)$book['book_id']; ?>" aria-controls="inventoryBookActionsMenu" aria-expanded="false" aria-label="More actions for <?php echo $escapeInventory($book['title']); ?>" title="More actions" class="inventory-book-actions-trigger inline-grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg border border-transparent bg-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:bg-rose-50 focus-visible:text-rose-800"><i data-lucide="ellipsis" class="h-4 w-4"></i></button>
             </div>
             <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
-              <div><dt class="text-[11px] font-medium text-slate-500">Publication year</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></dd></div>
-              <div><dt class="text-[11px] font-medium text-slate-500">Copyright year</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo $escapeInventory($book['effective_copyright_year'] ?: '—'); ?></dd></div>
-              <div><dt class="text-[11px] font-medium text-slate-500">Copies</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo (int)$book['copy_count']; ?></dd></div>
-              <div><dt class="text-[11px] font-medium text-slate-500">ISBN</dt><dd class="mt-0.5 break-all font-mono text-xs text-slate-700"><?php echo $escapeInventory($book['isbn'] ?: '—'); ?></dd></div>
-              <div class="sm:col-span-4"><dt class="text-[11px] font-medium text-slate-500">Publisher</dt><dd class="mt-0.5 break-words text-sm text-slate-700"><?php echo $escapeInventory($book['publisher'] ?: '—'); ?></dd></div>
+              <div><dt class="text-xs font-medium text-slate-600">Publication year</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></dd></div>
+              <div><dt class="text-xs font-medium text-slate-600">Copyright year</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo $escapeInventory($book['effective_copyright_year'] ?: '—'); ?></dd></div>
+              <div><dt class="text-xs font-medium text-slate-600">Copies</dt><dd class="mt-0.5 text-sm font-medium tabular-nums text-slate-800"><?php echo (int)$book['copy_count']; ?></dd></div>
+              <div><dt class="text-xs font-medium text-slate-600">ISBN</dt><dd class="mt-0.5 break-all font-mono text-xs text-slate-700"><?php echo $escapeInventory($book['isbn'] ?: '—'); ?></dd></div>
+              <div class="sm:col-span-4"><dt class="text-xs font-medium text-slate-600">Publisher</dt><dd class="mt-0.5 break-words text-sm text-slate-700"><?php echo $escapeInventory($book['publisher'] ?: '—'); ?></dd></div>
             </dl>
             <div class="mt-3 border-t border-slate-100 pt-3">
-              <p class="text-[11px] font-medium text-slate-500">Course references</p>
+              <p class="text-xs font-medium text-slate-600">Course references</p>
               <div class="mt-2 flex flex-wrap items-center gap-1" data-book-references="<?php echo (int)$book['book_id']; ?>">
                 <?php if (!empty($book['course_references'])): ?>
                   <?php foreach ($book['course_references'] as $reference): ?>
-                    <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0"><?php echo $escapeInventory($reference['name']); ?></span></span>
+                    <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0"><?php echo $escapeInventory($reference['name']); ?></span></span>
                   <?php endforeach; ?>
                 <?php else: ?>
                   <span class="text-xs text-slate-500">No courses linked yet</span>
@@ -467,7 +460,7 @@ $copyrightMetricStyles = [
               </div>
             </div>
             <div class="mt-3 border-t border-slate-100 pt-3">
-              <p class="text-[11px] font-medium text-slate-500">Copyright</p>
+              <p class="text-xs font-medium text-slate-600">Copyright</p>
               <div class="mt-2 flex flex-wrap gap-2">
                 <?php echo $renderCopyrightYearPills($bookCopyrightYear); ?>
                 <div data-inventory-no-results-mobile class="hidden px-4 py-12 text-center text-sm text-slate-600">No books match your search or filters.</div>
@@ -655,7 +648,7 @@ $copyrightMetricStyles = [
     </div>
     <div class="max-h-[calc(90vh-4rem)] overflow-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-500" role="region" aria-label="Archived books table. Scroll to view all columns." tabindex="0">
       <table class="w-full min-w-[900px] text-left text-sm">
-        <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 font-mono text-[10px] uppercase tracking-[0.1em] text-slate-600">
+        <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 font-mono text-xs uppercase tracking-[0.1em] text-slate-600">
           <tr>
             <th scope="col" class="px-4 py-3">Book</th>
             <th scope="col" class="whitespace-nowrap px-4 py-3">Pub. Year</th>
@@ -673,13 +666,13 @@ $copyrightMetricStyles = [
             <?php foreach ($archivedBooks as $book): ?>
               <?php $bookCopyrightYear = (int)($book['effective_copyright_year'] ?? 0); ?>
               <tr data-inventory-archive-row>
-                <td class="px-4 py-3"><p title="<?php echo $escapeInventory($book['title']); ?>" class="font-semibold text-slate-900"><?php echo $escapeInventory($shortBookTitle($book['title'])); ?></p><p class="mt-0.5 text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 font-mono text-[10px] text-slate-500">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
+                <td class="min-w-[220px] px-4 py-3"><p class="break-words font-semibold text-slate-900"><?php echo $escapeInventory($book['title']); ?></p><p class="mt-0.5 break-words text-xs text-slate-600">by <?php echo $escapeInventory($book['author']); ?></p><p class="mt-0.5 break-all font-mono text-xs text-slate-600">ISBN: <?php echo $escapeInventory($book['isbn'] ?: '—'); ?></p></td>
                 <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-800"><?php echo $escapeInventory($book['publication_year'] ?: '—'); ?></td>
                 <td class="px-4 py-3">
                   <?php if (!empty($book['course_references'])): ?>
                     <div class="flex flex-wrap items-center gap-1">
                       <?php foreach ($book['course_references'] as $reference): ?>
-                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0"><?php echo $escapeInventory($reference['name']); ?></span></span>
+                        <span class="inline-flex max-w-full items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-800"><span class="flex-shrink-0 font-semibold"><?php echo $escapeInventory($reference['code']); ?></span><span class="min-w-0"><?php echo $escapeInventory($reference['name']); ?></span></span>
                       <?php endforeach; ?>
                     </div>
                   <?php else: ?>
