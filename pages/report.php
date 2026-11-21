@@ -262,6 +262,12 @@ if ($action !== '') {
 <div class="live-report-page space-y-5">
     <header class="reports-heading">
         <div>
+            <nav class="app-breadcrumbs" aria-label="Breadcrumb">
+                <ol>
+                    <li><a href="app.php?page=dashboard">Dashboard</a></li>
+                    <li aria-current="page"><span>Reports</span></li>
+                </ol>
+            </nav>
             <h1>Reports</h1>
             <p class="page-description">Completion progress for active programs and majors by quarter and calendar year.</p>
         </div>
@@ -270,7 +276,7 @@ if ($action !== '') {
     <div id="reportPreviewModal" class="report-preview-modal hidden" role="dialog" aria-modal="true" aria-labelledby="reportPreviewTitle">
         <div class="report-preview-shell">
             <div class="report-preview-toolbar flex items-center justify-between gap-3 border-b border-slate-200 bg-[#f7f7f7] px-4 py-3">
-                <div class="flex items-center gap-2 text-[13px] font-medium text-slate-600">
+                <div class="flex items-center gap-2 text-xs font-medium text-slate-600">
                     <i data-lucide="file-text" class="h-4 w-4 text-slate-700" aria-hidden="true"></i>
                     <span id="reportPreviewTitle">Print preview · Verify the report before printing.</span>
                 </div>
@@ -334,7 +340,7 @@ if ($action !== '') {
 
         <div class="report-guidance">
             <i data-lucide="info" aria-hidden="true"></i>
-            <p>Each row is one active program scope (when it has no active majors) or one active major scope. The count above is the denominator after filters. “Complete” is a staff-entered status, not an evidence review; “Updated as of” records the latest update month. This report uses calendar years.</p>
+            <p><strong>Scope:</strong> one active program with no active majors, or one active major. <strong>Complete:</strong> staff-entered status only, not evidence review. <strong>Updated as of:</strong> latest update month. <strong>Year:</strong> calendar year.</p>
         </div>
 
         <div class="report-table-wrap">

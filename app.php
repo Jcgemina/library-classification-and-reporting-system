@@ -61,7 +61,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
   html,
   body {
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
   }
 
   @media (min-width: 768px) and (max-width: 1440px) {
@@ -86,7 +87,21 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
   html::-webkit-scrollbar,
   body::-webkit-scrollbar {
-    display: none;
+    width: 10px;
+    height: 10px;
+  }
+
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: #cbd5e1;
+    background-clip: padding-box;
   }
 </style>
 <link rel="stylesheet" href="assets/css/app.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/app.css'); ?>">
@@ -520,6 +535,36 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     });
 
     loadPage(getCurrentPageFromUrl(), false);
+  </script>
+  <script>
+    (() => {
+      const dialogTriggers = new WeakMap();
+
+      document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[aria-haspopup="dialog"], [aria-controls]');
+        if (!trigger) return;
+        const controlledId = trigger.getAttribute('aria-controls');
+        const dialog = controlledId ? document.getElementById(controlledId) : null;
+        if (dialog instanceof HTMLDialogElement) {
+          dialogTriggers.set(dialog, trigger);
+        }
+      }, true);
+
+      document.querySelectorAll('dialog').forEach((dialog) => {
+        dialog.addEventListener('click', (event) => {
+          if (event.target === dialog && dialog.open) {
+            dialog.close();
+          }
+        });
+
+        dialog.addEventListener('close', () => {
+          const trigger = dialogTriggers.get(dialog);
+          if (trigger && document.contains(trigger)) {
+            trigger.focus();
+          }
+        });
+      });
+    })();
   </script>
 </body>
 </html>
