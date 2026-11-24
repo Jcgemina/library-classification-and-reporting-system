@@ -41,29 +41,81 @@ try {
     exit(1);
 }
 
-$accounts = [
-    ['username' => 'admin', 'password' => '123', 'full_name' => 'System Admin', 'role' => 'admin'],
-    ['username' => 'librarian1', 'password' => '123', 'full_name' => 'Maria Santos', 'role' => 'librarian'],
-    ['username' => 'librarian2', 'password' => '123', 'full_name' => 'John Medina', 'role' => 'librarian'],
-    ['username' => 'librarian3', 'password' => '123', 'full_name' => 'Angela Cruz', 'role' => 'librarian'],
-];
+$defaultCredentialAccounts = $pdo->query(
+    "SELECT id, username, password FROM users WHERE role IN ('admin', 'librarian')"
+)->fetchAll();
 
-$stmt = $pdo->prepare(
-    "INSERT INTO users (username, password, full_name, role, is_active)
-     VALUES (:username, :password, :full_name, :role, 1)
-     ON DUPLICATE KEY UPDATE password = VALUES(password), full_name = VALUES(full_name), role = VALUES(role), is_active = VALUES(is_active)"
+$deactivateDefaultCredential = $pdo->prepare(
+    'UPDATE users SET is_active = 0 WHERE id = :id AND role IN (\'admin\', \'librarian\')'
 );
+$deactivatedUsernames = [];
 
-foreach ($accounts as $account) {
+foreach ($defaultCredentialAccounts as $account) {
+    $hash = $account['password'] ?? null;
+    if (is_string($hash) && password_verify('123', $hash)) {
+        $deactivateDefaultCredential->execute([':id' => (int) $account['id']]);
+        $deactivatedUsernames[] = (string) $account['username'];
+    }
+}
+
+$existingAdmin = $pdo->query(
+    "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 LIMIT 1"
+)->fetch();
+
+if ($existingAdmin !== false) {
+    echo "Refusing to change credentials: an active administrator already exists.\n";
+    exit(1);
+}
+
+$username = trim((string) (getenv('ADMIN_USERNAME') ?: 'admin'));
+$fullName = trim((string) (getenv('ADMIN_FULL_NAME') ?: 'System Admin'));
+
+if (!preg_match('/^[A-Za-z0-9_.-]{3,50}$/', $username)) {
+    echo "Invalid ADMIN_USERNAME. Use 3-50 letters, numbers, dots, underscores, or hyphens.\n";
+    exit(1);
+}
+
+if ($fullName === '' || strlen($fullName) > 100) {
+    echo "Invalid ADMIN_FULL_NAME. Use a name of 1-100 characters.\n";
+    exit(1);
+}
+
+$existingUsername = $pdo->prepare('SELECT id, is_active FROM users WHERE username = :username LIMIT 1');
+$existingUsername->execute([':username' => $username]);
+$existingAccount = $existingUsername->fetch();
+if ($existingAccount !== false && (int) $existingAccount['is_active'] === 1) {
+    echo "Refusing to overwrite credentials: that username already exists.\n";
+    exit(1);
+}
+
+$password = bin2hex(random_bytes(32)) . '!A9';
+if ($existingAccount !== false) {
+    $stmt = $pdo->prepare(
+        'UPDATE users SET password = :password, full_name = :full_name, role = :role, is_active = 1 WHERE id = :id'
+    );
     $stmt->execute([
-        ':username' => $account['username'],
-        ':password' => password_hash($account['password'], PASSWORD_DEFAULT),
-        ':full_name' => $account['full_name'],
-        ':role' => $account['role'],
+        ':password' => password_hash($password, PASSWORD_DEFAULT),
+        ':full_name' => $fullName,
+        ':role' => 'admin',
+        ':id' => (int) $existingAccount['id'],
+    ]);
+} else {
+    $stmt = $pdo->prepare(
+        'INSERT INTO users (username, password, full_name, role, is_active)
+         VALUES (:username, :password, :full_name, :role, 1)'
+    );
+    $stmt->execute([
+        ':username' => $username,
+        ':password' => password_hash($password, PASSWORD_DEFAULT),
+        ':full_name' => $fullName,
+        ':role' => 'admin',
     ]);
 }
 
-echo "Database ready. Default accounts are loaded.\n";
-foreach ($accounts as $account) {
-    echo "Username: {$account['username']} | Password: {$account['password']} | Role: {$account['role']}\n";
+echo "Administrator created securely.\n";
+if ($deactivatedUsernames !== []) {
+    echo "Deactivated accounts using the known weak password: " . implode(', ', $deactivatedUsernames) . "\n";
 }
+echo "Username: {$username}\n";
+echo "Password: {$password}\n";
+echo "Rotate this password immediately after the first login.\n";

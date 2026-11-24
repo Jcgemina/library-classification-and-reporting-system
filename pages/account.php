@@ -251,16 +251,14 @@ $accountEmail = trim((string) ($account['email'] ?? ''));
     <section class="settings-section" aria-labelledby="signInHistoryHeading">
       <div>
         <h2 class="settings-section-title" id="signInHistoryHeading">Sign-in activity</h2>
-        <p class="settings-section-copy">Sign-in events are recorded for auditing, but personal sign-in history is not displayed on this page.</p>
+        <p class="settings-section-copy">Review recent sign-in attempts associated with your account.</p>
       </div>
-      <?php if (strtolower((string) $account['role']) === 'admin'): ?>
-        <a class="settings-link" href="app.php?page=logs&amp;log_tab=security">Review security logs</a>
-      <?php else: ?>
-        <div class="settings-inline-status">
-          <i data-lucide="shield-check" aria-hidden="true"></i>
-          <span>Security logs are available to administrators.</span>
-        </div>
-      <?php endif; ?>
+      <div class="account-signin-links">
+        <a class="settings-link" href="app.php?page=sign_in_activity" data-page="sign_in_activity">View sign-in activity</a>
+        <?php if (strtolower((string) $account['role']) === 'admin'): ?>
+          <a class="settings-link" href="app.php?page=logs&amp;log_tab=security">Review security logs</a>
+        <?php endif; ?>
+      </div>
     </section>
 
     <section class="settings-section" aria-labelledby="additionalSecurityHeading">

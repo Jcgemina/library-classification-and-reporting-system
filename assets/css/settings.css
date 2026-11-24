@@ -1,4 +1,5 @@
 [data-account-page],
+[data-sign-in-activity-page],
 [data-preferences-page],
 [data-configure-page] {
   --settings-ink: var(--app-color-ink);
@@ -360,6 +361,108 @@
   outline-offset: 2px;
 }
 
+.account-signin-table-shell {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.account-signin-table-shell:focus-visible {
+  outline: 2px solid var(--settings-rose);
+  outline-offset: 3px;
+}
+
+.account-signin-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: left;
+}
+
+.account-signin-table th {
+  padding: 10px 11px;
+  border-bottom: 1px solid var(--settings-line-strong);
+  color: var(--settings-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.account-signin-table th:nth-child(1) {
+  width: 40%;
+}
+
+.account-signin-table th:nth-child(2) {
+  width: 32%;
+}
+
+.account-signin-table th:nth-child(3) {
+  width: 28%;
+}
+
+.account-signin-table td {
+  padding: 12px 11px;
+  border-bottom: 1px solid var(--settings-line);
+  color: var(--settings-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.account-signin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.account-signin-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.account-signin-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.account-signin-content > .settings-link {
+  display: inline-block;
+  margin-top: 12px;
+}
+
+.account-signin-time {
+  color: var(--settings-ink);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-signin-status,
+.account-signin-ip {
+  font-size: 12px;
+}
+
+.account-signin-status {
+  font-weight: 650;
+}
+
+.account-signin-status.is-success {
+  color: var(--settings-green);
+}
+
+.account-signin-status.is-warning {
+  color: var(--settings-amber);
+}
+
+.account-signin-ip {
+  color: var(--settings-muted);
+  overflow-wrap: anywhere;
+}
+
+.account-signin-message {
+  margin: 0;
+  color: var(--settings-rose-dark);
+  font-size: 13px;
+}
+
 .settings-inline-status [data-lucide],
 .settings-inline-status svg {
   width: 14px;
@@ -497,6 +600,7 @@
 }
 
 html[data-app-theme="dark"] [data-account-page],
+html[data-app-theme="dark"] [data-sign-in-activity-page],
 html[data-app-theme="dark"] [data-preferences-page],
 html[data-app-theme="dark"] [data-configure-page] {
   --settings-ink: #e2e8f0;
@@ -515,6 +619,33 @@ html[data-app-theme="dark"] .settings-section-title,
 html[data-app-theme="dark"] .settings-profile-name,
 html[data-app-theme="dark"] .settings-profile-username strong {
   color: #e2e8f0;
+}
+
+html[data-app-theme="dark"] .account-signin-time {
+  color: #e2e8f0;
+}
+
+html[data-app-theme="dark"] .account-signin-table th {
+  border-color: #475569;
+  background: #111827;
+  color: #cbd5e1;
+}
+
+html[data-app-theme="dark"] .account-signin-table td {
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+html[data-app-theme="dark"] .account-signin-table tbody tr:hover {
+  background: #1e293b;
+}
+
+html[data-app-theme="dark"] .account-signin-status.is-success {
+  color: #34d399;
+}
+
+html[data-app-theme="dark"] .account-signin-status.is-warning {
+  color: #fbbf24;
 }
 
 html[data-app-theme="dark"] .settings-field,
@@ -602,6 +733,10 @@ html[data-app-theme="dark"] .settings-button-primary:hover:not(:disabled) {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .account-signin-table th,
+  .account-signin-table td {
+    padding: 10px 6px;
+  }
   .settings-field.is-wide {
     grid-column: auto;
   }

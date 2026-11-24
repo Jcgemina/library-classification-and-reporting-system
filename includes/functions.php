@@ -194,6 +194,24 @@ function recordSecurityLog(PDO $pdo, ?int $userId, ?string $username, string $ev
     $stmt->execute([':user_id' => $userId, ':username' => $username, ':event_type' => $eventType, ':severity' => $severity, ':description' => $description, ':ip_address' => $ip, ':user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255)]);
 }
 
+function getRecentSignInEvents(PDO $pdo, int $userId): array {
+    if ($userId < 1) {
+        throw new InvalidArgumentException('A valid user ID is required to retrieve sign-in activity.');
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT event_type, ip_address, created_at
+         FROM security_logs
+         WHERE user_id = :user_id
+           AND event_type IN ('login_success', 'login_failed', 'login_blocked')
+         ORDER BY created_at DESC, id DESC
+         LIMIT 10"
+    );
+    $stmt->execute([':user_id' => $userId]);
+
+    return $stmt->fetchAll();
+}
+
 function hasRecentSecurityLog(PDO $pdo, string $ip, string $eventType, int $seconds): bool {
     $seconds = max(1, $seconds);
     $stmt = $pdo->prepare("SELECT id FROM security_logs WHERE ip_address = :ip AND event_type = :event_type AND created_at >= DATE_SUB(NOW(), INTERVAL {$seconds} SECOND) LIMIT 1");

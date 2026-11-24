@@ -90,3 +90,6 @@ __pycache__/
 # Scripts and tests
 /scripts/
 /tests/
+/tests/*
+!/tests/
+!/tests/personal_sign_in_activity_test.php

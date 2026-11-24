@@ -34,7 +34,6 @@ if (!$pdo) {
 }
 
 ensureUserModuleSchema($pdo);
-seedUserModuleAccounts($pdo);
 
 $action = requestString($_GET, 'action', requestString($_POST, 'action'));
 

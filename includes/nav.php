@@ -1,10 +1,10 @@
 <?php
 $currentPage = $_GET['page'] ?? 'dashboard';
-$settingsPages = ['account', 'preferences', 'configure'];
+$settingsPages = ['account', 'sign_in_activity', 'preferences', 'configure'];
 $isActiveSettings = in_array($currentPage, $settingsPages, true);
 $activeSettingsSubpage = $currentPage === 'configure'
     ? (($_GET['section'] ?? '') === 'rules' ? 'rules' : 'institution')
-    : $currentPage;
+    : ($currentPage === 'sign_in_activity' ? 'account' : $currentPage);
 $settingsExpanded = $isActiveSettings;
 $activeLogTab = ($_GET['log_tab'] ?? '') === 'security' ? 'security' : 'activity';
 $logsExpanded = $currentPage === 'logs';
