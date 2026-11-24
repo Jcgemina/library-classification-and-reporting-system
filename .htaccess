@@ -1,0 +1,26 @@
+# AppSys Library — web root hardening
+# Public entry points (root *.php), assets/ and pages/ stay reachable.
+
+# Never generate directory listings.
+Options -Indexes
+
+# Internal project files that must never be downloaded.
+# (.md, .sql and .lock files are already covered by the extension rule below.)
+<FilesMatch "(?i)^(?:composer\.json|package(?:-lock)?\.json|psalm\.xml|psalm-report\.(?:txt|json)|security-report\.json|skills-lock\.json|copilot-permission-test\.txt|COMMAND\.txt|impeccable\.-commands\.txt|tailwind\.config\.js)$">
+    Require all denied
+</FilesMatch>
+
+# Internal file types that have no business being served anywhere in this tree.
+<FilesMatch "(?i)\.(?:sql|md|lock|log|ini|cnf|dist|bak|old|orig|yml|yaml)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Source, configuration, tooling and private storage directories.
+    RewriteRule ^(?:config|includes|vendor|node_modules|tests|bin|scripts|code-reviews|docs|markdowns|agent|mockups|logo-design-skill|out|uploads|backups)(?:/|$) - [F,NC,L]
+
+    # Dotfiles and dot-directories (.env, .git, .github, ...).
+    RewriteRule (^|/)\. - [F,L]
+</IfModule>

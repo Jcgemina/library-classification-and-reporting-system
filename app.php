@@ -7,8 +7,8 @@ requireLogin();
 $csrfToken = csrfToken();
 
 $userRole = strtolower($_SESSION['role'] ?? 'librarian');
-$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'user', 'logs', 'configure', 'backup'];
-$staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account'];
+$adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'sign_in_activity', 'user', 'logs', 'configure', 'backup'];
+$staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'sign_in_activity'];
 $restrictedPages = ['user', 'logs', 'configure', 'backup'];
 
 $allowedPages = $userRole === 'admin' ? $adminPages : $staffPages;
@@ -132,8 +132,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 
   <script>
     const currentUserRole = <?php echo json_encode($userRole, JSON_THROW_ON_ERROR); ?>;
-    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'user', 'logs', 'configure'];
-    const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account'];
+    const adminPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'sign_in_activity', 'user', 'logs', 'configure'];
+    const staffPages = ['dashboard', 'inventory', 'academics', 'course', 'reference_analyzer', 'report', 'preferences', 'account', 'sign_in_activity'];
     const restrictedPages = ['user', 'logs', 'configure'];
     const allowedPages = currentUserRole === 'admin' ? adminPages : staffPages;
 
@@ -156,7 +156,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     }
 
     function updateActiveTab(activePage) {
-        const settingsPages = ['account', 'preferences', 'configure'];
+        const settingsPages = ['account', 'sign_in_activity', 'preferences', 'configure'];
         const settingsActive = settingsPages.includes(activePage);
         const activeNavPage = settingsActive ? 'account' : activePage;
         const activeLogTab = urlLogTab();
@@ -200,7 +200,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         const urlParams = new URLSearchParams(window.location.search);
         const activeSettingsSubpage = activePage === 'configure'
             ? (urlParams.get('section') === 'rules' ? 'rules' : urlParams.get('section') === 'backup' ? 'backup' : 'institution')
-            : activePage;
+            : activePage === 'sign_in_activity' ? 'account' : activePage;
         document.querySelectorAll('[data-settings-child]').forEach(link => {
             const isActive = settingsActive && link.dataset.settingsChild === activeSettingsSubpage;
             link.classList.remove('bg-rose-50', 'text-rose-800', 'font-semibold');
@@ -372,6 +372,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         report: 'Report',
         preferences: 'Preferences',
         account: 'My Account',
+        sign_in_activity: 'Sign-in activity',
         user: 'User Management',
         logs: 'Logs',
         configure: requestedSection === 'rules' ? 'Library Rules' : requestedSection === 'backup' ? 'Backup & Restore' : 'Institutional Profile',
@@ -437,6 +438,8 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
           ? 'Preferences'
           : safePage === 'account'
           ? 'My Account'
+          : safePage === 'sign_in_activity'
+          ? 'Sign-in activity'
           : safePage === 'configure'
           ? (requestedSection === 'rules' ? 'Library Rules' : requestedSection === 'backup' ? 'Backup & Restore' : 'Institutional Profile')
           : safePage === 'reference_analyzer'

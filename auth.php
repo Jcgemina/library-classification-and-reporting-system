@@ -65,6 +65,9 @@ $user = $stmt->fetch();
 // Validate password and user status
 if (!$user || !is_string($user['password'] ?? null) || !password_verify($password, $user['password']) || (int)$user['is_active'] !== 1) {
     recordAttempt($pdo, $username, $ip, false);
+    if (is_array($user)) {
+        recordSecurityLog($pdo, (int)$user['id'], $username, 'login_failed', 'warning', 'Failed sign-in attempt.', $ip);
+    }
     $failedCount = getFailedAttemptCount($pdo, $username, $ip);
     $message = 'Invalid username or password.';
     if ($failedCount >= 1 && $failedCount < MAX_ATTEMPTS) {

@@ -847,6 +847,7 @@ CREATE TABLE IF NOT EXISTS security_logs (
     INDEX idx_security_created_at (created_at),
     INDEX idx_security_event_type (event_type),
     INDEX idx_security_ip_address (ip_address),
+    INDEX idx_security_user_event_created (user_id, event_type, created_at),
     CONSTRAINT fk_security_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
@@ -866,6 +867,13 @@ PREPARE drop_course_type_column FROM @drop_course_type_column;
 EXECUTE drop_course_type_column;
 DEALLOCATE PREPARE drop_course_type_column;
 
--- To create a sample librarian account with a properly hashed password,
--- run the included create_admin.php script from the command line (php create_admin.php).
--- Do NOT insert a plaintext or hand-typed hash directly into this table.
+SET @security_user_event_index_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'security_logs' AND INDEX_NAME = 'idx_security_user_event_created');
+SET @create_security_user_event_index = IF(@security_user_event_index_exists > 0,
+    'SELECT 1',
+    'CREATE INDEX idx_security_user_event_created ON security_logs (user_id, event_type, created_at)');
+PREPARE create_security_user_event_index FROM @create_security_user_event_index;
+EXECUTE create_security_user_event_index;
+DEALLOCATE PREPARE create_security_user_event_index;
+
+-- To create the first administrator, run create_admin.php from the command line.
+-- It generates a unique random password and refuses to overwrite existing credentials.
