@@ -133,6 +133,16 @@ Do not treat a small test ZIP or an error message as a successful backup. A vali
 
 Check that the account can log in to the same MySQL host and port as the app and that the grants were applied to `appsys_library` on that server. A MySQL `1045` error means authentication failed; check the username, password, and account host before changing table privileges.
 
+### Restore reports MySQL error 1227 about `SYSTEM_USER`
+
+Backups taken by a system account (such as `root`) contain `DEFINER=` clauses. The app removes every DEFINER clause from the dump when creating a backup and again before importing one, so an archive is never the reason for this error.
+
+The cause is in the target database: its views, functions, procedures, events or triggers were created by another account (usually `root`), and MySQL does not let the restore account drop or replace them.
+
+The app handles this automatically. Before importing, it reads the objects the archive recreates. If the backup account (`BACKUP_DB_USER`) can drop the ones owned by another account, it does so, and the import recreates them under `RESTORE_DB_USER` so later restores replace them normally.
+
+If the backup account cannot drop them — the usual case when it is not a MySQL administrator — the restore still completes. The import continues past those objects, they keep their current definition, and everything else (tables, data and uploaded files) is restored. The success message names the objects that were left unchanged, so apply newer definitions by hand if the archive contains them. Do not grant `SYSTEM_USER` or `SET_ANY_DEFINER` to the application or restore account.
+
 ### MySQL client not found
 
 Check that `mysqldump.exe` exists and that PHP can access it through `PATH` or `MYSQLDUMP_PATH`. Restore also requires `mysql.exe`, available through `PATH` or `MYSQL_PATH`.

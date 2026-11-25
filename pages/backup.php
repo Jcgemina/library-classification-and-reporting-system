@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/backup_dump.php';
 
 requireLogin();
 
@@ -89,7 +90,7 @@ function backupMysqlOptionsFile(string $directory, string $dbUser, string $dbPas
     return $path;
 }
 
-function backupRunMysql(array $command, ?string $inputFile = null): void {
+function backupRunMysql(array $command, ?string $inputFile = null, ?callable $toleratedErrors = null): void {
     $descriptors = [
         0 => ['pipe', 'r'],
         1 => ['pipe', 'w'],
@@ -123,8 +124,18 @@ function backupRunMysql(array $command, ?string $inputFile = null): void {
     fclose($pipes[2]);
     $exitCode = proc_close($process);
 
+    $details = trim((string)$errors . "\n" . (string)$output);
+    if ($toleratedErrors !== null) {
+        if (!$toleratedErrors($details)) {
+            throw new RuntimeException($details !== '' ? $details : 'The MySQL client returned an error.');
+        }
+        if ($details !== '') {
+            error_log('Restore import completed with objects preserved: ' . $details);
+        }
+        return;
+    }
+
     if ($exitCode !== 0 || (isset($copied) && $copied === false)) {
-        $details = trim((string)$errors . "\n" . (string)$output);
         throw new RuntimeException($details !== '' ? $details : 'The MySQL client returned an error.');
     }
 }
@@ -432,6 +443,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'creat
         if (!is_file($dbDump) || filesize($dbDump) === 0) {
             throw new RuntimeException('mysqldump did not create a database dump.');
         }
+        // Keep the dump free of system-account DEFINER clauses so it can be
+        // restored by the application's restore account later.
+        $normalizedDefiners = backupStripDefiners($dbDump);
+        if ($normalizedDefiners > 0) {
+            error_log('Backup normalized ' . $normalizedDefiners . ' DEFINER clause(s) in the database dump.');
+        }
 
         $uploadDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads';
         $filesBackup = $tempDir . DIRECTORY_SEPARATOR . 'uploads';
@@ -574,6 +591,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
     $uploadDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads';
     $uploadsSwapped = false;
     $hadPreviousUploads = false;
+    $preservedObjects = [];
     try {
         if (!class_exists(ZipArchive::class)) {
             backupJsonResponse(['success' => false, 'message' => 'The server cannot open ZIP backups right now. Ask your system administrator to enable ZIP support.'], 503);
@@ -617,6 +635,76 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
             throw new RuntimeException('The backup archive could not be closed cleanly.');
         }
 
+        $dumpFile = $tempDir . DIRECTORY_SEPARATOR . 'database.sql';
+        // Archives created before definers were normalized still contain
+        // system-account DEFINER clauses, which MySQL 8 rejects with 1227.
+        $normalizedDefiners = backupStripDefiners($dumpFile);
+        if ($normalizedDefiners > 0) {
+            error_log('Restore normalized ' . $normalizedDefiners . ' DEFINER clause(s) before import.');
+        }
+
+        // Views, routines, events and triggers created by another account (such
+        // as root) cannot be dropped or replaced by the restore account, which
+        // makes an otherwise valid archive fail on error 1227. Remove the ones
+        // this archive recreates with the backup account, which already holds
+        // the privileges needed, then import as the restore account so the
+        // objects end up owned by it.
+        $dumpObjects = backupDumpObjectNames($dumpFile);
+        $restoreConnect = static function () use ($DB_HOST, $DB_PORT, $DB_NAME, $RESTORE_DB_USER, $RESTORE_DB_PASS): PDO {
+            return new PDO(
+                "mysql:host={$DB_HOST};port={$DB_PORT};dbname={$DB_NAME};charset=utf8mb4",
+                $RESTORE_DB_USER,
+                $RESTORE_DB_PASS,
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false]
+            );
+        };
+        try {
+            $foreignObjects = backupForeignDefinerObjects($restoreConnect(), $DB_NAME);
+        } catch (Throwable $preflightError) {
+            $foreignObjects = [];
+            error_log('Restore preflight skipped: ' . $preflightError->getMessage());
+        }
+        if ($foreignObjects !== []) {
+            $recreated = [];
+            foreach ($foreignObjects as $object) {
+                if (in_array($object['name'], $dumpObjects[$object['type']] ?? [], true)) {
+                    $recreated[$object['type']][] = $object['name'];
+                }
+            }
+            if ($recreated !== [] && $BACKUP_DB_USER !== '') {
+                try {
+                    $adminConnection = new PDO(
+                        "mysql:host={$DB_HOST};port={$DB_PORT};dbname={$DB_NAME};charset=utf8mb4",
+                        $BACKUP_DB_USER,
+                        $BACKUP_DB_PASS,
+                        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false]
+                    );
+                    $dropResult = backupDropDatabaseObjects($adminConnection, $DB_NAME, $recreated);
+                    $adminConnection = null;
+                    if ($dropResult['dropped'] !== []) {
+                        error_log('Restore released foreign-owned objects before import: ' . implode(', ', $dropResult['dropped']));
+                    }
+                    if ($dropResult['failed'] !== []) {
+                        error_log('Restore could not release objects before import: ' . implode('; ', $dropResult['failed']));
+                    }
+                    $foreignObjects = backupForeignDefinerObjects($restoreConnect(), $DB_NAME);
+                } catch (Throwable $normalizationError) {
+                    error_log('Restore ownership normalization skipped: ' . $normalizationError->getMessage());
+                    $foreignObjects = backupForeignDefinerObjects($restoreConnect(), $DB_NAME);
+                }
+            }
+            if ($foreignObjects !== []) {
+                // The backup account cannot remove them, so the import keeps
+                // them as they are and tolerates only their ownership errors.
+                $preservedObjects = $foreignObjects;
+                error_log('Restore will preserve objects owned by another account: '
+                    . implode(', ', array_map(
+                        static fn (array $object): string => $object['type'] . ' ' . $object['name'] . ' (' . $object['definer'] . ')',
+                        $preservedObjects
+                    )));
+            }
+        }
+
         $filesRestore = $tempDir . DIRECTORY_SEPARATOR . 'uploads';
         $restoredProspectuses = $filesRestore . DIRECTORY_SEPARATOR . 'prospectuses';
         if (is_dir($restoredProspectuses)) {
@@ -646,11 +734,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
 
         try {
             $mysqlOptions = backupMysqlOptionsFile($tempDir, $RESTORE_DB_USER, $RESTORE_DB_PASS);
-            backupRunMysql([
-                $mysqlClient,
-                '--defaults-extra-file=' . $mysqlOptions,
-                $DB_NAME,
-            ], $tempDir . DIRECTORY_SEPARATOR . 'database.sql');
+            $importCommand = [$mysqlClient, '--defaults-extra-file=' . $mysqlOptions];
+            if ($preservedObjects !== []) {
+                $importCommand[] = '--force';
+            }
+            $importCommand[] = $DB_NAME;
+            $preservedNames = array_map(static fn (array $object): string => $object['name'], $preservedObjects);
+            backupRunMysql(
+                $importCommand,
+                $dumpFile,
+                $preservedObjects !== []
+                    ? static fn (string $details): bool => backupOnlyOwnershipErrors($details, $preservedNames)
+                    : null
+            );
             if (!unlink($mysqlOptions)) {
                 error_log('Temporary MySQL client settings cleanup failed after restore.');
             }
@@ -683,7 +779,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
             }
         }
 
-        backupJsonResponse(['success' => true, 'message' => 'Restore complete. This page will reload shortly.']);
+        $restoreMessage = 'Restore complete.';
+        if ($preservedObjects !== []) {
+            $preservedNames = array_map(static fn (array $object): string => $object['name'], $preservedObjects);
+            $restoreMessage .= ' These database objects are owned by another account and were left unchanged: '
+                . implode(', ', array_slice($preservedNames, 0, 5))
+                . (count($preservedNames) > 5 ? ' and ' . (count($preservedNames) - 5) . ' more' : '') . '.';
+        }
+        backupJsonResponse(['success' => true, 'message' => $restoreMessage . ' This page will reload shortly.']);
     } catch (Throwable $e) {
         if ($uploadsSwapped) {
             try {
@@ -706,6 +809,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
         }
         $errorDetails = $e->getMessage() . ' ' . ($e->getPrevious()?->getMessage() ?? '');
         error_log('Restore failed: ' . $errorDetails);
+
         $authenticationFailure = preg_match('/(?:\b1045\b|access denied for user)/i', $errorDetails) === 1;
         $routinePrivilegeFailure = preg_match('/(?:\b1419\b|SUPER privilege.*binary logging)/i', $errorDetails) === 1;
         $systemDefinerFailure = preg_match('/\bSYSTEM_USER\b/i', $errorDetails) === 1;
@@ -722,12 +826,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
                 : 'The restore account could not sign in to the database. The database was not restored, and the uploaded files were returned to their previous state. Ask your system administrator to check the account details before retrying.';
         } elseif ($systemDefinerFailure) {
             $message = $uploadRollbackFailed
-                ? 'Restore stopped because the backup DEFINER is a SYSTEM_USER. Do not grant SYSTEM_USER to the application or restore account. The database may be partly changed, and uploaded files could not be fully restored. Do not retry; ask your system administrator to check the system.'
-                : 'Restore stopped because the backup DEFINER is a SYSTEM_USER. Do not grant SYSTEM_USER to the application or restore account. The uploaded files were returned to their previous state, but the database may be partly changed. Do not retry; ask your system administrator to normalize the DEFINER or use a controlled admin restore.';
+                ? 'Restore stopped because the database contains views, routines or events owned by another MySQL account, which the restore account cannot replace. SYSTEM_USER must not be granted. The database may be partly changed, and uploaded files could not be fully restored. Ask your system administrator to drop those objects as a MySQL administrator before retrying.'
+                : 'Restore stopped because the database contains views, routines or events owned by another MySQL account, which the restore account cannot replace. SYSTEM_USER must not be granted. The uploaded files were returned to their previous state, but the database may be partly changed. Ask your system administrator to drop those objects as a MySQL administrator, then retry.';
         } elseif ($definerPrivilegeFailure) {
             $message = $uploadRollbackFailed
-                ? 'Restore stopped with MySQL error 1227 because the backup contains a DEFINER the restore account cannot set. The database may be partly changed, and uploaded files could not be fully restored. Do not retry; ask your system administrator to check the system.'
-                : 'Restore stopped with MySQL error 1227 because the backup contains a DEFINER the restore account cannot set. The uploaded files were returned to their previous state, but the database may be partly changed. Do not retry; ask your system administrator to review the backup and restore method.';
+                ? 'Restore stopped with MySQL error 1227 because the restore account cannot replace a database object owned by another account. The database may be partly changed, and uploaded files could not be fully restored. Ask your system administrator to check the system.'
+                : 'Restore stopped with MySQL error 1227 because the restore account cannot replace a database object owned by another account. The uploaded files were returned to their previous state, but the database may be partly changed. Ask your system administrator to drop the object as a MySQL administrator, then retry.';
         } elseif ($routinePrivilegeFailure) {
             $message = $uploadRollbackFailed
                 ? 'Restore stopped with MySQL error 1419 because binary logging blocks stored-function creation without administrator approval. The database may be partly changed, and uploaded files could not be fully restored. Do not retry; ask your system administrator to check the system.'
