@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/log_helpers.php';
 
 requireLogin();
 if (strtolower($_SESSION['role'] ?? '') !== 'admin') {
@@ -35,31 +36,13 @@ $activityUntilTimestamp = $activityEndDate->modify('+1 day')->format('Y-m-d 00:0
 $securityFromTimestamp = $securityStartDate->format('Y-m-d 00:00:00');
 $securityUntilTimestamp = $securityEndDate->modify('+1 day')->format('Y-m-d 00:00:00');
 
-function exportFilterParts(string $alias, string $search, ?int $userId, string $severity, string $fromTimestamp, string $untilTimestamp): array {
-
-    $where = ["{$alias}.created_at >= :from_timestamp", "{$alias}.created_at < :until_timestamp"];
-    $params = [':from_timestamp' => $fromTimestamp, ':until_timestamp' => $untilTimestamp];
-
-    if ($search !== '') {
-        $eventColumn = $alias === 'a' ? 'action' : 'event_type';
-        $usernameCondition = $alias === 's' ? " OR {$alias}.username LIKE :search_username" : '';
-        $where[] = "({$alias}.description LIKE :search_description OR {$alias}.ip_address LIKE :search_ip OR {$alias}.{$eventColumn} LIKE :search_event OR u.full_name LIKE :search_user{$usernameCondition})";
-        $value = '%' . $search . '%';
-        foreach (['description', 'ip', 'event', 'user'] as $field) $params[':search_' . $field] = $value;
-        if ($alias === 's') $params[':search_username'] = $value;
-    }
-    if ($userId !== null) { $where[] = "{$alias}.user_id = :user_id"; $params[':user_id'] = $userId; }
-    if ($severity !== '') { $where[] = "{$alias}.severity = :severity"; $params[':severity'] = $severity; }
-    return [implode(' AND ', $where), $params];
-}
-
 if ($pdo === null) {
     http_response_code(503);
     exit('Database connection is not established.');
 }
 
-[$activityWhere, $activityParams] = exportFilterParts('a', $activitySearch, $activityUserId, '', $activityFromTimestamp, $activityUntilTimestamp);
-[$securityWhere, $securityParams] = exportFilterParts('s', $securitySearch, $securityUserId, $securitySeverity, $securityFromTimestamp, $securityUntilTimestamp);
+[$activityWhere, $activityParams] = logFilterParts('a', $activitySearch, $activityUserId, '', $activityFromTimestamp, $activityUntilTimestamp);
+[$securityWhere, $securityParams] = logFilterParts('s', $securitySearch, $securityUserId, $securitySeverity, $securityFromTimestamp, $securityUntilTimestamp);
 $activityQuery = $pdo->prepare("SELECT a.created_at, u.full_name, a.action, a.description, a.entity_type, a.entity_id, a.ip_address FROM activity_logs a LEFT JOIN users u ON u.id = a.user_id WHERE {$activityWhere} ORDER BY a.created_at DESC");
 $activityQuery->execute($activityParams);
 $securityQuery = $pdo->prepare("SELECT s.created_at, u.full_name, s.username, s.event_type, s.severity, s.description, s.ip_address, s.user_agent FROM security_logs s LEFT JOIN users u ON u.id = s.user_id WHERE {$securityWhere} ORDER BY s.created_at DESC");

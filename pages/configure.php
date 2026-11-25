@@ -729,9 +729,12 @@ $configureBreadcrumbLabel = $section === 'rules'
     </form>
 </div>
 
-<dialog class="prototype-dialog backup-restore-dialog" id="backupRestoreDialog" aria-labelledby="backupRestoreDialogTitle" aria-describedby="backupRestoreDialogDescription">
+<dialog class="prototype-dialog backup-restore-dialog" id="backupRestoreDialog" aria-labelledby="backupRestoreDialogTitle" aria-describedby="backupRestoreSelectionLabel backupRestoreSelection backupRestoreDialogDescription">
   <h2 id="backupRestoreDialogTitle">Restore this backup?</h2>
-  <p class="backup-restore-selection">Selected backup: <strong id="backupRestoreSelection"></strong></p>
+  <p class="backup-restore-selection">
+    <span id="backupRestoreSelectionLabel">Selected backup:</span>
+    <strong id="backupRestoreSelection"></strong>
+  </p>
   <div class="backup-restore-warning" id="backupRestoreDialogDescription">
     <i data-lucide="triangle-alert" aria-hidden="true"></i>
     <span>This replaces the current database and uploaded files with the selected backup. You cannot undo this. Create a backup of the current data first if you need to keep it.</span>

@@ -411,6 +411,9 @@ if ($action !== '') {
         } else {
             organizationJson(['success' => false, 'message' => 'Unknown organization action.'], 400);
         }
+        if ($operation === 'delete') {
+            organizationJson(['success' => true, 'message' => ucfirst($entity) . ' deleted successfully.']);
+        }
         organizationJson(['success' => true, 'message' => 'Organization updated successfully.']);
     } catch (PDOException $exception) {
         organizationJson(['success' => false, 'message' => (($exception->errorInfo[1] ?? 0) === 1062) ? 'That name or course code already exists at this level.' : 'Unable to update the organization.'], 409);
@@ -444,6 +447,11 @@ if ($action !== '') {
       </nav>
       <div id="collegePicker">
         <p class="mb-2 ml-2 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-600">Colleges</p>
+        <label class="academic-tree-search mb-2">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <input id="collegeSearch" type="search" placeholder="Search colleges" aria-label="Search colleges" aria-describedby="collegeSearchResultCount" autocomplete="off">
+        </label>
+        <p id="collegeSearchResultCount" class="mb-1 px-2 text-[10px] text-slate-600" aria-live="polite"></p>
         <div id="collegeChoices" class="flex gap-1 overflow-x-auto pb-1 md:grid md:overflow-visible"></div>
       </div>
       <span id="organizationStatus" class="sr-only" aria-live="polite">Loading organization...</span>
