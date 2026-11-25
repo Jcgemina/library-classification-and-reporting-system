@@ -690,10 +690,16 @@ $configureBreadcrumbLabel = $section === 'rules'
                     <p class="settings-section-copy">Download or restore a saved backup.</p>
                 </div>
                 <div class="backup-history-wrap">
+                    <div class="backup-history-toolbar">
+                        <p class="backup-history-summary" id="backupHistorySummary" role="status" aria-live="polite">Loading saved backups…</p>
+                        <button type="button" class="button" id="viewAllBackupsButton" aria-haspopup="dialog" aria-controls="backupHistoryDialog">
+                            <i data-lucide="archive" aria-hidden="true"></i>View all backups
+                        </button>
+                    </div>
                     <table class="backup-history">
                         <thead><tr><th scope="col">Created</th><th scope="col">Contents</th><th scope="col">Size</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
-                        <tbody>
-                            <!-- Loaded by JavaScript -->
+                        <tbody id="backupHistoryRecentRows">
+                            <tr><td class="backup-history-message" data-label="Backup history" colspan="5">Loading backups…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -742,6 +748,26 @@ $configureBreadcrumbLabel = $section === 'rules'
   <div class="dialog-actions backup-confirm-actions">
     <button type="button" class="button" id="cancelBackupRestore">Cancel</button>
     <button type="button" class="button button-danger" id="confirmBackupRestore">Restore backup</button>
+  </div>
+</dialog>
+
+<dialog class="prototype-dialog backup-history-dialog" id="backupHistoryDialog" aria-labelledby="backupHistoryDialogTitle" aria-describedby="backupHistoryDialogSummary">
+  <div class="backup-history-dialog-header">
+    <div>
+      <h2 id="backupHistoryDialogTitle">All backups</h2>
+      <p class="backup-history-dialog-summary" id="backupHistoryDialogSummary" role="status" aria-live="polite">Loading saved backups…</p>
+    </div>
+    <button type="button" class="button backup-history-dialog-close" id="closeBackupHistoryDialog" aria-label="Close backup history">
+      <i data-lucide="x" aria-hidden="true"></i>
+    </button>
+  </div>
+  <div class="backup-history-wrap">
+    <table class="backup-history">
+      <thead><tr><th scope="col">Created</th><th scope="col">Contents</th><th scope="col">Size</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+      <tbody id="backupHistoryAllRows">
+        <tr><td class="backup-history-message" data-label="Backup history" colspan="5">Loading backups…</td></tr>
+      </tbody>
+    </table>
   </div>
 </dialog>
 

@@ -33,6 +33,9 @@
 !/assets/
 /assets/*
 !/assets/css/
+!/assets/js/
+/assets/js/*
+!/assets/js/backup.js
 /assets/css/*
 !/assets/css/app.css
 !/assets/css/tailwind.css
