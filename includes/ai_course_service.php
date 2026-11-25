@@ -117,19 +117,12 @@ function aiCourseCosineSimilarity(array $left, array $right): float
     return $dot / (sqrt($leftMagnitude) * sqrt($rightMagnitude));
 }
 
-function aiCourseCallEmbedding(string $text, array $config): array
+function aiCoursePostJson(string $url, string $payload, array $config, string $unavailableMessage): array
 {
-    $url = 'https://generativelanguage.googleapis.com/v1beta/models/'
-        . rawurlencode($config['embedding_model']) . ':embedContent';
-    $payload = json_encode([
-        'taskType' => 'SEMANTIC_SIMILARITY',
-        'content' => ['parts' => [['text' => $text]]],
-    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-
     $responseBody = '';
     $curl = curl_init($url);
     if ($curl === false) {
-        throw new AiCourseException('provider_unavailable', 'The AI service could not be reached. Try again shortly.', true);
+        throw new AiCourseException('provider_unavailable', $unavailableMessage, true);
     }
     curl_setopt_array($curl, [
         CURLOPT_POST => true,
@@ -155,6 +148,34 @@ function aiCourseCallEmbedding(string $text, array $config): array
     $curlError = curl_errno($curl);
     $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
     curl_close($curl);
+
+    return [
+        'success' => $success,
+        'curl_error' => $curlError,
+        'status' => $status,
+        'body' => $responseBody,
+    ];
+}
+
+function aiCourseCallEmbedding(string $text, array $config): array
+{
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/'
+        . rawurlencode($config['embedding_model']) . ':embedContent';
+    $payload = json_encode([
+        'taskType' => 'SEMANTIC_SIMILARITY',
+        'content' => ['parts' => [['text' => $text]]],
+    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+
+    $response = aiCoursePostJson(
+        $url,
+        $payload,
+        $config,
+        'The AI service could not be reached. Try again shortly.'
+    );
+    $success = $response['success'];
+    $curlError = $response['curl_error'];
+    $status = $response['status'];
+    $responseBody = $response['body'];
 
     if ($success === false) {
         if ($curlError === CURLE_OPERATION_TIMEDOUT || $curlError === CURLE_COULDNT_CONNECT || $curlError === CURLE_RECV_ERROR) {
@@ -251,35 +272,16 @@ function aiCourseReviewCandidates(array $book, array $candidates, array $config)
     ];
     $url = 'https://generativelanguage.googleapis.com/v1beta/models/'
         . rawurlencode($config['relevance_model']) . ':generateContent';
-    $responseBody = '';
-    $curl = curl_init($url);
-    if ($curl === false) {
-        throw new AiCourseException('provider_unavailable', 'The relevance check could not reach the AI service.', true);
-    }
-    curl_setopt_array($curl, [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'x-goog-api-key: ' . $config['api_key'],
-        ],
-        CURLOPT_CONNECTTIMEOUT => min(10, $config['timeout']),
-        CURLOPT_TIMEOUT => $config['timeout'],
-        CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-        CURLOPT_WRITEFUNCTION => static function (CurlHandle $handle, string $chunk) use (&$responseBody): int {
-            if (strlen($responseBody) + strlen($chunk) > 2 * 1024 * 1024) {
-                return 0;
-            }
-            $responseBody .= $chunk;
-            return strlen($chunk);
-        },
-    ]);
-
-    $success = curl_exec($curl);
-    $curlError = curl_errno($curl);
-    $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-    curl_close($curl);
+    $response = aiCoursePostJson(
+        $url,
+        json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+        $config,
+        'The relevance check could not reach the AI service.'
+    );
+    $success = $response['success'];
+    $curlError = $response['curl_error'];
+    $status = $response['status'];
+    $responseBody = $response['body'];
     if ($success === false) {
         $retryable = in_array($curlError, [CURLE_OPERATION_TIMEDOUT, CURLE_COULDNT_CONNECT, CURLE_RECV_ERROR], true);
         throw new AiCourseException('provider_unavailable', 'The relevance check could not reach the AI service.', $retryable);

@@ -92,4 +92,5 @@ __pycache__/
 /tests/
 /tests/*
 !/tests/
+!/tests/activity_log_filter_test.php
 !/tests/personal_sign_in_activity_test.php

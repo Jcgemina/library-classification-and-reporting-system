@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/log_helpers.php';
 
 if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=logs');
@@ -48,33 +49,6 @@ $activityTotal = 0;
 $securityTotal = 0;
 $logUsers = [];
 $databaseError = null;
-
-function logFilterParts(string $alias, string $search, ?int $userId, string $severity, string $fromTimestamp, string $untilTimestamp): array {
-  $where = ["{$alias}.created_at >= :from_timestamp", "{$alias}.created_at < :until_timestamp"];
-  $params = [':from_timestamp' => $fromTimestamp, ':until_timestamp' => $untilTimestamp];
-
-  if ($search !== '') {
-    $eventColumn = $alias === 'a' ? 'action' : 'event_type';
-    $usernameCondition = $alias === 's' ? " OR {$alias}.username LIKE :search_username" : '';
-    $where[] = "({$alias}.description LIKE :search_description OR {$alias}.ip_address LIKE :search_ip OR {$alias}.{$eventColumn} LIKE :search_event OR u.full_name LIKE :search_user{$usernameCondition})";
-    $searchValue = '%' . $search . '%';
-    $params[':search_description'] = $searchValue;
-    $params[':search_ip'] = $searchValue;
-    $params[':search_event'] = $searchValue;
-    $params[':search_user'] = $searchValue;
-    if ($alias === 's') $params[':search_username'] = $searchValue;
-  }
-  if ($userId !== null) {
-    $where[] = "{$alias}.user_id = :user_id";
-    $params[':user_id'] = $userId;
-  }
-  if ($severity !== '') {
-    $where[] = "{$alias}.severity = :severity";
-    $params[':severity'] = $severity;
-  }
-
-  return [implode(' AND ', $where), $params];
-}
 
 try {
   if ($pdo === null) {

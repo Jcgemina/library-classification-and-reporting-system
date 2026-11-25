@@ -552,13 +552,20 @@
     function renderCollegeChoices() {
         const choices = document.getElementById('collegeChoices');
         const colleges = organizationData.colleges || [];
-        choices.innerHTML = colleges.length ? colleges.map(college => {
+        const query = document.getElementById('collegeSearch').value.trim().toLocaleLowerCase();
+        const matchingColleges = colleges.filter(college => String(college.name).toLocaleLowerCase().includes(query));
+        const countLabel = colleges.length === 1 ? 'college' : 'colleges';
+        document.getElementById('collegeSearchResultCount').textContent = query
+            ? `${matchingColleges.length} of ${colleges.length} ${countLabel}`
+            : `${colleges.length} ${countLabel}`;
+        choices.innerHTML = matchingColleges.length ? matchingColleges.map(college => {
             const programCount = (college.programs || []).length;
             const selected = String(college.id) === String(selectedCollegeId);
             return `<button type="button" class="flex min-h-[38px] w-auto min-w-max items-center justify-between gap-3 rounded-md px-2 text-left text-[11px] text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 md:w-full md:min-w-0 ${selected ? 'bg-rose-100 font-semibold text-rose-800' : ''}" data-academic-college="${Number(college.id)}" aria-pressed="${selected}" aria-label="${esc(college.name)}, ${programCount} ${programCount === 1 ? 'program' : 'programs'}">
                 <span class="min-w-0 md:whitespace-normal">${esc(college.name)}</span><span class="shrink-0 text-[10px] tabular-nums text-slate-600">${programCount}</span>
               </button>`;
-        }).join('') : '<p class="px-2 py-2 text-xs text-slate-600">No colleges have been added.</p>';
+        }).join('') : `<p class="px-2 py-2 text-xs text-slate-600">${query ? 'No colleges match your search.' : 'No colleges have been added.'}</p>`;
+        lucide.createIcons({ root: document.getElementById('collegePicker') });
     }
 
     function render(data) {
@@ -761,6 +768,7 @@
         renderCollegeChoices();
         renderSelectedCollege();
     });
+    document.getElementById('collegeSearch').addEventListener('input', renderCollegeChoices);
     document.getElementById('organizationSearch').oninput = renderRecords;
     document.getElementById('organizationStatusFilter').onchange = renderRecords;
     document.getElementById('organizationTypeFilter').onchange = renderRecords;

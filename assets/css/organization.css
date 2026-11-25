@@ -7,6 +7,17 @@
   padding: 14px 0 12px;
 }
 
+@media (min-width: 768px) {
+  #collegeChoices {
+    max-height: max(8rem, calc(100vh - 26rem));
+    max-height: max(8rem, calc(100dvh - 26rem));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+  }
+}
+
 .academic-tree-search {
   position: relative;
   display: block;

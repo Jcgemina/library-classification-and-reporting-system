@@ -359,6 +359,10 @@
         }
 
         state.allLibrarians = result.librarians || [];
+        const availableIds = new Set(state.allLibrarians.map((user) => user.id));
+        state.selectedIds.forEach((id) => {
+          if (!availableIds.has(id)) state.selectedIds.delete(id);
+        });
         state.currentPage = 1;
         updateStats();
         renderLibrarians();
