@@ -396,7 +396,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
             <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
             <i class="logs-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
           </button>
-          <div id="adminLogsMenu" class="logs-menu" data-logs-menu-content <?php echo $logsExpanded ? '' : 'hidden'; ?>>
+          <div id="adminLogsMenu" class="settings-submenu settings-submenu-sidebar logs-menu" data-logs-menu-content <?php echo $logsExpanded ? '' : 'hidden'; ?>>
             <a href="app.php?page=logs&amp;log_tab=activity" data-page="logs" data-log-tab="activity" class="settings-submenu-link logs-link" <?php echo $isActive && $activeLogTab === 'activity' ? 'aria-current="page"' : ''; ?>><i data-lucide="activity" aria-hidden="true"></i><span>Activity logs</span></a>
             <a href="app.php?page=logs&amp;log_tab=security" data-page="logs" data-log-tab="security" class="settings-submenu-link logs-link" <?php echo $isActive && $activeLogTab === 'security' ? 'aria-current="page"' : ''; ?>><i data-lucide="shield-check" aria-hidden="true"></i><span>Security logs</span></a>
           </div>

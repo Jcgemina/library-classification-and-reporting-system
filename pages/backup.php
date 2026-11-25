@@ -67,8 +67,8 @@ function backupMysqlClient(string $name): ?string {
     return null;
 }
 
-function backupMysqlOptionsFile(string $directory): string {
-    global $DB_HOST, $DB_PORT, $BACKUP_DB_USER, $BACKUP_DB_PASS;
+function backupMysqlOptionsFile(string $directory, string $dbUser, string $dbPass): string {
+    global $DB_HOST, $DB_PORT;
     $escapeOption = static fn (string $value): string => '"' . str_replace(
         ["\\", '"', "\n", "\r", "\t"],
         ["\\\\", '\\"', '\\n', '\\r', '\\t'],
@@ -78,8 +78,8 @@ function backupMysqlOptionsFile(string $directory): string {
     $contents = "[client]\n"
         . 'host=' . $escapeOption((string)$DB_HOST) . "\n"
         . 'port=' . $escapeOption((string)$DB_PORT) . "\n"
-        . 'user=' . $escapeOption((string)$BACKUP_DB_USER) . "\n"
-        . 'password=' . $escapeOption((string)$BACKUP_DB_PASS) . "\n";
+        . 'user=' . $escapeOption($dbUser) . "\n"
+        . 'password=' . $escapeOption($dbPass) . "\n";
     if (file_put_contents($path, $contents, LOCK_EX) === false) {
         throw new RuntimeException('Could not write temporary MySQL client settings.');
     }
@@ -277,6 +277,7 @@ if (!$pdo instanceof PDO) {
 }
 
 $backupAction = requestString($_REQUEST, 'action');
+$backupTimezone = new DateTimeZone('Asia/Manila');
 $backupDir = environmentValue(
     'BACKUP_DIR',
     dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . basename(dirname(__DIR__)) . '-backups'
@@ -318,13 +319,16 @@ if ($backupAction === 'list') {
     try {
         $backups = [];
         if (is_dir($backupDir)) {
-            $files = glob($backupDir . DIRECTORY_SEPARATOR . 'backup_*.zip');
-            $files = $files === false ? [] : array_reverse($files);
+            $files = glob($backupDir . DIRECTORY_SEPARATOR . 'backup_*.zip') ?: [];
+            usort($files, static function (string $left, string $right): int {
+                $leftModified = filemtime($left);
+                $rightModified = filemtime($right);
+                return ($rightModified === false ? 0 : $rightModified) <=> ($leftModified === false ? 0 : $leftModified);
+            });
             foreach ($files as $file) {
                 $baseName = basename($file);
-                if (preg_match('/^backup_(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})(?:_[a-f0-9]{8})?\.zip$/', $baseName, $matches) === 1) {
-                    $date = $matches[1] . '-' . $matches[2] . '-' . $matches[3] . ' ' . $matches[4] . ':' . $matches[5] . ':' . $matches[6];
-                    $timestamp = strtotime($date);
+                if (preg_match('/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(?:_[a-f0-9]{8})?\.zip$/', $baseName) === 1) {
+                    $timestamp = filemtime($file);
                     $fileSize = filesize($file);
                     if ($timestamp === false || $fileSize === false) {
                         continue;
@@ -333,7 +337,9 @@ if ($backupAction === 'list') {
 
                     $backups[] = [
                         'filename' => $baseName,
-                        'created' => date('M d, Y · H:i', $timestamp),
+                        'created' => (new DateTimeImmutable('@' . $timestamp))
+                            ->setTimezone($backupTimezone)
+                            ->format('M d, Y · H:i'),
                         'size' => $size,
                         'status' => 'Complete',
                         'contents' => 'Database + uploaded files'
@@ -398,17 +404,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'creat
             throw new RuntimeException('Could not find mysqldump. Add it to PATH or configure MYSQLDUMP_PATH.');
         }
 
-        $timestamp = date('Y-m-d_H-i-s');
+        $backupCreatedAt = new DateTimeImmutable('now', $backupTimezone);
+        $timestamp = $backupCreatedAt->format('Y-m-d_H-i-s');
         $backupName = 'backup_' . $timestamp . '_' . bin2hex(random_bytes(4)) . '.zip';
         $backupFile = $backupDir . DIRECTORY_SEPARATOR . $backupName;
         $archiveTempFile = $backupDir . DIRECTORY_SEPARATOR . '.creating_' . bin2hex(random_bytes(8)) . '.zip';
-        $tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'library-backup-' . bin2hex(random_bytes(8));
+        $tempDir = $backupDir . DIRECTORY_SEPARATOR . '.library-backup-' . bin2hex(random_bytes(8));
         if (!mkdir($tempDir, 0700, true)) {
             throw new RuntimeException('Could not create a temporary backup directory.');
         }
 
         $dbDump = $tempDir . DIRECTORY_SEPARATOR . 'database.sql';
-        $mysqlOptions = backupMysqlOptionsFile($tempDir);
+        $mysqlOptions = backupMysqlOptionsFile($tempDir, $BACKUP_DB_USER, $BACKUP_DB_PASS);
         backupRunMysql([
             $mysqlDump,
             '--defaults-extra-file=' . $mysqlOptions,
@@ -480,7 +487,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'creat
             'message' => 'Backup created successfully.',
             'backup' => [
                 'filename' => basename($backupFile),
-                'created' => date('M d, Y · H:i', strtotime($timestamp)),
+                'created' => $backupCreatedAt->format('M d, Y · H:i'),
                 'size' => $size,
                 'status' => 'Complete'
             ]
@@ -571,8 +578,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
         if (!class_exists(ZipArchive::class)) {
             backupJsonResponse(['success' => false, 'message' => 'The server cannot open ZIP backups right now. Ask your system administrator to enable ZIP support.'], 503);
         }
-        if (empty($DB_NAME) || empty($BACKUP_DB_USER) || !isset($DB_HOST, $DB_PORT, $BACKUP_DB_PASS)) {
+        if (empty($DB_NAME) || !isset($DB_HOST, $DB_PORT)) {
             throw new RuntimeException('Database connection settings are incomplete.');
+        }
+        if (empty($RESTORE_DB_USER) || !isset($RESTORE_DB_PASS)) {
+            throw new RuntimeException('Restore database credentials are not configured. Set RESTORE_DB_USER and RESTORE_DB_PASS in .env.');
         }
         $mysqlClient = backupMysqlClient('mysql');
         if ($mysqlClient === null) {
@@ -593,7 +603,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
             backupJsonResponse(['success' => false, 'message' => 'Restore session expired.'], 404);
         }
 
-        $tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'library-restore-' . bin2hex(random_bytes(8));
+        $tempDir = $backupDir . DIRECTORY_SEPARATOR . '.library-restore-' . bin2hex(random_bytes(8));
         if (!mkdir($tempDir, 0700, true)) {
             throw new RuntimeException('Could not create a temporary restore directory.');
         }
@@ -635,7 +645,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
         $uploadsSwapped = true;
 
         try {
-            $mysqlOptions = backupMysqlOptionsFile($tempDir);
+            $mysqlOptions = backupMysqlOptionsFile($tempDir, $RESTORE_DB_USER, $RESTORE_DB_PASS);
             backupRunMysql([
                 $mysqlClient,
                 '--defaults-extra-file=' . $mysqlOptions,
@@ -694,15 +704,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $backupAction === 'resto
                 }
             }
         }
-        error_log('Restore failed: ' . $e->getMessage());
         $errorDetails = $e->getMessage() . ' ' . ($e->getPrevious()?->getMessage() ?? '');
+        error_log('Restore failed: ' . $errorDetails);
         $authenticationFailure = preg_match('/(?:\b1045\b|access denied for user)/i', $errorDetails) === 1;
-        $permissionFailure = stripos($errorDetails, 'denied') !== false;
+        $routinePrivilegeFailure = preg_match('/(?:\b1419\b|SUPER privilege.*binary logging)/i', $errorDetails) === 1;
+        $systemDefinerFailure = preg_match('/\bSYSTEM_USER\b/i', $errorDetails) === 1;
+        $definerPrivilegeFailure = preg_match('/(?:\b1227\b|SET_ANY_DEFINER)/i', $errorDetails) === 1;
+        $restoreCredentialsMissing = stripos($errorDetails, 'Restore database credentials are not configured.') !== false;
+        $permissionFailure = stripos($errorDetails, 'denied') !== false
+            || stripos($errorDetails, 'privilege') !== false;
         $uploadRollbackFailed = stripos($errorDetails, 'previous uploads could not be put back') !== false;
-        if ($authenticationFailure) {
+        if ($restoreCredentialsMissing) {
+            $message = 'Restore database credentials are not configured. Set RESTORE_DB_USER and RESTORE_DB_PASS in the .env file before restoring.';
+        } elseif ($authenticationFailure) {
             $message = $uploadRollbackFailed
-                ? 'The backup account could not sign in to the database, and the uploaded files could not be returned to their previous state. Ask your system administrator to check the system before retrying.'
-                : 'The backup account could not sign in to the database. The database was not restored, and the uploaded files were returned to their previous state. Ask your system administrator to check the account details before retrying.';
+                ? 'The restore account could not sign in to the database, and the uploaded files could not be returned to their previous state. Ask your system administrator to check the system before retrying.'
+                : 'The restore account could not sign in to the database. The database was not restored, and the uploaded files were returned to their previous state. Ask your system administrator to check the account details before retrying.';
+        } elseif ($systemDefinerFailure) {
+            $message = $uploadRollbackFailed
+                ? 'Restore stopped because the backup DEFINER is a SYSTEM_USER. Do not grant SYSTEM_USER to the application or restore account. The database may be partly changed, and uploaded files could not be fully restored. Do not retry; ask your system administrator to check the system.'
+                : 'Restore stopped because the backup DEFINER is a SYSTEM_USER. Do not grant SYSTEM_USER to the application or restore account. The uploaded files were returned to their previous state, but the database may be partly changed. Do not retry; ask your system administrator to normalize the DEFINER or use a controlled admin restore.';
+        } elseif ($definerPrivilegeFailure) {
+            $message = $uploadRollbackFailed
+                ? 'Restore stopped with MySQL error 1227 because the backup contains a DEFINER the restore account cannot set. The database may be partly changed, and uploaded files could not be fully restored. Do not retry; ask your system administrator to check the system.'
+                : 'Restore stopped with MySQL error 1227 because the backup contains a DEFINER the restore account cannot set. The uploaded files were returned to their previous state, but the database may be partly changed. Do not retry; ask your system administrator to review the backup and restore method.';
+        } elseif ($routinePrivilegeFailure) {
+            $message = $uploadRollbackFailed
+                ? 'Restore stopped with MySQL error 1419 because binary logging blocks stored-function creation without administrator approval. The database may be partly changed, and uploaded files could not be fully restored. Do not retry; ask your system administrator to check the system.'
+                : 'Restore stopped with MySQL error 1419 because binary logging blocks stored-function creation without administrator approval. The uploaded files were returned to their previous state, but the database may be partly changed. Do not retry; ask your system administrator to review the server settings and database before retrying.';
         } elseif ($permissionFailure) {
             $message = $uploadRollbackFailed
                 ? 'Restore stopped because the database account is missing required access. The database may be partly changed, and the uploaded files could not be fully returned to their previous state. Do not retry; ask your system administrator to check the system.'
