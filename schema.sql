@@ -1,23 +1,17 @@
--- Week 1: Authentication Module
--- Database: appsys_library
+-- Core schema DDL for appsys_library.
+-- Select the target database before running this file.
 
-CREATE DATABASE IF NOT EXISTS appsys_library CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE appsys_library;
-
--- Table: users
--- Used by pages/user.php for librarian and admin account management.
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,      -- store hashed password only (password_hash)
+    password VARCHAR(255) NOT NULL,
     full_name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) DEFAULT NULL,    -- wk2
+    email VARCHAR(100) DEFAULT NULL,
     role VARCHAR(30) DEFAULT 'librarian',
     is_active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- Academic organization hierarchy used by the Organization module.
 CREATE TABLE IF NOT EXISTS colleges (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL UNIQUE,
@@ -46,7 +40,6 @@ CREATE TABLE IF NOT EXISTS majors (
     CONSTRAINT fk_majors_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- Per-program and per-major quarterly verification progress, by calendar year.
 CREATE TABLE IF NOT EXISTS program_progress (
     progress_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     program_id INT NOT NULL,
@@ -86,7 +79,6 @@ CREATE TABLE IF NOT EXISTS courses (
     CONSTRAINT fk_courses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- Library titles and their individually numbered physical copies.
 CREATE TABLE IF NOT EXISTS books (
     book_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     isbn VARCHAR(20) DEFAULT NULL,
@@ -163,7 +155,6 @@ CREATE TABLE IF NOT EXISTS course_embeddings (
     CONSTRAINT fk_course_embeddings_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-DROP TRIGGER IF EXISTS trg_books_invalidate_embedding_after_update;
 CREATE TRIGGER trg_books_invalidate_embedding_after_update
 AFTER UPDATE ON books
 FOR EACH ROW
@@ -171,7 +162,6 @@ DELETE FROM book_embeddings
 WHERE book_id = NEW.book_id
   AND (NOT (OLD.title <=> NEW.title) OR NOT (OLD.description <=> NEW.description));
 
-DROP TRIGGER IF EXISTS trg_courses_invalidate_embedding_after_update;
 CREATE TRIGGER trg_courses_invalidate_embedding_after_update
 AFTER UPDATE ON courses
 FOR EACH ROW
@@ -180,6 +170,21 @@ WHERE course_id = NEW.id
   AND (NOT (OLD.code <=> NEW.code)
        OR NOT (OLD.name <=> NEW.name)
        OR NOT (OLD.description <=> NEW.description));
+
+CREATE TABLE IF NOT EXISTS book_course_suggestion_runs (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    book_id INT UNSIGNED NOT NULL,
+    requested_by INT DEFAULT NULL,
+    embedding_model VARCHAR(100) NOT NULL,
+    relevance_model VARCHAR(100) NOT NULL,
+    book_source_hash CHAR(64) NOT NULL,
+    course_catalog_hash CHAR(64) NOT NULL,
+    book_links_hash CHAR(64) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_book_suggestion_runs_latest (book_id, id),
+    CONSTRAINT fk_book_course_suggestion_runs_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    CONSTRAINT fk_book_course_suggestion_runs_user FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS ai_jobs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -205,22 +210,8 @@ CREATE TABLE IF NOT EXISTS ai_jobs (
     INDEX idx_ai_jobs_user (requested_by, id),
     CONSTRAINT fk_ai_jobs_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
     CONSTRAINT fk_ai_jobs_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
-    CONSTRAINT fk_ai_jobs_user FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB;
-
-CREATE TABLE IF NOT EXISTS book_course_suggestion_runs (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    book_id INT UNSIGNED NOT NULL,
-    requested_by INT DEFAULT NULL,
-    embedding_model VARCHAR(100) NOT NULL,
-    relevance_model VARCHAR(100) NOT NULL,
-    book_source_hash CHAR(64) NOT NULL,
-    course_catalog_hash CHAR(64) NOT NULL,
-    book_links_hash CHAR(64) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_book_suggestion_runs_latest (book_id, id),
-    CONSTRAINT fk_book_course_suggestion_runs_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
-    CONSTRAINT fk_book_course_suggestion_runs_user FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL
+    CONSTRAINT fk_ai_jobs_user FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_ai_jobs_result_run FOREIGN KEY (result_run_id) REFERENCES book_course_suggestion_runs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS book_course_suggestions (
@@ -239,54 +230,6 @@ CREATE TABLE IF NOT EXISTS book_course_suggestions (
     CONSTRAINT fk_book_course_suggestions_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
-SET @suggestion_run_book_links_hash_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book_course_suggestion_runs' AND COLUMN_NAME = 'book_links_hash');
-SET @add_suggestion_run_book_links_hash = IF(@suggestion_run_book_links_hash_exists = 0,
-    'ALTER TABLE book_course_suggestion_runs ADD COLUMN book_links_hash CHAR(64) DEFAULT NULL AFTER course_catalog_hash',
-    'SELECT 1');
-PREPARE add_suggestion_run_book_links_hash FROM @add_suggestion_run_book_links_hash;
-EXECUTE add_suggestion_run_book_links_hash;
-DEALLOCATE PREPARE add_suggestion_run_book_links_hash;
-
-SET @suggestion_run_relevance_model_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book_course_suggestion_runs' AND COLUMN_NAME = 'relevance_model');
-SET @add_suggestion_run_relevance_model = IF(@suggestion_run_relevance_model_exists = 0,
-    'ALTER TABLE book_course_suggestion_runs ADD COLUMN relevance_model VARCHAR(100) DEFAULT NULL AFTER embedding_model',
-    'SELECT 1');
-PREPARE add_suggestion_run_relevance_model FROM @add_suggestion_run_relevance_model;
-EXECUTE add_suggestion_run_relevance_model;
-DEALLOCATE PREPARE add_suggestion_run_relevance_model;
-
-SET @suggestion_relevance_label_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book_course_suggestions' AND COLUMN_NAME = 'relevance_label');
-SET @add_suggestion_relevance_label = IF(@suggestion_relevance_label_exists = 0,
-    'ALTER TABLE book_course_suggestions ADD COLUMN relevance_label ENUM(''relevant'', ''uncertain'', ''irrelevant'') NOT NULL DEFAULT ''uncertain'' AFTER similarity_score',
-    'SELECT 1');
-PREPARE add_suggestion_relevance_label FROM @add_suggestion_relevance_label;
-EXECUTE add_suggestion_relevance_label;
-DEALLOCATE PREPARE add_suggestion_relevance_label;
-
-SET @suggestion_relevance_reason_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book_course_suggestions' AND COLUMN_NAME = 'relevance_reason');
-SET @add_suggestion_relevance_reason = IF(@suggestion_relevance_reason_exists = 0,
-    'ALTER TABLE book_course_suggestions ADD COLUMN relevance_reason VARCHAR(500) DEFAULT NULL AFTER relevance_label',
-    'SELECT 1');
-PREPARE add_suggestion_relevance_reason FROM @add_suggestion_relevance_reason;
-EXECUTE add_suggestion_relevance_reason;
-DEALLOCATE PREPARE add_suggestion_relevance_reason;
-
-SET @ai_jobs_result_run_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ai_jobs' AND COLUMN_NAME = 'result_run_id');
-SET @add_ai_jobs_result_run_column = IF(@ai_jobs_result_run_column_exists = 0,
-    'ALTER TABLE ai_jobs ADD COLUMN result_run_id BIGINT UNSIGNED DEFAULT NULL AFTER requested_by',
-    'SELECT 1');
-PREPARE add_ai_jobs_result_run_column FROM @add_ai_jobs_result_run_column;
-EXECUTE add_ai_jobs_result_run_column;
-DEALLOCATE PREPARE add_ai_jobs_result_run_column;
-
-SET @ai_jobs_result_run_fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ai_jobs' AND CONSTRAINT_NAME = 'fk_ai_jobs_result_run');
-SET @add_ai_jobs_result_run_fk = IF(@ai_jobs_result_run_fk_exists = 0,
-    'ALTER TABLE ai_jobs ADD CONSTRAINT fk_ai_jobs_result_run FOREIGN KEY (result_run_id) REFERENCES book_course_suggestion_runs(id) ON DELETE SET NULL',
-    'SELECT 1');
-PREPARE add_ai_jobs_result_run_fk FROM @add_ai_jobs_result_run_fk;
-EXECUTE add_ai_jobs_result_run_fk;
-DEALLOCATE PREPARE add_ai_jobs_result_run_fk;
-
 CREATE TABLE IF NOT EXISTS copyright_year_ranges (
     range_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     years_threshold SMALLINT UNSIGNED NOT NULL,
@@ -298,16 +241,6 @@ CREATE TABLE IF NOT EXISTS copyright_year_ranges (
     INDEX idx_copyright_year_ranges_active_order (is_active, sort_order)
 ) ENGINE=InnoDB;
 
-INSERT INTO copyright_year_ranges (years_threshold, sort_order)
-SELECT defaults.years_threshold, defaults.sort_order
-FROM (
-    SELECT 5 AS years_threshold, 1 AS sort_order
-    UNION ALL SELECT 10, 2
-    UNION ALL SELECT 20, 3
-) AS defaults
-WHERE NOT EXISTS (SELECT 1 FROM copyright_year_ranges);
-
-DROP FUNCTION IF EXISTS fn_is_within_copyright_year_window;
 CREATE FUNCTION fn_is_within_copyright_year_window(
     p_effective_year SMALLINT UNSIGNED,
     p_years_threshold SMALLINT UNSIGNED,
@@ -327,7 +260,6 @@ RETURN CASE
     ELSE 0
 END;
 
-DROP PROCEDURE IF EXISTS sp_get_copyright_year_metrics;
 CREATE PROCEDURE sp_get_copyright_year_metrics()
 READS SQL DATA
 SELECT r.range_id, r.years_threshold, COUNT(b.book_id) AS title_count
@@ -371,148 +303,6 @@ CREATE TABLE IF NOT EXISTS reference_age_policy_versions (
     CONSTRAINT fk_reference_policy_versions_user FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
-SET @institution_name_column_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'institution_name'
-);
-SET @add_institution_name_column = IF(
-    @institution_name_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN institution_name VARCHAR(180) NOT NULL DEFAULT '''' AFTER minimum_books_per_course',
-    'SELECT 1'
-);
-PREPARE add_institution_name_column FROM @add_institution_name_column;
-EXECUTE add_institution_name_column;
-DEALLOCATE PREPARE add_institution_name_column;
-
-SET @library_name_column_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'library_name'
-);
-SET @add_library_name_column = IF(
-    @library_name_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN library_name VARCHAR(180) NOT NULL DEFAULT '''' AFTER institution_name',
-    'SELECT 1'
-);
-PREPARE add_library_name_column FROM @add_library_name_column;
-EXECUTE add_library_name_column;
-DEALLOCATE PREPARE add_library_name_column;
-
-SET @institution_address_column_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'institution_address'
-);
-SET @add_institution_address_column = IF(
-    @institution_address_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN institution_address VARCHAR(255) NOT NULL DEFAULT '''' AFTER library_name',
-    'SELECT 1'
-);
-PREPARE add_institution_address_column FROM @add_institution_address_column;
-EXECUTE add_institution_address_column;
-DEALLOCATE PREPARE add_institution_address_column;
-
-SET @contact_email_column_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'contact_email'
-);
-SET @add_contact_email_column = IF(
-    @contact_email_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN contact_email VARCHAR(254) NOT NULL DEFAULT '''' AFTER institution_address',
-    'SELECT 1'
-);
-PREPARE add_contact_email_column FROM @add_contact_email_column;
-EXECUTE add_contact_email_column;
-DEALLOCATE PREPARE add_contact_email_column;
-
-SET @contact_phone_column_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'contact_phone'
-);
-SET @add_contact_phone_column = IF(
-    @contact_phone_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN contact_phone VARCHAR(40) NOT NULL DEFAULT '''' AFTER contact_email',
-    'SELECT 1'
-);
-PREPARE add_contact_phone_column FROM @add_contact_phone_column;
-EXECUTE add_contact_phone_column;
-DEALLOCATE PREPARE add_contact_phone_column;
-
-SET @default_curriculum_year_column_exists = (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'library_configuration'
-      AND COLUMN_NAME = 'default_curriculum_year'
-);
-SET @add_default_curriculum_year_column = IF(
-    @default_curriculum_year_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN default_curriculum_year VARCHAR(30) NOT NULL DEFAULT '''' AFTER minimum_books_per_course',
-    'SELECT 1'
-);
-PREPARE add_default_curriculum_year_column FROM @add_default_curriculum_year_column;
-EXECUTE add_default_curriculum_year_column;
-DEALLOCATE PREPARE add_default_curriculum_year_column;
-
-SET @reference_policy_direction_column_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'reference_policy_direction'
-);
-SET @add_reference_policy_direction_column = IF(
-    @reference_policy_direction_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN reference_policy_direction ENUM(''within'', ''at_least'') DEFAULT NULL AFTER default_curriculum_year',
-    'SELECT 1'
-);
-PREPARE add_reference_policy_direction_column FROM @add_reference_policy_direction_column;
-EXECUTE add_reference_policy_direction_column;
-DEALLOCATE PREPARE add_reference_policy_direction_column;
-
-SET @reference_policy_years_column_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'reference_policy_years'
-);
-SET @add_reference_policy_years_column = IF(
-    @reference_policy_years_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN reference_policy_years SMALLINT UNSIGNED DEFAULT NULL AFTER reference_policy_direction',
-    'SELECT 1'
-);
-PREPARE add_reference_policy_years_column FROM @add_reference_policy_years_column;
-EXECUTE add_reference_policy_years_column;
-DEALLOCATE PREPARE add_reference_policy_years_column;
-
-SET @reference_policy_source_column_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'reference_policy_source'
-);
-SET @add_reference_policy_source_column = IF(
-    @reference_policy_source_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN reference_policy_source VARCHAR(255) DEFAULT NULL AFTER reference_policy_years',
-    'SELECT 1'
-);
-PREPARE add_reference_policy_source_column FROM @add_reference_policy_source_column;
-EXECUTE add_reference_policy_source_column;
-DEALLOCATE PREPARE add_reference_policy_source_column;
-
-SET @reference_policy_effective_date_column_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'library_configuration' AND COLUMN_NAME = 'reference_policy_effective_date'
-);
-SET @add_reference_policy_effective_date_column = IF(
-    @reference_policy_effective_date_column_exists = 0,
-    'ALTER TABLE library_configuration ADD COLUMN reference_policy_effective_date DATE DEFAULT NULL AFTER reference_policy_source',
-    'SELECT 1'
-);
-PREPARE add_reference_policy_effective_date_column FROM @add_reference_policy_effective_date_column;
-EXECUTE add_reference_policy_effective_date_column;
-DEALLOCATE PREPARE add_reference_policy_effective_date_column;
-
-UPDATE library_configuration
-SET default_curriculum_year = CONCAT(YEAR(CURRENT_DATE), '-', YEAR(CURRENT_DATE) + 1)
-WHERE default_curriculum_year = '';
-
-INSERT INTO library_configuration (id, minimum_books_per_course, default_curriculum_year)
-VALUES (1, 1, CONCAT(YEAR(CURRENT_DATE), '-', YEAR(CURRENT_DATE) + 1))
-ON DUPLICATE KEY UPDATE id = 1;
-
--- Prospectus records assigned to a program or optional major.
 CREATE TABLE IF NOT EXISTS prospectuses (
     id INT AUTO_INCREMENT PRIMARY KEY,
     program_id INT NOT NULL,
@@ -535,23 +325,6 @@ CREATE TABLE IF NOT EXISTS prospectus_documents (
     UNIQUE KEY uq_prospectus_document (prospectus_id),
     CONSTRAINT fk_prospectus_documents_prospectus FOREIGN KEY (prospectus_id) REFERENCES prospectuses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
-
--- Remove the retired prospectus title from older installations.
-SET @prospectus_title_exists = (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'prospectuses'
-      AND COLUMN_NAME = 'title'
-);
-SET @drop_prospectus_title = IF(
-    @prospectus_title_exists > 0,
-    'ALTER TABLE prospectuses DROP COLUMN title',
-    'SELECT 1'
-);
-PREPARE drop_prospectus_title FROM @drop_prospectus_title;
-EXECUTE drop_prospectus_title;
-DEALLOCATE PREPARE drop_prospectus_title;
 
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -590,224 +363,6 @@ CREATE TABLE IF NOT EXISTS email_queue (
     INDEX idx_email_queue_pending (sent_at, available_at)
 ) ENGINE=InnoDB;
 
--- wk2
--- Upgrade older installations created before email was added.
--- This is safe to run after the table already exists.
-SET @email_column_exists = (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'users'
-      AND COLUMN_NAME = 'email'
-);
-SET @add_email_column = IF(
-    @email_column_exists = 0,
-    'ALTER TABLE users ADD COLUMN email VARCHAR(100) DEFAULT NULL AFTER full_name',
-    'SELECT 1'
-);
-PREPARE add_email_column FROM @add_email_column;
-EXECUTE add_email_column;
-DEALLOCATE PREPARE add_email_column;
-
-SET @email_type_column_exists = (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'email_queue'
-      AND COLUMN_NAME = 'email_type'
-);
-SET @add_email_type_column = IF(
-    @email_type_column_exists = 0,
-    "ALTER TABLE email_queue ADD COLUMN email_type VARCHAR(20) NOT NULL DEFAULT 'setup' AFTER reset_token",
-    'SELECT 1'
-);
-PREPARE add_email_type_column FROM @add_email_type_column;
-EXECUTE add_email_type_column;
-DEALLOCATE PREPARE add_email_type_column;
-
--- Upgrade older organization installations with majors and course-major links.
-SET @majors_table_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors');
-SET @create_majors_table = IF(@majors_table_exists = 0,
-    'CREATE TABLE majors (id INT AUTO_INCREMENT PRIMARY KEY, program_id INT NOT NULL, name VARCHAR(180) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_major_program_name (program_id, name), CONSTRAINT fk_majors_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE) ENGINE=InnoDB',
-    'SELECT 1');
-PREPARE create_majors_table FROM @create_majors_table;
-EXECUTE create_majors_table;
-DEALLOCATE PREPARE create_majors_table;
-
-SET @major_program_id_key_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors' AND INDEX_NAME = 'uq_major_program_id_id'
-);
-SET @add_major_program_id_key = IF(
-    @major_program_id_key_exists = 0,
-    'ALTER TABLE majors ADD UNIQUE KEY uq_major_program_id_id (program_id, id)',
-    'SELECT 1'
-);
-PREPARE add_major_program_id_key FROM @add_major_program_id_key;
-EXECUTE add_major_program_id_key;
-DEALLOCATE PREPARE add_major_program_id_key;
-
--- Review any returned rows before resolving them; the composite constraint below
--- will fail without removing the existing foreign key if the data is inconsistent.
-SELECT pp.progress_id, pp.program_id, pp.major_id, m.program_id AS major_program_id
-FROM program_progress pp
-LEFT JOIN majors m ON m.id = pp.major_id
-WHERE pp.major_id IS NOT NULL AND (m.id IS NULL OR m.program_id <> pp.program_id);
-
-SET @program_progress_composite_fk_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'program_progress'
-      AND CONSTRAINT_NAME = 'fk_program_progress_major_program'
-);
-SET @add_program_progress_composite_fk = IF(
-    @program_progress_composite_fk_exists = 0,
-    'ALTER TABLE program_progress ADD CONSTRAINT fk_program_progress_major_program FOREIGN KEY (program_id, major_id) REFERENCES majors(program_id, id) ON DELETE CASCADE',
-    'SELECT 1'
-);
-PREPARE add_program_progress_composite_fk FROM @add_program_progress_composite_fk;
-EXECUTE add_program_progress_composite_fk;
-DEALLOCATE PREPARE add_program_progress_composite_fk;
-
-SET @program_progress_major_fk_exists = (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'program_progress'
-      AND CONSTRAINT_NAME = 'fk_program_progress_major'
-);
-SET @drop_program_progress_major_fk = IF(
-    @program_progress_major_fk_exists = 1,
-    'ALTER TABLE program_progress DROP FOREIGN KEY fk_program_progress_major',
-    'SELECT 1'
-);
-PREPARE drop_program_progress_major_fk FROM @drop_program_progress_major_fk;
-EXECUTE drop_program_progress_major_fk;
-DEALLOCATE PREPARE drop_program_progress_major_fk;
-
-SET @major_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'major_id');
-SET @add_major_column = IF(@major_column_exists = 0,
-    'ALTER TABLE courses ADD COLUMN major_id INT DEFAULT NULL AFTER program_id',
-    'SELECT 1');
-PREPARE add_major_column FROM @add_major_column;
-EXECUTE add_major_column;
-DEALLOCATE PREPARE add_major_column;
-
-SET @major_fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND CONSTRAINT_NAME = 'fk_courses_major');
-SET @add_major_fk = IF(@major_fk_exists = 0,
-    'ALTER TABLE courses ADD CONSTRAINT fk_courses_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE',
-    'SELECT 1');
-PREPARE add_major_fk FROM @add_major_fk;
-EXECUTE add_major_fk;
-DEALLOCATE PREPARE add_major_fk;
-
-SET @course_description_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'description');
-SET @add_course_description_column = IF(@course_description_column_exists = 0,
-    'ALTER TABLE courses ADD COLUMN description VARCHAR(500) DEFAULT NULL AFTER name',
-    'SELECT 1');
-PREPARE add_course_description_column FROM @add_course_description_column;
-EXECUTE add_course_description_column;
-DEALLOCATE PREPARE add_course_description_column;
-
-SET @course_program_nullable = 'ALTER TABLE courses MODIFY COLUMN program_id INT DEFAULT NULL';
-PREPARE course_program_nullable_stmt FROM @course_program_nullable;
-EXECUTE course_program_nullable_stmt;
-DEALLOCATE PREPARE course_program_nullable_stmt;
-
-SET @course_units_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'units');
-SET @add_course_units_column = IF(@course_units_column_exists = 0,
-    'ALTER TABLE courses ADD COLUMN units TINYINT UNSIGNED DEFAULT NULL AFTER description',
-    'SELECT 1');
-PREPARE add_course_units_column FROM @add_course_units_column;
-EXECUTE add_course_units_column;
-DEALLOCATE PREPARE add_course_units_column;
-
-SET @course_status_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'status');
-SET @add_course_status_column = IF(@course_status_column_exists = 0,
-    'ALTER TABLE courses ADD COLUMN status ENUM(''active'', ''inactive'') NOT NULL DEFAULT ''active'' AFTER units',
-    'SELECT 1');
-PREPARE add_course_status_column FROM @add_course_status_column;
-EXECUTE add_course_status_column;
-DEALLOCATE PREPARE add_course_status_column;
-
--- Replace the department layer with a direct college-to-program relationship.
-SET @program_college_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'college_id');
-SET @add_program_college = IF(@program_college_exists = 0,
-    'ALTER TABLE programs ADD COLUMN college_id INT NULL AFTER id',
-    'SELECT 1');
-PREPARE add_program_college FROM @add_program_college;
-EXECUTE add_program_college;
-DEALLOCATE PREPARE add_program_college;
-
-SET @departments_table_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'departments');
-SET @program_college_data = IF(@departments_table_exists = 1,
-    'UPDATE programs p INNER JOIN departments d ON d.id = p.department_id SET p.college_id = d.college_id WHERE p.college_id IS NULL',
-    'SELECT 1');
-PREPARE migrate_program_college FROM @program_college_data;
-EXECUTE migrate_program_college;
-DEALLOCATE PREPARE migrate_program_college;
-
-SET @program_department_fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND CONSTRAINT_NAME = 'fk_programs_department');
-SET @drop_program_department_fk = IF(@program_department_fk_exists = 1,
-    'ALTER TABLE programs DROP FOREIGN KEY fk_programs_department',
-    'SELECT 1');
-PREPARE drop_program_department_fk FROM @drop_program_department_fk;
-EXECUTE drop_program_department_fk;
-DEALLOCATE PREPARE drop_program_department_fk;
-
-SET @program_department_key_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND INDEX_NAME = 'uq_program_department_name');
-SET @drop_program_department_key = IF(@program_department_key_exists = 1,
-    'ALTER TABLE programs DROP INDEX uq_program_department_name',
-    'SELECT 1');
-PREPARE drop_program_department_key FROM @drop_program_department_key;
-EXECUTE drop_program_department_key;
-DEALLOCATE PREPARE drop_program_department_key;
-
-SET @program_department_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'department_id');
-SET @drop_program_department_column = IF(@program_department_column_exists = 1,
-    'ALTER TABLE programs DROP COLUMN department_id',
-    'SELECT 1');
-PREPARE drop_program_department_column FROM @drop_program_department_column;
-EXECUTE drop_program_department_column;
-DEALLOCATE PREPARE drop_program_department_column;
-
-ALTER TABLE programs MODIFY COLUMN college_id INT NOT NULL;
-SET @program_college_fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND CONSTRAINT_NAME = 'fk_programs_college');
-SET @add_program_college_fk = IF(@program_college_fk_exists = 0,
-    'ALTER TABLE programs ADD CONSTRAINT fk_programs_college FOREIGN KEY (college_id) REFERENCES colleges(id) ON DELETE CASCADE',
-    'SELECT 1');
-PREPARE add_program_college_fk FROM @add_program_college_fk;
-EXECUTE add_program_college_fk;
-DEALLOCATE PREPARE add_program_college_fk;
-
-SET @program_college_key_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND INDEX_NAME = 'uq_program_college_name');
-SET @add_program_college_key = IF(@program_college_key_exists = 0,
-    'ALTER TABLE programs ADD UNIQUE KEY uq_program_college_name (college_id, name)',
-    'SELECT 1');
-PREPARE add_program_college_key FROM @add_program_college_key;
-EXECUTE add_program_college_key;
-DEALLOCATE PREPARE add_program_college_key;
-
-SET @drop_departments_table = IF(@departments_table_exists = 1, 'DROP TABLE departments', 'SELECT 1');
-PREPARE drop_departments_table FROM @drop_departments_table;
-EXECUTE drop_departments_table;
-DEALLOCATE PREPARE drop_departments_table;
-
--- Remove retired tables and organization code columns from older installations.
-DROP TABLE IF EXISTS prospectus_courses, program_prospectuses;
-SET @drop_college_code = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'colleges' AND COLUMN_NAME = 'code') > 0, 'ALTER TABLE colleges DROP COLUMN code', 'SELECT 1');
-PREPARE drop_college_code_stmt FROM @drop_college_code;
-EXECUTE drop_college_code_stmt;
-DEALLOCATE PREPARE drop_college_code_stmt;
-SET @drop_program_code = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'programs' AND COLUMN_NAME = 'code') > 0, 'ALTER TABLE programs DROP COLUMN code', 'SELECT 1');
-PREPARE drop_program_code_stmt FROM @drop_program_code;
-EXECUTE drop_program_code_stmt;
-DEALLOCATE PREPARE drop_program_code_stmt;
-SET @drop_major_code = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'majors' AND COLUMN_NAME = 'code') > 0, 'ALTER TABLE majors DROP COLUMN code', 'SELECT 1');
-PREPARE drop_major_code_stmt FROM @drop_major_code;
-EXECUTE drop_major_code_stmt;
-DEALLOCATE PREPARE drop_major_code_stmt;
-
--- Table: login_attempts (used for rate limiting / brute-force protection)
 CREATE TABLE IF NOT EXISTS login_attempts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL,
@@ -818,7 +373,6 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     INDEX idx_ip_time (ip_address, attempted_at)
 ) ENGINE=InnoDB;
 
--- Audit trail for normal librarian and administrator actions.
 CREATE TABLE IF NOT EXISTS activity_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id INT DEFAULT NULL,
@@ -833,7 +387,6 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     CONSTRAINT fk_activity_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
--- Security events, including successful/failed logins and blocked requests.
 CREATE TABLE IF NOT EXISTS security_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id INT DEFAULT NULL,
@@ -850,30 +403,3 @@ CREATE TABLE IF NOT EXISTS security_logs (
     INDEX idx_security_user_event_created (user_id, event_type, created_at),
     CONSTRAINT fk_security_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
-
-SET @course_year_level_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'year_level');
-SET @drop_course_year_level_column = IF(@course_year_level_column_exists > 0,
-    'ALTER TABLE courses DROP COLUMN year_level',
-    'SELECT 1');
-PREPARE drop_course_year_level_column FROM @drop_course_year_level_column;
-EXECUTE drop_course_year_level_column;
-DEALLOCATE PREPARE drop_course_year_level_column;
-
-SET @course_type_column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'type');
-SET @drop_course_type_column = IF(@course_type_column_exists > 0,
-    'ALTER TABLE courses DROP COLUMN `type`',
-    'SELECT 1');
-PREPARE drop_course_type_column FROM @drop_course_type_column;
-EXECUTE drop_course_type_column;
-DEALLOCATE PREPARE drop_course_type_column;
-
-SET @security_user_event_index_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'security_logs' AND INDEX_NAME = 'idx_security_user_event_created');
-SET @create_security_user_event_index = IF(@security_user_event_index_exists > 0,
-    'SELECT 1',
-    'CREATE INDEX idx_security_user_event_created ON security_logs (user_id, event_type, created_at)');
-PREPARE create_security_user_event_index FROM @create_security_user_event_index;
-EXECUTE create_security_user_event_index;
-DEALLOCATE PREPARE create_security_user_event_index;
-
--- To create the first administrator, run create_admin.php from the command line.
--- It generates a unique random password and refuses to overwrite existing credentials.

@@ -404,9 +404,9 @@ function aiCourseClaimJob(PDO $pdo): ?array
 {
     $pdo->beginTransaction();
     try {
-        $stmt = $pdo->query("SELECT * FROM ai_jobs WHERE (status = 'queued' AND available_at <= NOW()) OR (status = 'processing' AND locked_until < NOW()) ORDER BY id LIMIT 1 FOR UPDATE");
-        $job = $stmt->fetch();
-        if ($job === null) {
+        $stmt = $pdo->query("SELECT id, job_type, book_id, course_id, requested_by, attempts FROM ai_jobs WHERE (status = 'queued' AND available_at <= NOW()) OR (status = 'processing' AND locked_until < NOW()) ORDER BY id LIMIT 1 FOR UPDATE");
+        $job = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($job === false) {
             $pdo->commit();
             return null;
         }

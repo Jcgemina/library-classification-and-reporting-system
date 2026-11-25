@@ -220,16 +220,30 @@ $accountEmail = trim((string) ($account['email'] ?? ''));
       </div>
       <form class="account-update-form account-form" data-account-action="update_password">
         <input type="hidden" name="csrf_token" value="<?= $escapeAccount($csrfToken) ?>">
-        <label class="settings-field" for="accountPasswordCurrent">Current password
-          <input id="accountPasswordCurrent" name="current_password" type="password" maxlength="<?= PASSWORD_MAX_LENGTH ?>" autocomplete="current-password" required>
-        </label>
-        <label class="settings-field" for="accountNewPassword">New password
-          <input id="accountNewPassword" name="new_password" type="password" minlength="<?= PASSWORD_MIN_LENGTH ?>" maxlength="<?= PASSWORD_MAX_LENGTH ?>" autocomplete="new-password" required aria-describedby="accountPasswordRequirements">
-        </label>
-        <label class="settings-field" for="accountPasswordConfirmation">Confirm new password
-          <input id="accountPasswordConfirmation" name="password_confirmation" type="password" minlength="<?= PASSWORD_MIN_LENGTH ?>" maxlength="<?= PASSWORD_MAX_LENGTH ?>" autocomplete="new-password" required>
-        </label>
-        <p class="settings-help" id="accountPasswordRequirements">Use 8–128 characters, including at least one letter, one number, and one special character.</p>
+        <div class="settings-field">
+          <label for="accountPasswordCurrent">Current password</label>
+          <span class="account-password-control">
+            <input id="accountPasswordCurrent" name="current_password" type="password" maxlength="<?= PASSWORD_MAX_LENGTH ?>" autocomplete="current-password" required>
+            <button type="button" class="account-password-toggle" data-account-password-toggle="accountPasswordCurrent" aria-label="Show current password" aria-pressed="false" aria-controls="accountPasswordCurrent">Show</button>
+          </span>
+        </div>
+        <div class="settings-field">
+          <label for="accountNewPassword">New password</label>
+          <span class="account-password-control">
+            <input id="accountNewPassword" name="new_password" type="password" minlength="<?= PASSWORD_MIN_LENGTH ?>" maxlength="<?= PASSWORD_MAX_LENGTH ?>" autocomplete="new-password" required aria-describedby="accountPasswordStatus">
+            <button type="button" class="account-password-toggle" data-account-password-toggle="accountNewPassword" aria-label="Show new password" aria-pressed="false" aria-controls="accountNewPassword">Show</button>
+          </span>
+          <div class="account-password-requirements" id="accountPasswordRequirements" hidden>
+            <p id="accountPasswordStatus" class="account-password-status" role="status" aria-live="polite"></p>
+          </div>
+        <div class="settings-field">
+          <label for="accountPasswordConfirmation">Confirm new password</label>
+          <span class="account-password-control">
+            <input id="accountPasswordConfirmation" name="password_confirmation" type="password" minlength="<?= PASSWORD_MIN_LENGTH ?>" maxlength="<?= PASSWORD_MAX_LENGTH ?>" autocomplete="new-password" required aria-describedby="accountPasswordConfirmationStatus">
+            <button type="button" class="account-password-toggle" data-account-password-toggle="accountPasswordConfirmation" aria-label="Show password confirmation" aria-pressed="false" aria-controls="accountPasswordConfirmation">Show</button>
+          </span>
+        </div>
+        <p id="accountPasswordConfirmationStatus" class="account-password-match settings-help" role="status" aria-live="polite" hidden></p>
         <div class="account-form-footer">
           <button type="submit" class="account-submit settings-button settings-button-primary">Save password</button>
           <span class="account-form-status settings-status" role="status" aria-live="polite"></span>
