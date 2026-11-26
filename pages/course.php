@@ -480,10 +480,10 @@ if ($action !== null) {
         <div class="courses-summary-item"><strong id="totalCount">0</strong><span>Courses</span></div>
         <div class="courses-summary-item"><strong id="activeCount">0</strong><span>Active</span></div>
         <div class="courses-summary-item"><strong id="readyCount">0</strong><span>Meet book minimum</span></div>
-        <div class="courses-summary-item"><span id="courseStatusMessage" aria-live="polite">Loading courses…</span></div>
+        <div class="courses-summary-item"><span id="courseStatusMessage" class="is-loading" aria-live="polite">Loading catalog…</span></div>
     </section>
 
-    <section class="courses-workspace" aria-labelledby="coursesDirectoryTitle">
+    <section class="courses-workspace" aria-labelledby="coursesDirectoryTitle" aria-busy="true">
         <div class="courses-directory-heading">
             <div><h2 id="coursesDirectoryTitle">Course directory</h2><p>Search by code, name, or academic assignment.</p></div>
         </div>

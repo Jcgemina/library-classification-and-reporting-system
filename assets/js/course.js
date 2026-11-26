@@ -4,6 +4,7 @@
         return;
     }
 
+    const courseWorkspace = coursePage.querySelector('.courses-workspace');
     const admin = coursePage.dataset.courseAdmin === 'true';
     const state = { courses: [], colleges: [], programs: [], majors: [] };
     const $ = (id) => document.getElementById(id);
@@ -365,6 +366,10 @@
     async function loadCourses() {
         syncCourseProgramOptions();
         const requestId = ++latestCourseRequest;
+        const status = $('courseStatusMessage');
+        courseWorkspace.setAttribute('aria-busy', 'true');
+        status.classList.add('is-loading');
+        status.textContent = 'Loading catalog…';
 
         try {
             const data = await request(params());
@@ -393,6 +398,11 @@
 
             $('courseStatusMessage').textContent = error.message;
             toast(error.message, true);
+        } finally {
+            if (requestId === latestCourseRequest) {
+                courseWorkspace.setAttribute('aria-busy', 'false');
+                $('courseStatusMessage').classList.remove('is-loading');
+            }
         }
     }
 
@@ -580,5 +590,10 @@
 
     loadOptions()
         .then(loadCourses)
-        .catch((error) => toast(error.message, true));
+        .catch((error) => {
+            courseWorkspace.setAttribute('aria-busy', 'false');
+            $('courseStatusMessage').classList.remove('is-loading');
+            $('courseStatusMessage').textContent = error.message;
+            toast(error.message, true);
+        });
 })();
