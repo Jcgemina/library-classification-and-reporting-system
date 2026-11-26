@@ -290,10 +290,17 @@
     window.location.reload();
   }
 
-  async function submitInventoryForm(event, form, submitButton, errorElement, fallbackMessage = '') {
+  async function submitInventoryForm(event, form, submitButton, errorElement, fallbackMessage = '', loadingLabel = '') {
     event.preventDefault();
+    const originalMarkup = loadingLabel ? submitButton.innerHTML : '';
     submitButton.disabled = true;
     errorElement.hidden = true;
+
+    if (loadingLabel) {
+      submitButton.setAttribute('aria-busy', 'true');
+      submitButton.innerHTML = `<i data-lucide="loader-circle" class="mr-2 inline-block h-4 w-4 animate-spin" aria-hidden="true"></i>${loadingLabel}`;
+      window.lucide?.createIcons({ nodes: [submitButton] });
+    }
 
     try {
       await postInventoryAction(new FormData(form));
@@ -301,6 +308,11 @@
       errorElement.textContent = error.message || fallbackMessage;
       errorElement.hidden = false;
       submitButton.disabled = false;
+      if (loadingLabel) {
+        submitButton.innerHTML = originalMarkup;
+        submitButton.removeAttribute('aria-busy');
+        window.lucide?.createIcons({ nodes: [submitButton] });
+      }
     }
   }
 
@@ -830,7 +842,7 @@
   });
 
   deleteBookForm?.addEventListener('submit', async (event) => {
-    await submitInventoryForm(event, deleteBookForm, deleteBookSubmit, deleteBookError);
+    await submitInventoryForm(event, deleteBookForm, deleteBookSubmit, deleteBookError, 'Unable to archive this book. Please try again.', 'Archiving…');
   });
 
   const inventoryQuery = new URLSearchParams(window.location.search);
