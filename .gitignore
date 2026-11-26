@@ -100,3 +100,5 @@ __pycache__/
 !/tests/activity_log_filter_test.php
 !/tests/personal_sign_in_activity_test.php
 !/tests/admin_password_confirmation_test.php
+!/tests/reference_age_policy_test.php
+!/tests/isbn_validation_test.php

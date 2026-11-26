@@ -59,6 +59,33 @@ function requestInt(array $source, string $key, int $fallback = 0): int {
     return $validated === false ? $fallback : $validated;
 }
 
+function normalizeIsbn(string $isbn): string {
+    return strtoupper(str_replace([' ', '-', "\t", "\r", "\n"], '', trim($isbn)));
+}
+
+function isValidIsbn(string $isbn): bool {
+    $isbn = normalizeIsbn($isbn);
+    if (preg_match('/\A[0-9]{9}[0-9X]\z/', $isbn) === 1) {
+        $checksum = 0;
+        for ($index = 0; $index < 10; $index++) {
+            $digit = $isbn[$index] === 'X' ? 10 : (int) $isbn[$index];
+            $checksum += $digit * (10 - $index);
+        }
+        return $checksum % 11 === 0;
+    }
+
+    if (preg_match('/\A(?:978|979)[0-9]{10}\z/', $isbn) !== 1) {
+        return false;
+    }
+
+    $checksum = 0;
+    for ($index = 0; $index < 13; $index++) {
+        $digit = (int) $isbn[$index];
+        $checksum += $digit * ($index % 2 === 0 ? 1 : 3);
+    }
+    return $checksum % 10 === 0;
+}
+
 function prospectusStorageDirectory(): string {
     $directory = environmentValue(
         'PROSPECTUS_UPLOAD_DIR',
@@ -459,29 +486,29 @@ function sendPasswordSetupEmail(string $recipient, string $fullName, string $use
         $mail->Username = environmentValue('SMTP_USERNAME');
         $mail->Password = environmentValue('SMTP_PASSWORD');
         $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->setFrom(environmentValue('SMTP_FROM_EMAIL', $mail->Username), environmentValue('SMTP_FROM_NAME', 'AppSys Library'));
+        $mail->setFrom(environmentValue('SMTP_FROM_EMAIL', $mail->Username), environmentValue('SMTP_FROM_NAME', 'LCARS'));
         $mail->addAddress($recipient, $fullName);
         $mail->isHTML(true);
 
         $emailMeta = $emailType === 'reset'
             ? [
-                'subject' => 'Reset your AppSys Library password',
+                'subject' => 'Reset your LCARS password',
                 'eyebrow' => 'ACCOUNT SECURITY',
                 'heading' => 'Reset your password',
-                'intro' => 'We received a request to reset the password for your AppSys Library account.',
+                'intro' => 'We received a request to reset the password for your LCARS account.',
                 'buttonLabel' => 'Reset password',
                 'closing' => 'If you did not request a password reset, you can safely ignore this email.',
-                'altBody' => "Hello {$fullName},\n\nWe received a request to reset your AppSys Library password. Reset it here: {$resetUrl}\n\nThis link expires in one hour. If you did not request a password reset, you can safely ignore this email.",
+                'altBody' => "Hello {$fullName},\n\nWe received a request to reset your LCARS password. Reset it here: {$resetUrl}\n\nThis link expires in one hour. If you did not request a password reset, you can safely ignore this email.",
                 'extraRow' => '',
             ]
             : [
-                'subject' => 'Set up your AppSys Library account',
-                'eyebrow' => 'WELCOME TO APPSYS LIBRARY',
+                'subject' => 'Set up your LCARS account',
+                'eyebrow' => 'WELCOME TO LCARS',
                 'heading' => 'Your account is ready',
-                'intro' => 'An AppSys Library account has been created for you. Set a password to get started.',
+                'intro' => 'An LCARS account has been created for you. Set a password to get started.',
                 'buttonLabel' => 'Set your password',
                 'closing' => 'For your security, this setup link expires in one hour.',
-                'altBody' => "Hello {$fullName},\n\nYour AppSys Library account is ready. Username: {$username}\n\nSet your password here: {$resetUrl}\n\nFor your security, this setup link expires in one hour.",
+                'altBody' => "Hello {$fullName},\n\nYour LCARS account is ready. Username: {$username}\n\nSet your password here: {$resetUrl}\n\nFor your security, this setup link expires in one hour.",
                 'extraRow' => <<<HTML
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#f8fafc;border-left:4px solid #fbbf24;">
                         <tr><td style="padding:16px 18px;color:#334155;font-size:14px;line-height:1.5;"><strong>Username</strong><br>{$safeUsername}</td></tr>
@@ -500,7 +527,7 @@ HTML,
         <tr><td align="center">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
                 <tr><td style="background:#172554;padding:28px 40px;text-align:center;">
-                    <div style="color:#fbbf24;font-size:12px;font-weight:bold;letter-spacing:2px;">APPSYS LIBRARY</div>
+                    <div style="color:#fbbf24;font-size:12px;font-weight:bold;letter-spacing:2px;">LCARS</div>
                     <div style="color:#dbeafe;font-size:12px;margin-top:8px;">{$emailMeta['eyebrow']}</div>
                 </td></tr>
                 <tr><td style="padding:40px;">
@@ -515,7 +542,7 @@ HTML,
                     <p style="margin:0;color:#64748b;font-size:13px;line-height:1.7;">{$emailMeta['closing']}</p>
                     <p style="margin:20px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">If the button does not work, copy and paste this link into your browser:<br><span style="word-break:break-all;color:#64748b;">{$link}</span></p>
                 </td></tr>
-                <tr><td style="border-top:1px solid #e2e8f0;padding:22px 40px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.6;">This is an automated message from AppSys Library.<br>Please do not reply to this email.</td></tr>
+                <tr><td style="border-top:1px solid #e2e8f0;padding:22px 40px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.6;">This is an automated message from LCARS.<br>Please do not reply to this email.</td></tr>
             </table>
         </td></tr>
     </table>
@@ -635,18 +662,32 @@ function assessReferenceAge(?int $publicationYear, array $policy, ?int $currentY
     }
 
     $meetsPolicy = $direction === 'within' ? $age <= $threshold : $age >= $threshold;
+    $yearsUntilOutsidePolicy = $threshold + 1 - $age;
+    $approachingPolicyLimit = $direction === 'within'
+        && $meetsPolicy
+        && $yearsUntilOutsidePolicy >= 1
+        && $yearsUntilOutsidePolicy <= 2;
     $policyDescription = $direction === 'within'
         ? "published within the last {$threshold} years"
         : "at least {$threshold} years old";
+    $status = $approachingPolicyLimit
+        ? 'approaching_policy_limit'
+        : ($meetsPolicy ? 'meets_policy' : 'outside_policy');
+    $label = $approachingPolicyLimit
+        ? 'Approaching Policy Limit'
+        : ($meetsPolicy ? 'Meets Policy' : 'Outside Policy');
+    $explanation = $approachingPolicyLimit
+        ? "The book currently meets policy but is expected to fall outside it in {$yearsUntilOutsidePolicy} " . ($yearsUntilOutsidePolicy === 1 ? 'year' : 'years') . '. Review it before then.'
+        : ($meetsPolicy
+            ? "The book is {$policyDescription}, as required by the configured reference-age policy."
+            : "The book is not {$policyDescription}, as required by the configured reference-age policy.");
 
     return [
-        'status' => $meetsPolicy ? 'meets_policy' : 'outside_policy',
-        'label' => $meetsPolicy ? 'Meets Policy' : 'Outside Policy',
+        'status' => $status,
+        'label' => $label,
         'age' => $age,
         'threshold' => $threshold,
         'policy_direction' => $direction,
-        'explanation' => $meetsPolicy
-            ? "The book is {$policyDescription}, as required by the configured reference-age policy."
-            : "The book is not {$policyDescription}, as required by the configured reference-age policy.",
+        'explanation' => $explanation,
     ];
 }

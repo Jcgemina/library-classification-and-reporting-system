@@ -55,14 +55,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $error === null) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Set Password - AppSys Library</title>
+<title>Set Password - LCARS</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="flex min-h-screen items-center justify-center bg-slate-200 p-6">
   <main class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-2xl">
     <h1 class="text-2xl font-bold text-slate-900">Set your password</h1>
-    <p class="mt-2 text-sm text-slate-500">Choose a new password for your AppSys Library account.</p>
+    <p class="mt-2 text-sm text-slate-500">Choose a new password for your LCARS account.</p>
     <?php if ($error): ?><div class="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
     <?php if ($success): ?><div class="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"><?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
     <?php if ($userId !== null): ?>

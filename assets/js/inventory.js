@@ -10,6 +10,9 @@
   const formMessage = document.querySelector('[data-inventory-form-message]');
   const formTitle = document.querySelector('[data-book-form-title]');
   const formSubmitLabel = document.querySelector('[data-book-form-submit] span');
+  const isbnInput = addBookForm.elements.isbn;
+  const isbnError = addBookForm.querySelector('[data-inventory-isbn-error]');
+  const isbnValidationMessage = 'Enter a valid ISBN-10 or ISBN-13 with the correct check digit.';
   const archiveOpenButton = document.querySelector('[data-inventory-archive-open]');
   const archiveCloseButton = document.querySelector('[data-inventory-archive-close]');
   const archiveModal = document.getElementById('inventoryArchiveModal');
@@ -79,6 +82,43 @@
   let activeAiBookId = null;
   let activeAiRun = null;
   let aiPollTimer = null;
+
+  function normalizeIsbnInput(value) {
+    return value.trim().replace(/[ \t\r\n-]/g, '').toUpperCase();
+  }
+
+  function isValidIsbnInput(value) {
+    const isbn = normalizeIsbnInput(value);
+    if (/^[0-9]{9}[0-9X]$/.test(isbn)) {
+      let checksum = 0;
+      for (let index = 0; index < 10; index += 1) {
+        const digit = isbn[index] === 'X' ? 10 : Number(isbn[index]);
+        checksum += digit * (10 - index);
+      }
+      return checksum % 11 === 0;
+    }
+
+    if (!/^(978|979)[0-9]{10}$/.test(isbn)) return false;
+    let checksum = 0;
+    for (let index = 0; index < 13; index += 1) {
+      checksum += Number(isbn[index]) * (index % 2 === 0 ? 1 : 3);
+    }
+    return checksum % 10 === 0;
+  }
+
+  function validateIsbn(showError) {
+    const value = isbnInput.value.trim();
+    const valid = value === '' || isValidIsbnInput(value);
+    const showMessage = !valid && showError;
+    isbnInput.setCustomValidity(showMessage ? isbnValidationMessage : '');
+    isbnInput.toggleAttribute('aria-invalid', showMessage);
+    isbnError.hidden = !showMessage;
+    isbnError.textContent = showMessage ? isbnValidationMessage : '';
+    return valid;
+  }
+
+  isbnInput.addEventListener('blur', () => validateIsbn(true));
+  isbnInput.addEventListener('input', () => validateIsbn(!isbnError.hidden));
 
   function closeDialog(dialog) {
     if (dialog?.open) dialog.close();
@@ -166,6 +206,7 @@
 
   addBookButton?.addEventListener('click', () => {
     addBookForm.reset();
+    validateIsbn(false);
     addBookForm.elements.action.value = 'create_book';
     addBookForm.elements.book_id.value = '';
     formTitle.textContent = 'Add Book';
@@ -292,6 +333,10 @@
 
   async function submitInventoryForm(event, form, submitButton, errorElement, fallbackMessage = '', loadingLabel = '') {
     event.preventDefault();
+    if (form === addBookForm && !validateIsbn(true)) {
+      isbnInput.focus();
+      return;
+    }
     const originalMarkup = loadingLabel ? submitButton.innerHTML : '';
     submitButton.disabled = true;
     errorElement.hidden = true;
@@ -723,6 +768,7 @@
 
   function editBook(book) {
     addBookForm.reset();
+    validateIsbn(false);
     addBookForm.elements.action.value = 'update_book';
     addBookForm.elements.book_id.value = book.book_id;
     addBookForm.elements.title.value = book.title;

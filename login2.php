@@ -22,7 +22,7 @@ $isLocked = $lockSeconds > 0;
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AppSys Library - Login</title>
+  <title>LCARS - Login</title>
   <link rel="icon" href="assets/brand/digital/favicon.ico" sizes="48x48">
   <link rel="icon" type="image/svg+xml" href="assets/brand/digital/favicon.svg">
   <link rel="manifest" href="assets/brand/digital/site.webmanifest">
@@ -55,11 +55,11 @@ $isLocked = $lockSeconds > 0;
     <div class="mx-auto flex max-w-[1280px] items-center justify-between px-5 py-4">
       <div class="flex items-center gap-3">
         <div class="overflow-hidden rounded-full border border-white/30 bg-white/5 p-1.5">
-          <img src="assets/brand/digital/appsys-library-symbol-white.svg" alt="AppSys Library logo" class="h-7 w-7 object-contain" />
+          <img src="assets/brand/digital/appsys-library-symbol-white.svg" alt="LCARS logo" class="h-7 w-7 object-contain" />
         </div>
         <div>
-          <div class="text-[1.8rem] font-black leading-none tracking-[-0.04em]">AppSys</div>
-          <div class="text-[0.65rem] font-medium text-slate-300">Library Management Portal</div>
+          <div class="text-[1.8rem] font-black leading-none tracking-[-0.04em]">LCARS</div>
+          <div class="text-[0.65rem] font-medium text-slate-300">Library Classification and Reporting System</div>
         </div>
       </div>
     </div>
@@ -85,12 +85,12 @@ $isLocked = $lockSeconds > 0;
 
           <div class="relative z-10 flex h-full flex-col items-center justify-center text-center">
             <div class="mb-7 flex h-28 w-28 items-center justify-center rounded-full border-[3px] border-[#e6d39a] bg-[#0e1e3a] shadow-[0_0_0_10px_rgba(255,255,255,0.03)] p-3">
-              <img src="assets/brand/digital/appsys-library-symbol-white.svg" alt="AppSys Library logo" class="h-full w-full object-contain" />
+              <img src="assets/brand/digital/appsys-library-symbol-white.svg" alt="LCARS logo" class="h-full w-full object-contain" />
             </div>
 
             <h1 class="text-4xl font-bold tracking-[-0.04em] text-white">Welcome back</h1>
             <p class="mt-3 max-w-[24rem] text-base leading-relaxed text-slate-300">
-              AppSys Library, your library operations, online.
+              LCARS, your library operations, online.
             </p>
 
             <ul class="mt-8 w-full max-w-[23rem] space-y-4 text-left text-sm text-slate-100">

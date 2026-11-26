@@ -341,7 +341,7 @@
             day: 'numeric',
             year: 'numeric',
         });
-        const institutionName = institutionProfile.institution_name || 'AppSys Library';
+        const institutionName = institutionProfile.institution_name || 'LCARS';
         const libraryName = institutionProfile.library_name || 'Program and major verification progress';
         const profileDetails = [
             institutionProfile.institution_address,

@@ -330,12 +330,28 @@
   color: #9f1239;
 }
 
+.live-academics-page .academics-button-danger {
+  border-color: var(--app-color-primary);
+  background: var(--app-color-primary);
+  color: #fff;
+}
+
+.live-academics-page .academics-button-danger:focus-visible {
+  outline-color: var(--app-color-primary-hover);
+}
+
 .academics-button-danger:hover,
 .academic-row-action.is-delete:hover,
 [data-builder-remove]:hover {
   border-color: #fecdd3;
   background: #fff1f2;
   color: #881337;
+}
+
+.live-academics-page .academics-button-danger:hover {
+  border-color: var(--app-color-primary-hover);
+  background: var(--app-color-primary-hover);
+  color: #fff;
 }
 
 .live-academics-page .academics-tab {

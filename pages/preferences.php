@@ -15,7 +15,7 @@ requireLogin();
     <header class="settings-page-heading">
         <div>
             <h1>Preferences</h1>
-            <p class="page-description">Adjust how AppSys Library looks for you. These choices do not affect other users.</p>
+            <p class="page-description">Adjust how LCARS looks for you. These choices do not affect other users.</p>
         </div>
         <span class="settings-preview-chip"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>Personal settings</span>
     </header>

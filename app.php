@@ -26,7 +26,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AppSys Library - Dashboard</title>
+<title>LCARS - Dashboard</title>
 <link rel="icon" href="assets/brand/digital/favicon.ico" sizes="48x48">
 <link rel="icon" type="image/svg+xml" href="assets/brand/digital/favicon.svg">
 <link rel="manifest" href="assets/brand/digital/site.webmanifest">
@@ -897,7 +897,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
           : safePage === 'reference_analyzer'
             ? 'Reference Analyzer'
             : safePage.charAt(0).toUpperCase() + safePage.slice(1);
-        document.title = 'AppSys Library - ' + pageTitle;
+        document.title = 'LCARS - ' + pageTitle;
       })
       .catch(() => {
         if (requestId !== activePageRequestId) {
@@ -944,7 +944,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         history.pushState({ page: 'configure' }, '', sectionUrl);
         updateConfigureSection(preservedParams.get('section'));
         updateActiveTab('configure');
-        document.title = 'AppSys Library - ' + (preservedParams.get('section') === 'rules' ? 'Library Rules' : preservedParams.get('section') === 'backup' ? 'Backup & Restore' : 'Institutional Profile');
+        document.title = 'LCARS - ' + (preservedParams.get('section') === 'rules' ? 'Library Rules' : preservedParams.get('section') === 'backup' ? 'Backup & Restore' : 'Institutional Profile');
         scrollToRouteAnchor(targetUrl.hash, 'smooth');
         return;
       }
@@ -972,7 +972,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
       if (activePage === 'configure' && document.querySelector('[data-configure-page]')) {
         updateConfigureSection(new URLSearchParams(window.location.search).get('section'));
         updateActiveTab(activePage);
-        document.title = 'AppSys Library - ' + (new URLSearchParams(window.location.search).get('section') === 'rules' ? 'Library Rules' : new URLSearchParams(window.location.search).get('section') === 'backup' ? 'Backup & Restore' : 'Institutional Profile');
+        document.title = 'LCARS - ' + (new URLSearchParams(window.location.search).get('section') === 'rules' ? 'Library Rules' : new URLSearchParams(window.location.search).get('section') === 'backup' ? 'Backup & Restore' : 'Institutional Profile');
         scrollToRouteAnchor(window.location.hash);
         return;
       }

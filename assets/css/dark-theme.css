@@ -196,6 +196,10 @@ html[data-app-theme="dark"] .log-table strong {
   color: var(--app-color-ink);
 }
 
+html[data-app-theme="dark"] .reference-summary-item.is-warning .reference-summary-value {
+  color: var(--app-color-warning-text);
+}
+
 html[data-app-theme="dark"] #pageContent .page-description,
 html[data-app-theme="dark"] .course-name-label,
 html[data-app-theme="dark"] .course-academic-detail,
@@ -271,6 +275,7 @@ html[data-app-theme="dark"] .backup-status.is-success {
 
 html[data-app-theme="dark"] .course-readiness,
 html[data-app-theme="dark"] .reference-status.is-missing,
+html[data-app-theme="dark"] .reference-status.is-warning,
 html[data-app-theme="dark"] .backup-status.is-error {
   color: var(--app-color-warning-text);
 }
@@ -554,6 +559,7 @@ html[data-app-theme="dark"] .academic-tree-status.is-active {
 }
 
 html[data-app-theme="dark"] .reference-status.is-review,
+html[data-app-theme="dark"] .reference-status.is-warning,
 html[data-app-theme="dark"] .course-readiness {
   border-color: var(--app-color-warning-line);
   background-color: var(--app-color-warning-soft);

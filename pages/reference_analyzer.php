@@ -53,7 +53,7 @@ if (isset($_GET['action'])) {
             $programId = $programInput === '' ? 0 : filter_var($programInput, FILTER_VALIDATE_INT);
             $courseId = $courseInput === '' ? 0 : filter_var($courseInput, FILTER_VALIDATE_INT);
 
-            if (!in_array($status, ['all', 'meets_policy', 'outside_policy', 'needs_verification', 'missing_publication_data'], true)) {
+            if (!in_array($status, ['all', 'meets_policy', 'approaching_policy_limit', 'outside_policy', 'needs_verification', 'missing_publication_data'], true)) {
                 referenceAnalyzerJson(['success' => false, 'message' => 'Choose a valid policy status.'], 422);
             }
             foreach ([$collegeId, $programId, $courseId] as $filterId) {
@@ -106,6 +106,7 @@ if (isset($_GET['action'])) {
             $summary = [
                 'total' => 0,
                 'meets_policy' => 0,
+                'approaching_policy_limit' => 0,
                 'outside_policy' => 0,
                 'needs_verification' => 0,
                 'missing_publication_data' => 0,
@@ -210,6 +211,7 @@ $_SESSION['inventory_csrf'] = $csrfToken;
             <div class="reference-summary" aria-label="Reference policy assessment counts">
                 <div class="reference-summary-item"><div class="reference-summary-label">Matching books</div><div class="reference-summary-value" data-summary="total">—</div></div>
                 <div class="reference-summary-item is-meets"><div class="reference-summary-label">Meets policy</div><div class="reference-summary-value" data-summary="meets_policy">—</div></div>
+                <div class="reference-summary-item is-warning"><div class="reference-summary-label">Approaching policy limit</div><div class="reference-summary-value" data-summary="approaching_policy_limit">—</div></div>
                 <div class="reference-summary-item is-outside"><div class="reference-summary-label">Outside policy</div><div class="reference-summary-value" data-summary="outside_policy">—</div></div>
                 <div class="reference-summary-item is-review"><div class="reference-summary-label">Needs verification</div><div class="reference-summary-value" data-summary="needs_verification">—</div></div>
                 <div class="reference-summary-item is-missing"><div class="reference-summary-label">Missing publication data</div><div class="reference-summary-value" data-summary="missing_publication_data">—</div></div>
@@ -231,7 +233,7 @@ $_SESSION['inventory_csrf'] = $csrfToken;
             </label>
             <label class="reference-filter-field">Policy status
                 <select name="status" class="reference-filter-control">
-                    <option value="all">All statuses</option><option value="meets_policy">Meets Policy</option><option value="outside_policy">Outside Policy</option><option value="needs_verification">Needs Verification</option><option value="missing_publication_data">Missing Publication Data</option>
+                    <option value="all">All statuses</option><option value="meets_policy">Meets Policy</option><option value="approaching_policy_limit">Approaching Policy Limit</option><option value="outside_policy">Outside Policy</option><option value="needs_verification">Needs Verification</option><option value="missing_publication_data">Missing Publication Data</option>
                 </select>
             </label>
             <label class="reference-filter-field">College

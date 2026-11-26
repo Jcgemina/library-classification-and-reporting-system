@@ -563,7 +563,7 @@
     const nextStatus = librarian.status === 'active' ? 'deactivate' : 'activate';
     const statusAction = nextStatus === 'deactivate' ? 'Deactivate' : 'Activate';
     document.getElementById('statusConfirmTitle').textContent = `${statusAction} account?`;
-    document.getElementById('statusConfirmMessage').textContent = `${statusAction} ${librarian.fullName}'s access to AppSys Library. ${nextStatus === 'deactivate' ? 'They will no longer be able to sign in until re-enabled.' : 'They will regain sign-in access immediately.'}`;
+    document.getElementById('statusConfirmMessage').textContent = `${statusAction} ${librarian.fullName}'s access to LCARS. ${nextStatus === 'deactivate' ? 'They will no longer be able to sign in until re-enabled.' : 'They will regain sign-in access immediately.'}`;
     document.getElementById('adminStatusPassword').value = '';
     const modal = document.getElementById('statusConfirmModal');
     modal.classList.remove('hidden');
