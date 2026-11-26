@@ -184,7 +184,12 @@ function aiCourseCallEmbedding(string $text, array $config): array
         throw new AiCourseException('provider_response_invalid', 'The AI service returned an invalid response.');
     }
 
-    if ($status === 429 || $status >= 500) {
+    if ($status === 429) {
+        error_log('AI embedding provider rate limited a request (HTTP 429).');
+        throw new AiCourseException('provider_rate_limited', 'The AI service is rate limited. Suggestions will be retried.', true);
+    }
+    if ($status >= 500) {
+        error_log('AI embedding provider is unavailable (HTTP ' . $status . ').');
         throw new AiCourseException('provider_busy', 'The AI service is busy. Suggestions will be retried.', true);
     }
     if ($status < 200 || $status >= 300) {

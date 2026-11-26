@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/queue_worker_launcher.php';
 
 if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=configure');
@@ -281,6 +282,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ':reference_policy_effective_date' => $referencePolicyDirection !== null ? $referencePolicyEffectiveDate : null,
         ]);
         $pdo->commit();
+        queueWorkersRunInBackground();
 
         configureJsonResponse([
             'success' => true,

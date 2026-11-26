@@ -74,6 +74,10 @@ if ($action !== '') {
     }
 
     $result = saveUserRecord($pdo, $id, $fullName, $email, $username, $password, $role, (int) ($_SESSION['user_id'] ?? 0), $adminPassword);
+    if ($result['success'] && $result['emailQueued']) {
+        require_once __DIR__ . '/../includes/queue_worker_launcher.php';
+        queueWorkersRunInBackground();
+    }
     header('Content-Type: application/json');
     echo json_encode($result);
         exit;

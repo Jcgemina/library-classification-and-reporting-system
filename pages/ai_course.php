@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/ai_course_service.php';
+require_once __DIR__ . '/../includes/queue_worker_launcher.php';
 
 if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'xmlhttprequest') {
     header('Location: ../app.php?page=inventory');
@@ -62,6 +63,7 @@ try {
         $pending->execute([':request_key' => $requestKey]);
         $pendingJob = $pending->fetch();
         if ($pendingJob) {
+            queueWorkersRunInBackground();
             aiCourseApiResponse(['success' => true, 'state' => $pendingJob['status'], 'job_id' => (int)$pendingJob['id']], 202);
         }
 
@@ -72,6 +74,7 @@ try {
         }
 
         $jobId = aiCourseEnqueueSuggestion($pdo, $bookId, $userId);
+        queueWorkersRunInBackground();
         aiCourseApiResponse(['success' => true, 'state' => 'queued', 'job_id' => $jobId], 202);
     }
 
@@ -80,11 +83,15 @@ try {
         if ($jobId === false || $jobId < 1) {
             aiCourseApiResponse(['success' => false, 'message' => 'Choose a valid job.'], 422);
         }
-        $stmt = $pdo->prepare('SELECT id, book_id, requested_by, result_run_id, status, attempts, last_error FROM ai_jobs WHERE id = :id AND requested_by = :user_id');
+        $stmt = $pdo->prepare('SELECT id, book_id, requested_by, result_run_id, status, attempts, last_error, available_at <= NOW() AS retry_ready FROM ai_jobs WHERE id = :id AND requested_by = :user_id');
         $stmt->execute([':id' => $jobId, ':user_id' => (int)$_SESSION['user_id']]);
         $job = $stmt->fetch();
         if ($job === null) {
             aiCourseApiResponse(['success' => false, 'message' => 'This suggestion request is unavailable.'], 404);
+        }
+
+        if ($job['status'] === 'queued' && (int)$job['attempts'] > 0 && (int)$job['retry_ready'] === 1) {
+            queueWorkersRunInBackground(true, false);
         }
 
         if ($job['status'] === 'completed' && $job['result_run_id'] !== null) {
@@ -165,6 +172,12 @@ try {
             }
 
             if ($action === 'approve') {
+                $referenceHash = aiCourseBookReferenceFingerprint($pdo, (int)$candidate['book_id']);
+                $updateRun = $pdo->prepare('UPDATE book_course_suggestion_runs SET book_links_hash = :book_links_hash WHERE id = :run_id');
+                $updateRun->execute([
+                    ':book_links_hash' => $referenceHash,
+                    ':run_id' => $runId,
+                ]);
                 recordActivityLog($pdo, (int)$_SESSION['user_id'], 'ai_course_approved', 'Approved an AI course suggestion.', 'book', (int)$candidate['book_id']);
             }
             $pdo->commit();
