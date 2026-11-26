@@ -110,6 +110,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <link rel="stylesheet" href="assets/css/user.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/user.css'); ?>">
 <script src="https://unpkg.com/lucide@latest"></script>
 <link rel="stylesheet" href="assets/css/navigation.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/navigation.css'); ?>">
+<link rel="stylesheet" href="assets/css/dark-theme.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/dark-theme.css'); ?>">
 <script>
   window.appUserPreferenceId = <?php echo json_encode((string) ($_SESSION['user_id'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
   window.appCsrfToken = <?php echo json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;

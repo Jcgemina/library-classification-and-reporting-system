@@ -331,6 +331,53 @@
   line-height: 1.3;
 }
 
+.backup-confirm-description {
+  margin: 0 0 16px;
+  color: var(--app-color-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.backup-password-field {
+  display: grid;
+  gap: 7px;
+  color: var(--app-color-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.backup-password-field input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--app-color-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--app-color-surface);
+  color: var(--app-color-ink);
+  font: inherit;
+  font-weight: 400;
+}
+
+.backup-password-field input:focus-visible {
+  border-color: #be123c;
+  outline: 3px solid rgba(190, 18, 60, 0.18);
+  outline-offset: 1px;
+}
+
+.backup-password-help {
+  margin: 7px 0 0;
+  color: var(--app-color-muted);
+  font-size: 12px;
+}
+
+.backup-confirm-error {
+  min-height: 18px;
+  margin: 8px 0 14px;
+  color: #9f1239;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .backup-restore-warning {
   display: flex;
   align-items: flex-start;

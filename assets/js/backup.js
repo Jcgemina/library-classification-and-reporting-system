@@ -20,6 +20,9 @@ class BackupManager {
 
   setupEventListeners() {
     const createBtn = document.getElementById('createBackupButton');
+    const createDialog = document.getElementById('backupCreateDialog');
+    const createConfirmBtn = document.getElementById('confirmBackupCreate');
+    const createCancelBtn = document.getElementById('cancelBackupCreate');
     const fileInput = document.getElementById('backupRestoreFile');
     const previewBtn = document.getElementById('previewRestoreButton');
     const cancelBtn = document.getElementById('cancelBackupRestore');
@@ -30,7 +33,15 @@ class BackupManager {
     const restoreDialog = document.getElementById('backupRestoreDialog');
 
     if (createBtn) {
-      createBtn.addEventListener('click', () => this.createBackup());
+      createBtn.addEventListener('click', () => this.openCreateDialog());
+    }
+
+    if (createConfirmBtn) {
+      createConfirmBtn.addEventListener('click', () => this.createBackup());
+    }
+
+    if (createCancelBtn) {
+      createCancelBtn.addEventListener('click', () => this.closeCreateDialog());
     }
 
     if (fileInput) {
@@ -63,6 +74,24 @@ class BackupManager {
 
     restoreDialog?.addEventListener('cancel', (event) => {
       if (this.processing) event.preventDefault();
+    });
+
+    createDialog?.addEventListener('cancel', (event) => {
+      if (this.processing) event.preventDefault();
+    });
+
+    document.getElementById('backupCreatePassword')?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        createConfirmBtn?.click();
+      }
+    });
+
+    document.getElementById('backupRestorePassword')?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        confirmBtn?.click();
+      }
     });
 
     document.addEventListener('click', (e) => {
@@ -103,7 +132,7 @@ class BackupManager {
 
   syncActionControls() {
     document.querySelectorAll(
-      '#backupRestoreSettings button, #backupHistoryDialog button, #backupRestoreDialog button, #backupRestoreFile'
+      '#backupRestoreSettings button, #backupHistoryDialog button, #backupRestoreDialog button, #backupCreateDialog button, #backupRestoreFile, #backupRestorePassword, #backupCreatePassword'
     ).forEach(control => {
       control.disabled = this.processing;
     });
@@ -117,11 +146,39 @@ class BackupManager {
     if (confirmBtn) confirmBtn.disabled = !this.pendingRestoreId;
   }
 
+  openCreateDialog() {
+    const dialog = document.getElementById('backupCreateDialog');
+    const password = document.getElementById('backupCreatePassword');
+    const error = document.getElementById('backupCreateError');
+    if (!dialog || dialog.open || this.processing) return;
+    password.value = '';
+    error.textContent = '';
+    dialog.showModal();
+    password.focus();
+  }
+
+  closeCreateDialog() {
+    const dialog = document.getElementById('backupCreateDialog');
+    if (dialog?.open) dialog.close();
+    document.getElementById('backupCreatePassword').value = '';
+    document.getElementById('backupCreateError').textContent = '';
+  }
+
   async createBackup() {
-    const btn = document.getElementById('createBackupButton');
+    const btn = document.getElementById('confirmBackupCreate');
     const status = document.getElementById('backupActionStatus');
+    const password = document.getElementById('backupCreatePassword');
+    const error = document.getElementById('backupCreateError');
+    const adminPassword = password.value;
+
+    if (!adminPassword) {
+      error.textContent = 'Enter your administrator password to continue.';
+      password.focus();
+      return;
+    }
 
     if (!this.beginProcessing(btn, 'Creating backup…')) return;
+    error.textContent = '';
     status.textContent = 'Creating backup of the database and uploaded files...';
     status.className = 'backup-status';
 
@@ -129,12 +186,13 @@ class BackupManager {
       const response = await fetch('pages/backup.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `action=create&csrf_token=${encodeURIComponent(this.csrfToken)}`
+        body: `action=create&csrf_token=${encodeURIComponent(this.csrfToken)}&admin_password=${encodeURIComponent(adminPassword)}`
       });
 
       const data = await response.json();
 
       if (data.success) {
+        this.closeCreateDialog();
         status.textContent = 'Backup created. Download it from Backup history if needed.';
         status.className = 'backup-status is-success';
         await this.loadBackupHistory();
@@ -142,10 +200,15 @@ class BackupManager {
         throw new Error(data.message || 'The backup could not be created. Ask your system administrator for help.');
       }
     } catch (error) {
-      status.textContent = error.message || 'The backup could not be created. Ask your system administrator for help.';
-      status.className = 'backup-status is-error';
+      document.getElementById('backupCreateError').textContent = error.message || 'The backup could not be created. Ask your system administrator for help.';
+      document.getElementById('backupCreatePassword').value = '';
+      status.textContent = '';
+      document.getElementById('backupCreatePassword').focus();
     } finally {
       this.endProcessing(btn);
+      if (document.getElementById('backupCreateDialog').open && document.getElementById('backupCreateError').textContent) {
+        document.getElementById('backupCreatePassword').focus();
+      }
     }
   }
 
@@ -376,7 +439,10 @@ class BackupManager {
         const selection = document.getElementById('backupRestoreSelection');
 
         selection.textContent = file.name;
+        document.getElementById('backupRestorePassword').value = '';
+        document.getElementById('backupRestoreError').textContent = '';
         dialog.showModal();
+        document.getElementById('backupRestorePassword').focus();
 
         status.textContent = '';
       } else {
@@ -398,9 +464,11 @@ class BackupManager {
 
     this.pendingRestoreId = filename;
     selection.textContent = filename;
+    document.getElementById('backupRestorePassword').value = '';
+    document.getElementById('backupRestoreError').textContent = '';
     dialog.showModal();
     this.syncActionControls();
-    document.getElementById('confirmBackupRestore').focus();
+    document.getElementById('backupRestorePassword').focus();
   }
 
   async confirmRestore() {
@@ -413,8 +481,18 @@ class BackupManager {
 
     const btn = document.getElementById('confirmBackupRestore');
     const status = document.getElementById('backupActionStatus');
+    const password = document.getElementById('backupRestorePassword');
+    const error = document.getElementById('backupRestoreError');
+    const adminPassword = password.value;
+
+    if (!adminPassword) {
+      error.textContent = 'Enter your administrator password to continue.';
+      password.focus();
+      return;
+    }
 
     if (!this.beginProcessing(btn, 'Restoring backup…')) return;
+    error.textContent = '';
     status.textContent = 'Restoring the database and uploaded files...';
     status.className = 'backup-status';
 
@@ -423,7 +501,7 @@ class BackupManager {
       const response = await fetch('pages/backup.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `action=restore&restore_id=${encodeURIComponent(this.pendingRestoreId)}&csrf_token=${encodeURIComponent(this.csrfToken)}`
+        body: `action=restore&restore_id=${encodeURIComponent(this.pendingRestoreId)}&csrf_token=${encodeURIComponent(this.csrfToken)}&admin_password=${encodeURIComponent(adminPassword)}`
       });
 
       const data = await response.json();
@@ -441,10 +519,17 @@ class BackupManager {
         throw new Error(data.message || 'The restore could not be completed. Ask your system administrator to check the server logs before retrying.');
       }
     } catch (error) {
-      status.textContent = error.message || 'The restore could not be completed. Ask your system administrator to check the server logs before retrying.';
-      status.className = 'backup-status is-error';
+      document.getElementById('backupRestoreError').textContent = error.message || 'The restore could not be completed. Ask your system administrator to check the server logs before retrying.';
+      document.getElementById('backupRestorePassword').value = '';
+      status.textContent = '';
+      document.getElementById('backupRestorePassword').focus();
     } finally {
-      if (!reloadPending) this.endProcessing(btn);
+      if (!reloadPending) {
+        this.endProcessing(btn);
+        if (document.getElementById('backupRestoreError').textContent) {
+          document.getElementById('backupRestorePassword').focus();
+        }
+      }
     }
   }
 
@@ -461,6 +546,8 @@ class BackupManager {
   closeRestoreDialog() {
     const dialog = document.getElementById('backupRestoreDialog');
     if (dialog?.open) dialog.close();
+    document.getElementById('backupRestorePassword').value = '';
+    document.getElementById('backupRestoreError').textContent = '';
     this.pendingRestoreId = null;
     this.syncActionControls();
   }

@@ -386,16 +386,15 @@
 
   function closeDeleteConfirmation() {
     const modal = document.getElementById('deleteConfirmModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    modal.setAttribute('aria-hidden', 'true');
+    if (modal.open) modal.close();
     document.getElementById('adminDeletePassword').value = '';
+    document.getElementById('deleteConfirmError').textContent = '';
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
     if (confirmDeleteBtn) {
       confirmDeleteBtn.disabled = false;
       confirmDeleteBtn.innerHTML = `
         <i data-lucide="trash-2" class="h-4 w-4"></i>
-        Delete
+        Delete user
       `;
       lucide.createIcons();
     }
@@ -417,10 +416,9 @@
     const nameSummary = selectedNames ? ` ${selectedNames}${ids.length > 3 ? ' and more' : ''}` : '';
     document.getElementById('deleteConfirmMessage').textContent = `${message}${nameSummary}. This removes their access immediately.`;
     document.getElementById('adminDeletePassword').value = '';
+    document.getElementById('deleteConfirmError').textContent = '';
     const modal = document.getElementById('deleteConfirmModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    modal.setAttribute('aria-hidden', 'false');
+    modal.showModal();
     document.getElementById('adminDeletePassword').focus();
   }
 
@@ -438,6 +436,22 @@
   }
 
   function showDeleteResults(results) {
+    if (results.successfulIds.length === 0 && results.failedMessages[0] === 'The administrator password is incorrect.') {
+      const passwordInput = document.getElementById('adminDeletePassword');
+      const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+      document.getElementById('deleteConfirmError').textContent = results.failedMessages[0];
+      passwordInput.value = '';
+      confirmDeleteBtn.disabled = false;
+      confirmDeleteBtn.innerHTML = `
+        <i data-lucide="trash-2" class="h-4 w-4"></i>
+        Delete user
+      `;
+      state.isDeleting = false;
+      lucide.createIcons();
+      passwordInput.focus();
+      return;
+    }
+
     if (results.successfulIds.length > 0 && results.failedIds.length === 0) {
       showToast(results.successfulIds.length === 1 ? 'Librarian deleted successfully.' : `${results.successfulIds.length} librarians deleted successfully.`);
     } else if (results.successfulIds.length > 0 && results.failedIds.length > 0) {
@@ -462,19 +476,32 @@
     requestLibrarianDeletion(id, adminPassword)
       .then((result) => {
         if (!result.success) {
+          if (result.message === 'The administrator password is incorrect.') {
+            results.failedIds.push(id, ...remainingIds);
+            results.failedMessages.push(result.message);
+            showDeleteResults(results);
+            return;
+          }
           results.failedIds.push(id);
           results.failedMessages.push(result.message || 'Unable to delete selected librarians.');
-          return;
+        } else {
+          results.successfulIds.push(id);
         }
 
-        results.successfulIds.push(id);
+        if (remainingIds.length > 0) {
+          deleteNextLibrarian(remainingIds, adminPassword, results);
+        } else {
+          showDeleteResults(results);
+        }
       })
       .catch(() => {
         results.failedIds.push(id);
         results.failedMessages.push('Unable to delete selected librarians.');
-      })
-      .finally(() => {
-        deleteNextLibrarian(remainingIds, adminPassword, results);
+        if (remainingIds.length > 0) {
+          deleteNextLibrarian(remainingIds, adminPassword, results);
+        } else {
+          showDeleteResults(results);
+        }
       });
   }
 
@@ -484,16 +511,17 @@
 
     const adminPassword = document.getElementById('adminDeletePassword').value;
     if (!adminPassword) {
-      showToast('Enter the administrator password to continue.', 'error');
+      document.getElementById('deleteConfirmError').textContent = 'Enter your administrator password to continue.';
       document.getElementById('adminDeletePassword').focus();
       return;
     }
 
+    document.getElementById('deleteConfirmError').textContent = '';
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
     confirmDeleteBtn.disabled = true;
     confirmDeleteBtn.innerHTML = `
       <i data-lucide="loader-circle" class="h-4 w-4 animate-spin"></i>
-      Deleting...
+      Deleting…
     `;
     lucide.createIcons();
     state.isDeleting = true;
@@ -680,7 +708,28 @@
     if (event.target.id === 'saveConfirmModal') closeSaveConfirmation();
   });
   document.getElementById('deleteConfirmModal').addEventListener('click', (event) => {
-    if (event.target.id === 'deleteConfirmModal') closeDeleteConfirmation();
+    const dialog = document.getElementById('deleteConfirmModal');
+    if (event.target !== dialog || state.isDeleting) return;
+    const bounds = dialog.getBoundingClientRect();
+    const clickedBackdrop = event.clientX < bounds.left
+      || event.clientX > bounds.right
+      || event.clientY < bounds.top
+      || event.clientY > bounds.bottom;
+    if (clickedBackdrop) closeDeleteConfirmation();
+  });
+  document.getElementById('deleteConfirmModal').addEventListener('cancel', (event) => {
+    if (state.isDeleting) {
+      event.preventDefault();
+      return;
+    }
+    event.preventDefault();
+    closeDeleteConfirmation();
+  });
+  document.getElementById('adminDeletePassword').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      document.getElementById('confirmDeleteBtn').click();
+    }
   });
   document.getElementById('statusConfirmModal').addEventListener('click', (event) => {
     if (event.target.id === 'statusConfirmModal') closeStatusConfirmation();
@@ -720,12 +769,6 @@
     const modal = document.getElementById('librarianModal');
     if (!modal.classList.contains('hidden')) {
       closeModal();
-      return;
-    }
-
-    const deleteModal = document.getElementById('deleteConfirmModal');
-    if (!deleteModal.classList.contains('hidden')) {
-      closeDeleteConfirmation();
       return;
     }
 
