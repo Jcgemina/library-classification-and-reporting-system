@@ -245,6 +245,17 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
     .sign-in-button:hover { border-color: var(--rose-dark); background: var(--rose-dark); }
     .sign-in-button [data-lucide] { width: 16px; height: 16px; }
     .sign-in-button:disabled { border-color: #e2e8f0; background: #e2e8f0; color: #64707b; cursor: not-allowed; }
+    .sign-in-button:disabled[aria-busy="true"] { border-color: var(--rose); background: var(--rose); color: white; }
+    .sign-in-arrow.is-hidden { display: none; }
+    .sign-in-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, .4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: sign-in-spin .75s linear infinite;
+    }
+    @keyframes sign-in-spin { to { transform: rotate(360deg); } }
 
     @media (max-width: 760px) {
       body { display: block; padding: 18px 14px 28px; }
@@ -384,8 +395,9 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
             </div>
 
             <button class="sign-in-button" id="signInBtn" type="submit" <?php echo $isLocked ? 'disabled' : ''; ?>>
-              <span>Sign in</span>
-              <i data-lucide="arrow-right" aria-hidden="true"></i>
+              <span aria-live="polite">Sign in</span>
+              <i class="sign-in-arrow" data-lucide="arrow-right" aria-hidden="true"></i>
+              <span class="sign-in-spinner" aria-hidden="true" hidden></span>
             </button>
           </form>
         </div>
@@ -397,6 +409,26 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
     const SERVER_TIME_MS = <?php echo time() * 1000; ?>;
     const LOCK_SECONDS = <?php echo $lockSeconds; ?>;
     const UNLOCK_TIME_MS = SERVER_TIME_MS + (LOCK_SECONDS * 1000);
+
+    const loginForm = document.querySelector('.login-form');
+    const signInButton = document.getElementById('signInBtn');
+    const signInLabel = signInButton.querySelector('span[aria-live]');
+    const signInSpinner = signInButton.querySelector('.sign-in-spinner');
+    let isSubmitting = false;
+
+    loginForm.addEventListener('submit', function (event) {
+      if (isSubmitting) {
+        event.preventDefault();
+        return;
+      }
+
+      isSubmitting = true;
+      signInButton.disabled = true;
+      signInButton.setAttribute('aria-busy', 'true');
+      signInLabel.textContent = 'Signing in...';
+      signInButton.querySelector('.sign-in-arrow').classList.add('is-hidden');
+      signInSpinner.hidden = false;
+    });
 
     (function () {
       const timerEl = document.getElementById('lockTimer');
