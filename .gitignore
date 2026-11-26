@@ -42,6 +42,7 @@
 !/assets/css/inventory.css
 !/assets/css/backup.css
 !/assets/css/design-tokens.css
+!/assets/css/dark-theme.css
 /.github/skills/
 /logo-design-skill/
 /assets/logo-concepts/
@@ -97,3 +98,4 @@ __pycache__/
 !/tests/
 !/tests/activity_log_filter_test.php
 !/tests/personal_sign_in_activity_test.php
+!/tests/admin_password_confirmation_test.php

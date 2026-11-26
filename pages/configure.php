@@ -747,9 +747,30 @@ $configureBreadcrumbLabel = $section === 'rules'
     <i data-lucide="triangle-alert" aria-hidden="true"></i>
     <span>This replaces the current database and uploaded files with the selected backup. You cannot undo this. Create a backup of the current data first if you need to keep it.</span>
   </div>
+  <label class="backup-password-field" for="backupRestorePassword">
+    Administrator password
+    <input id="backupRestorePassword" type="password" autocomplete="current-password" required aria-describedby="backupRestorePasswordHelp backupRestoreError">
+  </label>
+  <p class="backup-password-help" id="backupRestorePasswordHelp">Confirm your password to restore this backup.</p>
+  <p class="backup-confirm-error" id="backupRestoreError" role="alert" aria-live="polite"></p>
   <div class="dialog-actions backup-confirm-actions">
     <button type="button" class="button" id="cancelBackupRestore">Cancel</button>
     <button type="button" class="button button-danger" id="confirmBackupRestore">Restore backup</button>
+  </div>
+</dialog>
+
+<dialog class="prototype-dialog backup-restore-dialog" id="backupCreateDialog" aria-labelledby="backupCreateDialogTitle" aria-describedby="backupCreateDialogDescription">
+  <h2 id="backupCreateDialogTitle">Confirm backup</h2>
+  <p id="backupCreateDialogDescription" class="backup-confirm-description">Creating a backup copies the current database and uploaded files into a protected archive.</p>
+  <label class="backup-password-field" for="backupCreatePassword">
+    Administrator password
+    <input id="backupCreatePassword" type="password" autocomplete="current-password" required aria-describedby="backupCreatePasswordHelp backupCreateError">
+  </label>
+  <p class="backup-password-help" id="backupCreatePasswordHelp">Confirm your password to create this backup.</p>
+  <p class="backup-confirm-error" id="backupCreateError" role="alert" aria-live="polite"></p>
+  <div class="dialog-actions backup-confirm-actions">
+    <button type="button" class="button" id="cancelBackupCreate">Cancel</button>
+    <button type="button" class="button button-primary" id="confirmBackupCreate"><i data-lucide="database-backup" aria-hidden="true"></i>Create backup</button>
   </div>
 </dialog>
 

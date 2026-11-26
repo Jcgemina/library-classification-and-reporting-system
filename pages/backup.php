@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/user_service.php';
 require_once __DIR__ . '/../includes/backup_dump.php';
 
 requireLogin();
@@ -395,6 +396,19 @@ if ($backupAction === 'download') {
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if ($csrfToken === '' || !hash_equals($csrfToken, requestString($_POST, 'csrf_token'))) {
         backupJsonResponse(['success' => false, 'message' => 'Session expired.'], 403);
+    }
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($backupAction, ['create', 'restore'], true)) {
+    try {
+        $adminUserId = (int) ($_SESSION['user_id'] ?? 0);
+        $adminPassword = requestString($_POST, 'admin_password');
+        if (!userHasAdminPassword($pdo, $adminUserId, $adminPassword)) {
+            backupJsonResponse(['success' => false, 'message' => 'The administrator password is incorrect. No changes were made.'], 403);
+        }
+    } catch (PDOException $e) {
+        error_log('Backup administrator verification failed: ' . $e->getMessage());
+        backupJsonResponse(['success' => false, 'message' => 'Administrator access could not be verified. Try again later.'], 503);
     }
 }
 

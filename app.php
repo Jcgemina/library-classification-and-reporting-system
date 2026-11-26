@@ -59,6 +59,318 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
     line-height: 1.25rem;
   }
 
+  .app-page-skeleton,
+  .app-page-skeleton-visual {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .app-skeleton-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .app-skeleton-heading,
+  .app-skeleton-panel-heading,
+  .app-skeleton-book-copy {
+    display: grid;
+    gap: 0.625rem;
+  }
+
+  .app-skeleton-actions,
+  .app-skeleton-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  .app-skeleton-block {
+    display: block;
+    border-radius: 0.375rem;
+    background: var(--app-color-border-strong);
+    animation: app-skeleton-pulse 1.5s ease-in-out infinite;
+  }
+
+  .app-skeleton-title {
+    width: min(14rem, 58vw);
+    height: 1.75rem;
+  }
+
+  .app-skeleton-description {
+    width: min(23rem, 76vw);
+    height: 0.75rem;
+  }
+
+  .app-skeleton-short {
+    width: 38%;
+    height: 0.65rem;
+  }
+
+  .app-skeleton-medium {
+    width: 65%;
+    height: 0.75rem;
+  }
+
+  .app-skeleton-long {
+    width: 88%;
+    height: 0.75rem;
+  }
+
+  .app-skeleton-number {
+    width: 4.5rem;
+    height: 1.75rem;
+  }
+
+  .app-skeleton-action {
+    width: 7rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+  }
+
+  .app-skeleton-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .app-skeleton-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-skeleton-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .app-skeleton-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .app-skeleton-panel {
+    display: grid;
+    align-content: start;
+    gap: 1rem;
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid var(--app-color-border);
+    border-radius: 0.75rem;
+    background: var(--app-color-surface);
+  }
+
+  .app-skeleton-panel-heading > .app-skeleton-block:first-child {
+    width: 42%;
+    height: 0.95rem;
+  }
+
+  .app-skeleton-panel-heading > .app-skeleton-block:last-child {
+    width: 76%;
+    height: 0.65rem;
+  }
+
+  .app-skeleton-metric-card {
+    min-height: 6rem;
+  }
+
+  .app-skeleton-metric-card .app-skeleton-number {
+    margin-top: 0.25rem;
+  }
+
+  .app-skeleton-toolbar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .app-skeleton-filter {
+    display: grid;
+    min-width: 0;
+    gap: 0.5rem;
+  }
+
+  .app-skeleton-filter > .app-skeleton-block:first-child {
+    width: 42%;
+    height: 0.65rem;
+  }
+
+  .app-skeleton-input {
+    display: flex;
+    align-items: center;
+    height: 2.5rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--app-color-border);
+    border-radius: 0.5rem;
+    background: var(--app-color-surface);
+  }
+
+  .app-skeleton-input .app-skeleton-block {
+    width: 62%;
+    height: 0.65rem;
+  }
+
+  .app-skeleton-table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--app-color-border);
+    border-radius: 0.75rem;
+    background: var(--app-color-surface);
+  }
+
+  .app-skeleton-table {
+    min-width: 34rem;
+  }
+
+  .app-skeleton-table-row {
+    display: grid;
+    grid-template-columns: repeat(var(--skeleton-columns), minmax(0, 1fr));
+    align-items: center;
+    gap: 1rem;
+    min-height: 3.25rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--app-color-border);
+  }
+
+  .app-skeleton-table-row:last-child {
+    border-bottom: 0;
+  }
+
+  .app-skeleton-table-row .app-skeleton-block {
+    width: 72%;
+    height: 0.7rem;
+  }
+
+  .app-skeleton-table-row .app-skeleton-block:first-child {
+    width: 88%;
+  }
+
+  .app-skeleton-table-heading {
+    background: var(--app-color-border);
+  }
+
+  .app-skeleton-table-heading .app-skeleton-block {
+    width: 58%;
+    height: 0.6rem;
+  }
+
+  .app-skeleton-form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .app-skeleton-form-field {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .app-skeleton-form-field > .app-skeleton-block:first-child {
+    width: 36%;
+    height: 0.65rem;
+  }
+
+  .app-skeleton-form-field .app-skeleton-input {
+    height: 2.5rem;
+  }
+
+  .app-skeleton-academic {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.8fr);
+    gap: 1rem;
+  }
+
+  .app-skeleton-academic-tree {
+    min-height: 19rem;
+  }
+
+  .app-skeleton-academic-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .app-skeleton-academic-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--app-color-border);
+  }
+
+  .app-skeleton-avatar {
+    width: 3rem;
+    height: 3rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+  }
+
+  .app-skeleton-book-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .app-skeleton-book-card {
+    min-height: 10rem;
+  }
+
+  .app-skeleton-book-copy .app-skeleton-block:first-child {
+    width: 75%;
+    height: 0.9rem;
+  }
+
+  .app-skeleton-tabs .app-skeleton-action {
+    width: 6rem;
+  }
+
+  @keyframes app-skeleton-pulse {
+    0%, 100% { opacity: 0.68; }
+    50% { opacity: 1; }
+  }
+
+  @media (max-width: 900px) {
+    .app-skeleton-grid-4 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .app-skeleton-book-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .app-skeleton-toolbar {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 600px) {
+    .app-skeleton-header {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .app-skeleton-actions {
+      justify-content: flex-end;
+    }
+
+    .app-skeleton-grid-2,
+    .app-skeleton-grid-3,
+    .app-skeleton-grid-4,
+    .app-skeleton-book-grid,
+    .app-skeleton-toolbar,
+    .app-skeleton-form-row,
+    .app-skeleton-academic {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .app-skeleton-academic-tree {
+      min-height: 10rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .app-skeleton-block {
+      animation: none;
+    }
+  }
+
   html,
   body {
     scrollbar-width: thin;
@@ -110,6 +422,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <link rel="stylesheet" href="assets/css/user.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/user.css'); ?>">
 <script src="https://unpkg.com/lucide@latest"></script>
 <link rel="stylesheet" href="assets/css/navigation.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/navigation.css'); ?>">
+<link rel="stylesheet" href="assets/css/dark-theme.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/dark-theme.css'); ?>">
 <script>
   window.appUserPreferenceId = <?php echo json_encode((string) ($_SESSION['user_id'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
   window.appCsrfToken = <?php echo json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -264,6 +577,134 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         }
     }
 
+    function skeletonBlock(size) {
+      return `<span class="app-skeleton-block app-skeleton-${size}"></span>`;
+    }
+
+    function skeletonHeader(actionCount = 0) {
+      const actions = actionCount
+        ? `<div class="app-skeleton-actions">${Array.from({ length: actionCount }, () => skeletonBlock('action')).join('')}</div>`
+        : '';
+
+      return `<div class="app-skeleton-header"><div class="app-skeleton-heading">${skeletonBlock('title')}${skeletonBlock('description')}</div>${actions}</div>`;
+    }
+
+    function skeletonMetricCards(count) {
+      return `<div class="app-skeleton-grid app-skeleton-grid-${count}">${Array.from({ length: count }, () => `<div class="app-skeleton-panel app-skeleton-metric-card">${skeletonBlock('short')}${skeletonBlock('number')}${skeletonBlock('medium')}</div>`).join('')}</div>`;
+    }
+
+    function skeletonToolbar(fieldCount) {
+      const fields = Array.from({ length: fieldCount }, () => `<div class="app-skeleton-filter">${skeletonBlock('short')}<div class="app-skeleton-input">${skeletonBlock('medium')}</div></div>`).join('');
+      return `<div class="app-skeleton-toolbar">${fields}</div>`;
+    }
+
+    function skeletonTable(columnCount, rowCount) {
+      const rows = Array.from({ length: rowCount + 1 }, (_, rowIndex) => {
+        const cells = Array.from({ length: columnCount }, () => skeletonBlock('medium')).join('');
+        const headingClass = rowIndex === 0 ? ' app-skeleton-table-heading' : '';
+        return `<div class="app-skeleton-table-row${headingClass}" style="--skeleton-columns:${columnCount}">${cells}</div>`;
+      }).join('');
+
+      return `<div class="app-skeleton-table-scroll"><div class="app-skeleton-table">${rows}</div></div>`;
+    }
+
+    function skeletonPanel(lineCount = 3) {
+      const lines = Array.from({ length: lineCount }, (_, index) => skeletonBlock(index % 2 === 0 ? 'long' : 'medium')).join('');
+      return `<section class="app-skeleton-panel"><div class="app-skeleton-panel-heading">${skeletonBlock('medium')}${skeletonBlock('long')}</div>${lines}</section>`;
+    }
+
+    function skeletonFormPanel(rowCount = 2) {
+      const rows = Array.from({ length: rowCount }, () => `<div class="app-skeleton-form-row">${[0, 1].map(() => `<div class="app-skeleton-form-field">${skeletonBlock('short')}<div class="app-skeleton-input">${skeletonBlock('medium')}</div></div>`).join('')}</div>`).join('');
+      return `<section class="app-skeleton-panel"><div class="app-skeleton-panel-heading">${skeletonBlock('medium')}${skeletonBlock('long')}</div>${rows}<div class="app-skeleton-actions">${skeletonBlock('action')}</div></section>`;
+    }
+
+    function skeletonBookCards(count = 6) {
+      const cards = Array.from({ length: count }, () => `<article class="app-skeleton-panel app-skeleton-book-card"><div class="app-skeleton-book-copy">${skeletonBlock('medium')}${skeletonBlock('short')}</div><div class="app-skeleton-grid app-skeleton-grid-2">${skeletonBlock('short')}${skeletonBlock('medium')}${skeletonBlock('short')}${skeletonBlock('medium')}</div></article>`).join('');
+      return `<div class="app-skeleton-book-grid">${cards}</div>`;
+    }
+
+    function renderPageSkeleton(pageName, requestedParams) {
+      const configureSection = requestedParams.get('section') === 'rules'
+        ? 'rules'
+        : requestedParams.get('section') === 'backup' ? 'backup' : 'institution';
+      const logTab = requestedParams.get('log_tab') === 'security' ? 'security' : 'activity';
+      const pageTitle = pageName === 'configure'
+        ? configureSection === 'rules' ? 'Library Rules' : configureSection === 'backup' ? 'Backup & Restore' : 'Institutional Profile'
+        : pageName === 'logs'
+          ? logTab === 'security' ? 'Security logs' : 'Activity logs'
+          : ({
+            dashboard: 'Dashboard',
+            inventory: 'Inventory',
+            academics: 'Academic Structure',
+            course: 'Course Catalog',
+            reference_analyzer: 'Reference Age',
+            report: 'Reports',
+            preferences: 'Preferences',
+            account: 'My Account',
+            sign_in_activity: 'Sign-in activity',
+            user: 'Users',
+          }[pageName] || 'Page');
+
+      let content;
+      switch (pageName) {
+        case 'dashboard':
+          content = `${skeletonMetricCards(4)}<div class="app-skeleton-grid app-skeleton-grid-2">${skeletonPanel(4)}${skeletonPanel(4)}</div>${skeletonPanel(3)}`;
+          break;
+        case 'inventory':
+          content = `${skeletonToolbar(3)}${skeletonBookCards()}`;
+          break;
+        case 'report':
+          content = `${skeletonToolbar(4)}${skeletonTable(5, 6)}`;
+          break;
+        case 'academics':
+          content = `<div class="app-skeleton-academic"><section class="app-skeleton-panel app-skeleton-academic-tree">${skeletonBlock('medium')}${skeletonToolbar(1)}<div class="app-skeleton-academic-list">${Array.from({ length: 5 }, () => `<div class="app-skeleton-academic-item">${skeletonBlock('avatar')}${skeletonBlock('medium')}</div>`).join('')}</div></section><section class="app-skeleton-panel"><div class="app-skeleton-tabs">${Array.from({ length: 3 }, () => skeletonBlock('action')).join('')}</div>${skeletonToolbar(2)}${skeletonTable(4, 5)}</section></div>`;
+          break;
+        case 'course':
+          content = `${skeletonMetricCards(3)}${skeletonToolbar(3)}${skeletonTable(5, 5)}`;
+          break;
+        case 'reference_analyzer':
+          content = `${skeletonMetricCards(3)}${skeletonToolbar(3)}${skeletonTable(5, 5)}`;
+          break;
+        case 'preferences':
+          content = `<div class="app-skeleton-grid app-skeleton-grid-2">${skeletonFormPanel(2)}${skeletonFormPanel(2)}</div>`;
+          break;
+        case 'account':
+          content = `<section class="app-skeleton-panel"><div class="app-skeleton-actions">${skeletonBlock('avatar')}<div class="app-skeleton-heading">${skeletonBlock('medium')}${skeletonBlock('short')}</div></div></section><div class="app-skeleton-grid app-skeleton-grid-2">${skeletonFormPanel(2)}${skeletonFormPanel(2)}</div>${skeletonPanel(3)}`;
+          break;
+        case 'sign_in_activity':
+          content = skeletonPanel(1) + skeletonTable(4, 5);
+          break;
+        case 'user':
+          content = `${skeletonMetricCards(3)}${skeletonToolbar(3)}${skeletonTable(5, 5)}`;
+          break;
+        case 'logs':
+          content = `<div class="app-skeleton-tabs">${skeletonBlock('action')}${skeletonBlock('action')}</div>${skeletonToolbar(4)}${skeletonTable(5, 5)}`;
+          break;
+        case 'configure':
+          if (configureSection === 'backup') {
+            content = `<div class="app-skeleton-grid app-skeleton-grid-2">${skeletonFormPanel(1)}${skeletonFormPanel(1)}</div>${skeletonPanel(2)}${skeletonTable(4, 3)}`;
+          } else if (configureSection === 'rules') {
+            content = `<div class="app-skeleton-grid app-skeleton-grid-2">${skeletonFormPanel(2)}${skeletonFormPanel(2)}</div>${skeletonFormPanel(2)}${skeletonPanel(3)}`;
+          } else {
+            content = skeletonFormPanel(3);
+          }
+          break;
+        default:
+          content = `${skeletonToolbar(3)}${skeletonTable(4, 5)}`;
+      }
+
+      const actionCount = {
+        dashboard: 1,
+        inventory: 2,
+        academics: 2,
+        course: 2,
+        reference_analyzer: 1,
+        user: 1,
+      }[pageName] || 0;
+
+      return `<section class="app-page-skeleton" role="status"><span class="sr-only">Loading ${pageTitle}…</span><div class="app-page-skeleton-visual" aria-hidden="true">${skeletonHeader(actionCount)}${content}</div></section>`;
+    }
+
     function scrollToRouteAnchor(hash, behavior = 'auto') {
       if (!hash) {
         return;
@@ -395,11 +836,13 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         history.pushState({ page: safePage }, '', url);
       }
 
+      updateActiveTab(safePage);
+
       const pageQuery = preservedParams.toString() ? '?' + preservedParams.toString() : '';
 
       const pageFile = safePage === 'academics' ? 'organization' : safePage;
       pageContainer.setAttribute('aria-busy', 'true');
-      pageContainer.innerHTML = `<div class="rounded-2xl bg-white p-8 text-sm text-slate-600" role="status">Loading ${pageLabel}…</div>`;
+      pageContainer.innerHTML = renderPageSkeleton(safePage, preservedParams);
 
       fetch('pages/' + pageFile + '.php' + pageQuery, {
         method: 'GET',
@@ -432,7 +875,6 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
           oldScript.replaceWith(newScript);
         });
 
-        updateActiveTab(safePage);
         scrollToRouteAnchor(targetHash, updateHistory ? 'smooth' : 'auto');
         const pageTitle = safePage === 'preferences'
           ? 'Preferences'

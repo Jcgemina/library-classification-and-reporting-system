@@ -186,6 +186,61 @@
   line-height: 1.55;
 }
 
+.account-password-control {
+  position: relative;
+  display: block;
+}
+
+.settings-field .account-password-control input {
+  padding-right: 58px;
+}
+
+.account-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 5px;
+  background: transparent;
+  color: var(--settings-rose-dark);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.account-password-toggle:focus-visible {
+  outline: 3px solid #c66a81;
+  outline-offset: 2px;
+}
+
+.account-password-requirements {
+  margin-top: 2px;
+}
+
+.account-password-status {
+  margin: 0;
+  color: var(--settings-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 650;
+}
+
+.account-password-status.is-error,
+.account-password-match.is-error {
+  color: #b91c1c;
+}
+
+.account-password-status.is-success,
+.account-password-match.is-success {
+  color: var(--settings-green);
+}
+
+.account-password-match {
+  margin-top: -6px;
+}
+
 .settings-check-row {
   display: flex;
   align-items: flex-start;
@@ -669,6 +724,16 @@ html[data-app-theme="dark"] .settings-field input:disabled,
 html[data-app-theme="dark"] .settings-field select:disabled,
 html[data-app-theme="dark"] .settings-field textarea:disabled {
   background: #1f2937;
+}
+
+html[data-app-theme="dark"] .account-password-status.is-error,
+html[data-app-theme="dark"] .account-password-match.is-error {
+  color: #fca5a5;
+}
+
+html[data-app-theme="dark"] .account-password-status.is-success,
+html[data-app-theme="dark"] .account-password-match.is-success {
+  color: #34d399;
 }
 
 html[data-app-theme="dark"] .settings-policy-note {

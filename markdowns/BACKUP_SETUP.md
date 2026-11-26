@@ -122,8 +122,9 @@ be available to a Windows service.
 
 1. Sign in as an Admin and open **Settings → Backup & Restore**.
 2. Select **Create backup**.
-3. Confirm that the success message appears and that a new ZIP is listed in **Backup history**.
-4. Confirm the archive is in the configured backup directory and is non-empty.
+3. Confirm the administrator password in the confirmation dialog.
+4. Confirm that the success message appears and that a new ZIP is listed in **Backup history**.
+5. Confirm the archive is in the configured backup directory and is non-empty.
 
 Do not treat a small test ZIP or an error message as a successful backup. A valid archive contains `database.sql` and an `uploads/` directory.
 
@@ -158,3 +159,5 @@ Grant the PHP/web-server process write access to the configured backup directory
 ## Restore safety
 
 Restoring replaces the current database contents and uploaded files with those from the selected archive. Verify the archive and use a staging or disposable database before restoring to a live system. Keep a separate recovery copy before any production restore.
+
+The signed-in active Admin must re-enter their administrator password before creating a backup or restoring one. Password verification is performed by the server for each action.
