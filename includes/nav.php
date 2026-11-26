@@ -522,7 +522,7 @@ function setAdminSidebarOpen(isOpen) {
   adminSidebarToggle.setAttribute('aria-label', isOpen ? 'Close navigation menu' : 'Open navigation menu');
   const icon = adminSidebarToggle.querySelector('[data-lucide]');
   icon.setAttribute('data-lucide', isOpen ? 'x' : 'menu');
-  lucide.createIcons();
+  window.renderIcons();
 }
 
 adminSidebarToggle?.addEventListener('click', function () {

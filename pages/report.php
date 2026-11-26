@@ -259,6 +259,23 @@ if ($action !== '') {
 
 ?>
 
+<?php
+$currentYear = (int) date('Y');
+$reportYears = range($currentYear - 3, $currentYear + 1);
+$requestedYear = filter_var($_GET['year'] ?? null, FILTER_VALIDATE_INT);
+$selectedYear = in_array($requestedYear, $reportYears, true) ? $requestedYear : $currentYear;
+
+// First paint payload so the table renders without a second request.
+$initialReportData = null;
+if ($pdo instanceof PDO) {
+    try {
+        $initialReportData = $loadProgressData($pdo, $selectedYear);
+    } catch (PDOException $exception) {
+        error_log('Report initial payload failed: ' . $exception->getMessage());
+    }
+}
+?>
+
 <div class="live-report-page space-y-5">
     <header class="reports-heading">
         <div>
@@ -317,10 +334,9 @@ if ($action !== '') {
                 </label>
                 <label class="report-filter-field report-year-field" for="reportYearFilter">Calendar year
                     <select id="reportYearFilter" class="report-filter">
-                        <?php $currentYear = (int) date('Y'); ?>
-                        <?php for ($year = $currentYear - 3; $year <= $currentYear + 1; $year++): ?>
-                            <option value="<?php echo $year; ?>" <?php echo $year === $currentYear ? 'selected' : ''; ?>><?php echo $year; ?></option>
-                        <?php endfor; ?>
+                        <?php foreach ($reportYears as $year): ?>
+                            <option value="<?php echo $year; ?>" <?php echo $year === $selectedYear ? 'selected' : ''; ?>><?php echo $year; ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </label>
             </div>
@@ -369,4 +385,10 @@ if ($action !== '') {
         </div>
     </section>
 </div>
+<?php if ($initialReportData !== null): ?>
+<script type="application/json" id="reportInitialData"><?php echo json_encode(
+    ['success' => true, 'data' => $initialReportData],
+    JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+); ?></script>
+<?php endif; ?>
 <script src="assets/js/report.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/report.js'); ?>"></script>

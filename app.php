@@ -420,7 +420,17 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
 <link rel="stylesheet" href="assets/css/inventory.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/inventory.css'); ?>">
 <link rel="stylesheet" href="assets/css/catalog-reports.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/catalog-reports.css'); ?>">
 <link rel="stylesheet" href="assets/css/user.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/user.css'); ?>">
-<script src="https://unpkg.com/lucide@latest"></script>
+<script id="lucideLibrary" src="assets/vendor/lucide/lucide.min.js?v=<?php echo (int) filemtime(__DIR__ . '/assets/vendor/lucide/lucide.min.js'); ?>" defer></script>
+<script>
+  window.renderIcons = function () {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  };
+  document.getElementById('lucideLibrary').addEventListener('load', function () {
+    window.lucide.createIcons();
+  });
+</script>
 <link rel="stylesheet" href="assets/css/navigation.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/navigation.css'); ?>">
 <link rel="stylesheet" href="assets/css/dark-theme.css?v=<?php echo (int) filemtime(__DIR__ . '/assets/css/dark-theme.css'); ?>">
 <script>
@@ -436,7 +446,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
   <script src="assets/js/toast.js?v=<?php echo (int) filemtime(__DIR__ . '/assets/js/toast.js'); ?>"></script>
 
   <script>
-    lucide.createIcons();
+    window.renderIcons();
   </script>
 
   <div id="appMainShell" data-admin-shell="<?php echo $userRole === 'admin' ? 'true' : 'false'; ?>" class="md:ml-[248px]">
@@ -752,7 +762,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         icon.setAttribute('data-lucide', isBackup ? 'shield-check' : 'settings-2');
         icon.setAttribute('aria-hidden', 'true');
         contextBadge.replaceChildren(icon, document.createTextNode(isBackup ? 'Admin only' : 'Administrative settings'));
-        lucide.createIcons();
+        window.renderIcons();
       }
     }
 
@@ -863,7 +873,7 @@ $_GET['page'] = in_array($pageParam, $allowedPages, true) ? $pageParam : 'dashbo
         }
 
         pageContainer.innerHTML = html;
-        lucide.createIcons();
+        window.renderIcons();
 
         const scripts = [...pageContainer.querySelectorAll('script')];
         scripts.forEach((oldScript) => {

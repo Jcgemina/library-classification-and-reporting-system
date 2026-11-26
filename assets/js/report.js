@@ -26,6 +26,19 @@
     let reportYear = Number(yearFilter.value);
     let shouldApplyInitialFilters = true;
 
+    function readInitialReportData() {
+        const payloadElement = document.getElementById('reportInitialData');
+        if (!payloadElement) {
+            return null;
+        }
+        try {
+            const payload = JSON.parse(payloadElement.textContent || 'null');
+            return payload && payload.success && payload.data ? payload.data : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -99,7 +112,11 @@
         emptyState.classList.toggle('hidden', reportRows.length !== 0);
         tableBody.classList.toggle('hidden', reportRows.length === 0);
 
-        tableBody.innerHTML = rows.map((row, index) => {
+        tableBody.innerHTML = rows.map((unusedRow, index) => buildRowHtml(rows, index)).join('');
+    }
+
+    function buildRowHtml(rows, index) {
+        const row = rows[index];
             const target = row.target_quarter || 'Q1';
             const isProgram = !row.major_id;
             const isFirstRowForProgram = index === 0 || rows[index - 1].program_id !== row.program_id;
@@ -134,7 +151,24 @@
                     <input id="updated-${row.program_id}-${scopeId}" type="month" data-report-field="updated_as_of" value="${escapeHtml(updatedMonth)}">
                 </td>
             </tr>`;
-        }).join('');
+    }
+
+    function applyReportData(data) {
+        reportRows = data.rows || [];
+        institutionProfile = data.institution_profile || {};
+        refreshFilterOptions();
+        if (shouldApplyInitialFilters) {
+            if (Array.from(programFilter.options).some(option => option.value === initialProgramId)) {
+                programFilter.value = initialProgramId;
+                updateDependentOptions();
+            }
+            if (Array.from(majorFilter.options).some(option => option.value === initialMajorId)) {
+                majorFilter.value = initialMajorId;
+                updateDependentOptions();
+            }
+            shouldApplyInitialFilters = false;
+        }
+        renderRows();
     }
 
     async function loadReport(year) {
@@ -148,21 +182,7 @@
             if (!response.ok || !result.success) {
                 throw new Error(result.message || 'Report data could not be loaded.');
             }
-            reportRows = result.data.rows || [];
-            institutionProfile = result.data.institution_profile || {};
-            refreshFilterOptions();
-            if (shouldApplyInitialFilters) {
-                if (Array.from(programFilter.options).some(option => option.value === initialProgramId)) {
-                    programFilter.value = initialProgramId;
-                    updateDependentOptions();
-                }
-                if (Array.from(majorFilter.options).some(option => option.value === initialMajorId)) {
-                    majorFilter.value = initialMajorId;
-                    updateDependentOptions();
-                }
-                shouldApplyInitialFilters = false;
-            }
-            renderRows();
+            applyReportData(result.data);
             return true;
         } catch (error) {
             tableBody.innerHTML = '<tr><td colspan="5" class="report-empty">Report data could not be loaded.</td></tr>';
@@ -173,12 +193,53 @@
         }
     }
 
-    async function saveProgress(rowElement, field, value, reload = true) {
+    function reportRowScope(rowElement) {
+        return {
+            programId: Number(rowElement.dataset.program),
+            majorId: rowElement.dataset.major ? Number(rowElement.dataset.major) : 0,
+        };
+    }
+
+    function findReportRow(rowElement) {
+        const { programId, majorId } = reportRowScope(rowElement);
+        return reportRows.find(row => row.program_id === programId && (row.major_id || 0) === majorId) || null;
+    }
+
+    function applySavedField(row, quarter, field, value) {
+        if (field === 'target') {
+            row.target_quarter = quarter;
+        } else if (field === 'actual') {
+            row.actuals = { ...row.actuals, [quarter]: Number(value) === 1 };
+        } else {
+            row.updated_months = { ...row.updated_months, [quarter]: value ? String(value).slice(0, 7) : '' };
+        }
+    }
+
+    function refreshRowElement(rowElement) {
+        if (!rowElement.isConnected) {
+            return;
+        }
+        const rows = visibleRows();
+        const { programId, majorId } = reportRowScope(rowElement);
+        const index = rows.findIndex(row => row.program_id === programId && (row.major_id || 0) === majorId);
+        if (index === -1) {
+            return;
+        }
+        const template = document.createElement('template');
+        template.innerHTML = buildRowHtml(rows, index);
+        const updatedRow = template.content.firstElementChild;
+        if (updatedRow) {
+            rowElement.replaceWith(updatedRow);
+        }
+    }
+
+    async function persistField(rowElement, field, value) {
+        const quarter = rowElement.querySelector('[data-report-field="target"]').value;
         const payload = {
             program_id: Number(rowElement.dataset.program),
             major_id: rowElement.dataset.major ? Number(rowElement.dataset.major) : null,
             year: reportYear,
-            quarter: rowElement.querySelector('[data-report-field="target"]').value,
+            quarter,
             field,
             value,
         };
@@ -196,14 +257,25 @@
             if (!response.ok || !result.success) {
                 throw new Error(result.message || 'Report progress could not be saved.');
             }
-            if (!reload) return true;
-            const loaded = await loadReport(reportYear);
-            if (loaded) toast('Progress saved.');
-            return loaded;
+            const row = findReportRow(rowElement);
+            if (row) {
+                applySavedField(row, quarter, field, value);
+            }
+            return true;
         } catch (error) {
             toast(error.message, true);
             return false;
         }
+    }
+
+    async function saveProgress(rowElement, field, value) {
+        const saved = await persistField(rowElement, field, value);
+        if (!saved) {
+            return false;
+        }
+        refreshRowElement(rowElement);
+        toast('Progress saved.');
+        return true;
     }
 
     collegeFilter.addEventListener('change', () => {
@@ -243,10 +315,16 @@
             const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             const monthInput = row.querySelector('[data-report-field="updated_as_of"]');
             monthInput.value = currentMonth;
-            saveProgress(row, 'updated_as_of', currentMonth, false)
-                .then(saved => saved && saveProgress(row, 'actual', 1, false))
-                .then(saved => saved && loadReport(reportYear))
-                .then(loaded => loaded && toast('Progress saved.'));
+            (async () => {
+                if (!await persistField(row, 'updated_as_of', currentMonth)) {
+                    return;
+                }
+                if (!await persistField(row, 'actual', 1)) {
+                    return;
+                }
+                refreshRowElement(row);
+                toast('Progress saved.');
+            })();
             return;
         }
         saveProgress(row, field, value);
@@ -467,5 +545,10 @@
         }
     });
 
-    loadReport(reportYear);
+    const initialReportData = readInitialReportData();
+    if (initialReportData && Number(initialReportData.year) === reportYear) {
+        applyReportData(initialReportData);
+    } else {
+        loadReport(reportYear);
+    }
 })();
