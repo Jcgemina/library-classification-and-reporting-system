@@ -1,0 +1,568 @@
+/* Dark theme: semantic tokens plus the app-owned surfaces.
+   Tailwind utility remaps live in preferences.css; this layer covers the
+   page stylesheets, so it must load after them. */
+
+html[data-app-theme="dark"] {
+  color-scheme: dark;
+  scrollbar-color: #475569 transparent;
+
+  --app-color-ink: #e6edf7;
+  --app-color-body: #c3cfdd;
+  --app-color-muted: #9aa8ba;
+  --app-color-faint: #8493a6;
+  --app-color-border: #2b3648;
+  --app-color-border-strong: #3a4757;
+  --app-color-primary: #be123c;
+  --app-color-primary-hover: #e11d48;
+  --app-color-primary-soft: #3b1c29;
+  --app-color-primary-text: #fda4af;
+  --app-color-primary-line: #6f2434;
+  --app-color-surface: #111827;
+  --app-color-subtle: #172033;
+  --app-color-info-soft: #12283a;
+  --app-color-info-line: #1e3a52;
+  --app-color-info-text: #a5d8ea;
+  --app-color-success: #6ee7b7;
+  --app-color-success-soft: #12352c;
+  --app-color-warning: #fcd34d;
+  --app-color-warning-text: #fde68a;
+  --app-color-warning-soft: #3a2a14;
+  --app-color-warning-line: #6b4a1e;
+  --app-color-danger: #fda4af;
+  --app-color-danger-soft: #421f27;
+  --app-color-focus: rgba(253, 164, 175, 0.55);
+  --app-color-focus-ring: #fda4af;
+
+  --nav-ink: #e6edf7;
+  --nav-muted: #b6c2d1;
+  --nav-line: #2b3648;
+  --nav-rose-dark: #fda4af;
+  --nav-active: #2a1a22;
+}
+
+html[data-app-theme="dark"] body {
+  scrollbar-color: #475569 transparent;
+}
+
+/* Scrollbars: custom thumb styles stop the browser from theming the track. */
+
+html[data-app-theme="dark"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html[data-app-theme="dark"] ::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+html[data-app-theme="dark"] ::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-color: #475569;
+  background-clip: padding-box;
+}
+
+/* ---- Form controls ---- */
+
+html[data-app-theme="dark"] #pageContent input:not([type="checkbox"]):not([type="radio"]),
+html[data-app-theme="dark"] #pageContent select,
+html[data-app-theme="dark"] #pageContent textarea {
+  border-color: var(--app-color-border-strong);
+  background-color: var(--app-color-surface);
+  color: var(--app-color-ink);
+  color-scheme: dark;
+}
+
+html[data-app-theme="dark"] #pageContent input::placeholder,
+html[data-app-theme="dark"] #pageContent textarea::placeholder {
+  color: var(--app-color-faint);
+}
+
+html[data-app-theme="dark"] #pageContent option {
+  background-color: var(--app-color-surface);
+  color: var(--app-color-ink);
+}
+
+/* ---- Panels and tables ---- */
+
+html[data-app-theme="dark"] #pageContent thead,
+html[data-app-theme="dark"] #pageContent thead th {
+  border-color: var(--app-color-border-strong);
+  background-color: var(--app-color-subtle);
+  color: var(--app-color-muted);
+}
+
+html[data-app-theme="dark"] #pageContent tbody tr {
+  border-color: var(--app-color-border);
+}
+
+html[data-app-theme="dark"] #pageContent tbody tr:hover {
+  background-color: var(--app-color-subtle);
+}
+
+html[data-app-theme="dark"] #pageContent td {
+  border-color: var(--app-color-border);
+  color: var(--app-color-body);
+}
+
+html[data-app-theme="dark"] #pageContent [class*="divide-"] > *,
+html[data-app-theme="dark"] #pageContent hr {
+  border-color: var(--app-color-border);
+}
+
+html[data-app-theme="dark"] .courses-workspace,
+html[data-app-theme="dark"] .courses-summary,
+html[data-app-theme="dark"] .courses-filters,
+html[data-app-theme="dark"] .courses-table-wrap,
+html[data-app-theme="dark"] .report-workspace,
+html[data-app-theme="dark"] .report-table-wrap,
+html[data-app-theme="dark"] .report-toolbar,
+html[data-app-theme="dark"] .reference-results-panel,
+html[data-app-theme="dark"] .reference-summary,
+html[data-app-theme="dark"] .reference-overview,
+html[data-app-theme="dark"] .reference-table-wrap,
+html[data-app-theme="dark"] .reference-detail-view,
+html[data-app-theme="dark"] .reference-detail-section,
+html[data-app-theme="dark"] .academic-tree-table-wrap,
+html[data-app-theme="dark"] .academic-tree-toolbar,
+html[data-app-theme="dark"] .users-summary,
+html[data-app-theme="dark"] .users-filters,
+html[data-app-theme="dark"] .users-table-wrap,
+html[data-app-theme="dark"] .users-bulk-bar,
+html[data-app-theme="dark"] .log-filter-form,
+html[data-app-theme="dark"] .log-results-card,
+html[data-app-theme="dark"] .log-table-shell,
+html[data-app-theme="dark"] .log-panel,
+html[data-app-theme="dark"] .log-pagination,
+html[data-app-theme="dark"] .backup-history,
+html[data-app-theme="dark"] .backup-history-wrap,
+html[data-app-theme="dark"] .backup-history-toolbar,
+html[data-app-theme="dark"] .backup-restore-selection,
+html[data-app-theme="dark"] .backup-selected-file,
+html[data-app-theme="dark"] .backup-history-dialog,
+html[data-app-theme="dark"] .users-dialog,
+html[data-app-theme="dark"] .course-modal,
+html[data-app-theme="dark"] .report-preview-modal,
+html[data-app-theme="dark"] .course-actions-menu,
+html[data-app-theme="dark"] .report-export-menu,
+html[data-app-theme="dark"] .academic-action-menu-options,
+html[data-app-theme="dark"] .inventory-book-actions-menu[popover],
+html[data-app-theme="dark"] .nav-profile-menu,
+html[data-app-theme="dark"] .logs-menu {
+  border-color: var(--app-color-border);
+  background-color: var(--app-color-surface);
+  color: var(--app-color-body);
+}
+
+/* ---- Guidance and note bands ---- */
+
+html[data-app-theme="dark"] .backup-restore-warning {
+  border-color: var(--app-color-warning-line);
+  background-color: var(--app-color-warning-soft);
+  color: var(--app-color-warning-text);
+}
+
+html[data-app-theme="dark"] .report-guidance,
+html[data-app-theme="dark"] .reference-guidance,
+html[data-app-theme="dark"] .reference-policy-note,
+html[data-app-theme="dark"] .courses-preview-note {
+  border-color: var(--app-color-info-line);
+  background-color: var(--app-color-info-soft);
+  color: var(--app-color-info-text);
+}
+
+/* ---- Type colours ---- */
+
+html[data-app-theme="dark"] .live-course-page h1,
+html[data-app-theme="dark"] .live-report-page h1,
+html[data-app-theme="dark"] .live-reference-page h1,
+html[data-app-theme="dark"] .live-users-page h1,
+html[data-app-theme="dark"] .live-academics-page h1,
+html[data-app-theme="dark"] #logsContent h1,
+html[data-app-theme="dark"] #pageContent h2,
+html[data-app-theme="dark"] #pageContent h3,
+html[data-app-theme="dark"] #pageContent h4,
+html[data-app-theme="dark"] .course-code-label,
+html[data-app-theme="dark"] .course-academic-link,
+html[data-app-theme="dark"] .reference-book-title,
+html[data-app-theme="dark"] .reference-detail-title,
+html[data-app-theme="dark"] .reference-summary-value,
+html[data-app-theme="dark"] .report-scope-name,
+html[data-app-theme="dark"] .academic-tree-unit-name,
+html[data-app-theme="dark"] .academic-tree-name,
+html[data-app-theme="dark"] .users-person-name,
+html[data-app-theme="dark"] .backup-history-time,
+html[data-app-theme="dark"] .log-table strong {
+  color: var(--app-color-ink);
+}
+
+html[data-app-theme="dark"] #pageContent .page-description,
+html[data-app-theme="dark"] .course-name-label,
+html[data-app-theme="dark"] .course-academic-detail,
+html[data-app-theme="dark"] .course-readiness-detail,
+html[data-app-theme="dark"] .reference-book-author,
+html[data-app-theme="dark"] .reference-summary-label,
+html[data-app-theme="dark"] .reference-result-count,
+html[data-app-theme="dark"] .report-result-count,
+html[data-app-theme="dark"] .report-major-name,
+html[data-app-theme="dark"] .report-college-name,
+html[data-app-theme="dark"] .users-person-email,
+html[data-app-theme="dark"] .users-result-summary,
+html[data-app-theme="dark"] .users-selection-summary,
+html[data-app-theme="dark"] .academic-tree-type-cell,
+html[data-app-theme="dark"] .logs-summary-note,
+html[data-app-theme="dark"] .backup-history-summary,
+html[data-app-theme="dark"] .reference-no-courses {
+  color: var(--app-color-muted);
+}
+
+html[data-app-theme="dark"] #logsContent,
+html[data-app-theme="dark"] .live-course-page,
+html[data-app-theme="dark"] .live-report-page,
+html[data-app-theme="dark"] .live-reference-page,
+html[data-app-theme="dark"] .live-users-page,
+html[data-app-theme="dark"] .live-academics-page {
+  color: var(--app-color-body);
+}
+
+/* ---- Sidebar ---- */
+
+html[data-app-theme="dark"] #adminSidebar .settings-submenu-group-label,
+html[data-app-theme="dark"] #mobileMenu .settings-submenu-group-label {
+  color: var(--app-color-muted);
+}
+
+html[data-app-theme="dark"] #adminSidebar .nav-section-label,
+html[data-app-theme="dark"] #mobileMenu .nav-section-label {
+  color: var(--app-color-muted);
+}
+
+html[data-app-theme="dark"] #adminSidebar .nav-profile-copy small,
+html[data-app-theme="dark"] #mobileMenu .nav-profile-copy small {
+  color: var(--app-color-muted);
+}
+
+/* ---- Breadcrumbs ---- */
+
+html[data-app-theme="dark"] .app-breadcrumbs,
+html[data-app-theme="dark"] .app-breadcrumbs a,
+html[data-app-theme="dark"] .app-breadcrumbs li {
+  color: var(--app-color-muted);
+}
+
+html[data-app-theme="dark"] .app-breadcrumbs a:hover {
+  color: var(--app-color-ink);
+}
+
+html[data-app-theme="dark"] .app-breadcrumbs [aria-current="page"],
+html[data-app-theme="dark"] .app-breadcrumbs [aria-current="page"] span {
+  color: var(--app-color-ink);
+}
+
+/* ---- Status colours ---- */
+
+html[data-app-theme="dark"] .course-status,
+html[data-app-theme="dark"] .reference-status.is-meets,
+html[data-app-theme="dark"] .users-status.is-active,
+html[data-app-theme="dark"] .academic-tree-status.is-active,
+html[data-app-theme="dark"] .backup-status.is-success {
+  color: var(--app-color-success);
+}
+
+html[data-app-theme="dark"] .course-readiness,
+html[data-app-theme="dark"] .reference-status.is-missing,
+html[data-app-theme="dark"] .backup-status.is-error {
+  color: var(--app-color-warning-text);
+}
+
+html[data-app-theme="dark"] .reference-status.is-outside,
+html[data-app-theme="dark"] .reference-status.is-review,
+html[data-app-theme="dark"] .course-readiness.is-review,
+html[data-app-theme="dark"] .users-status.is-inactive {
+  color: var(--app-color-primary-text);
+}
+
+/* ---- Buttons, tags, and controls ---- */
+
+html[data-app-theme="dark"] .live-button,
+html[data-app-theme="dark"] .academics-button,
+html[data-app-theme="dark"] .users-button,
+html[data-app-theme="dark"] .users-dialog-button,
+html[data-app-theme="dark"] .academic-tree-action-trigger,
+html[data-app-theme="dark"] .academic-tree-toggle,
+html[data-app-theme="dark"] .log-detail-button,
+html[data-app-theme="dark"] .reference-detail-button,
+html[data-app-theme="dark"] .reference-back-button,
+html[data-app-theme="dark"] .backup-history-dialog-close,
+html[data-app-theme="dark"] .users-dialog-close,
+html[data-app-theme="dark"] #backupRestoreSettings .button,
+html[data-app-theme="dark"] #backupRestoreDialog .button,
+html[data-app-theme="dark"] #backupHistoryDialog .button {
+  border-color: var(--app-color-border-strong);
+  background-color: var(--app-color-surface);
+  color: var(--app-color-body);
+}
+
+html[data-app-theme="dark"] .live-button:hover,
+html[data-app-theme="dark"] .academics-button:hover,
+html[data-app-theme="dark"] .users-button:hover,
+html[data-app-theme="dark"] .academic-tree-action-trigger:hover,
+html[data-app-theme="dark"] .academic-tree-toggle:hover,
+html[data-app-theme="dark"] .log-detail-button:hover,
+html[data-app-theme="dark"] .reference-detail-button:hover,
+html[data-app-theme="dark"] #backupRestoreSettings .button:hover {
+  border-color: var(--app-color-border-strong);
+  background-color: var(--app-color-subtle);
+  color: var(--app-color-ink);
+}
+
+html[data-app-theme="dark"] .live-button-primary,
+html[data-app-theme="dark"] .academics-button-primary,
+html[data-app-theme="dark"] .users-button-primary,
+html[data-app-theme="dark"] #backupRestoreSettings .button-primary {
+  border-color: var(--app-color-primary);
+  background-color: var(--app-color-primary);
+  color: #fff;
+}
+
+html[data-app-theme="dark"] .live-button-primary:hover,
+html[data-app-theme="dark"] .academics-button-primary:hover,
+html[data-app-theme="dark"] .users-button-primary:hover,
+html[data-app-theme="dark"] #backupRestoreSettings .button-primary:hover {
+  border-color: var(--app-color-primary-hover);
+  background-color: var(--app-color-primary-hover);
+  color: #fff;
+}
+
+html[data-app-theme="dark"] .academics-button-danger,
+html[data-app-theme="dark"] .users-button-danger,
+html[data-app-theme="dark"] #backupRestoreSettings .button-danger {
+  border-color: var(--app-color-primary);
+  background-color: var(--app-color-primary);
+  color: #fff;
+}
+
+html[data-app-theme="dark"] .users-role,
+html[data-app-theme="dark"] .backup-scope-tag,
+html[data-app-theme="dark"] .academic-tree-status {
+  border-color: var(--app-color-border);
+  background-color: var(--app-color-subtle);
+  color: var(--app-color-body);
+}
+
+html[data-app-theme="dark"] .backup-access-label,
+html[data-app-theme="dark"] .reference-status.is-outside {
+  color: var(--app-color-primary-text);
+}
+
+/* ---- Bare builder buttons keep the surface, not the UA button face ---- */
+
+html[data-app-theme="dark"] [data-builder-add] {
+  background-color: transparent;
+}
+
+/* ---- Focus ---- */
+
+html[data-app-theme="dark"] .live-button:focus-visible,
+html[data-app-theme="dark"] .academics-button:focus-visible,
+html[data-app-theme="dark"] .users-button:focus-visible,
+html[data-app-theme="dark"] .academic-tree-action-trigger:focus-visible,
+html[data-app-theme="dark"] .academic-tree-toggle:focus-visible,
+html[data-app-theme="dark"] .log-detail-button:focus-visible,
+html[data-app-theme="dark"] .reference-detail-button:focus-visible,
+html[data-app-theme="dark"] #backupRestoreSettings .button:focus-visible,
+html[data-app-theme="dark"] .reference-filter-control:focus-visible,
+html[data-app-theme="dark"] .report-filter:focus-visible {
+  outline-color: var(--app-color-focus-ring);
+}
+
+/* ---- Print preview stays paper-white ---- */
+
+html[data-app-theme="dark"] .report-print-document {
+  --app-color-ink: #0f172a;
+  --app-color-body: #35414b;
+  --app-color-muted: #52606d;
+  --app-color-border: #dfe3e7;
+  --app-color-border-strong: #cbd1d7;
+  --app-color-surface: #ffffff;
+  --app-color-subtle: #f8f9fa;
+  background-color: #fff !important;
+  color: #0f172a !important;
+  color-scheme: light;
+}
+
+html[data-app-theme="dark"] .report-print-document * {
+  color-scheme: light;
+}
+
+html[data-app-theme="dark"] .report-print-document :is(h1, h2, h3, h4, strong) {
+  color: #0f172a !important;
+}
+
+html[data-app-theme="dark"] .report-print-document td,
+html[data-app-theme="dark"] .report-print-document p,
+html[data-app-theme="dark"] .report-print-document li {
+  color: #35414b !important;
+}
+
+html[data-app-theme="dark"] .report-print-document .text-slate-900,
+html[data-app-theme="dark"] .report-print-document .text-slate-800 {
+  color: #0f172a !important;
+}
+
+html[data-app-theme="dark"] .report-print-document .text-slate-700,
+html[data-app-theme="dark"] .report-print-document .text-slate-600 {
+  color: #35414b !important;
+}
+
+html[data-app-theme="dark"] .report-print-document .text-slate-500 {
+  color: #52606d !important;
+}
+
+html[data-app-theme="dark"] .report-print-document .bg-white {
+  background-color: #fff !important;
+}
+
+html[data-app-theme="dark"] .report-print-document .border-slate-300 {
+  border-color: #cbd5e1 !important;
+}
+
+html[data-app-theme="dark"] .report-preview-shell,
+html[data-app-theme="dark"] .report-preview-toolbar {
+  border-color: var(--app-color-border);
+  background-color: var(--app-color-surface);
+  color: var(--app-color-body);
+}
+
+html[data-app-theme="dark"] .report-preview-toolbar span,
+html[data-app-theme="dark"] .report-preview-toolbar .text-slate-600 {
+  color: var(--app-color-muted) !important;
+}
+
+/* ---- Filter fields, menus, and empty states ---- */
+
+html[data-app-theme="dark"] .report-filter-field,
+html[data-app-theme="dark"] .reference-filter-field,
+html[data-app-theme="dark"] .reference-filter-tools,
+html[data-app-theme="dark"] .users-dialog-field,
+html[data-app-theme="dark"] .users-password-control,
+html[data-app-theme="dark"] .academic-tree-search {
+  color: var(--app-color-body);
+}
+
+html[data-app-theme="dark"] #pageContent .course-actions-menu button,
+html[data-app-theme="dark"] #pageContent .course-actions-menu a,
+html[data-app-theme="dark"] #pageContent .report-export-menu button,
+html[data-app-theme="dark"] #pageContent .report-export-option,
+html[data-app-theme="dark"] #pageContent .academic-action-menu-options button,
+html[data-app-theme="dark"] #pageContent .inventory-book-actions-menu button,
+html[data-app-theme="dark"] #pageContent .inventory-book-action-item {
+  color: var(--app-color-body);
+}
+
+html[data-app-theme="dark"] #pageContent .course-actions-menu button:hover,
+html[data-app-theme="dark"] #pageContent .course-actions-menu a:hover,
+html[data-app-theme="dark"] #pageContent .report-export-option:hover,
+html[data-app-theme="dark"] #pageContent .academic-action-menu-options button:hover,
+html[data-app-theme="dark"] #pageContent .inventory-book-action-item:hover {
+  background-color: var(--app-color-subtle);
+  color: var(--app-color-ink);
+}
+
+html[data-app-theme="dark"] .report-empty,
+html[data-app-theme="dark"] .reference-empty,
+html[data-app-theme="dark"] .courses-empty,
+html[data-app-theme="dark"] .users-empty,
+html[data-app-theme="dark"] .reference-no-courses {
+  border-color: var(--app-color-border);
+  color: var(--app-color-muted);
+}
+
+html[data-app-theme="dark"] .report-empty strong,
+html[data-app-theme="dark"] .reference-empty strong,
+html[data-app-theme="dark"] .courses-empty strong,
+html[data-app-theme="dark"] .users-empty strong {
+  color: var(--app-color-ink);
+}
+
+/* ---- Logs filters ---- */
+
+html[data-app-theme="dark"] .log-filter-actions a {
+  border-color: var(--app-color-border-strong);
+  background-color: var(--app-color-surface);
+  color: var(--app-color-body);
+}
+
+html[data-app-theme="dark"] .log-filter-actions a:hover {
+  background-color: var(--app-color-subtle);
+  color: var(--app-color-ink);
+}
+
+html[data-app-theme="dark"] .log-filter-actions button {
+  border-color: var(--app-color-primary);
+  background-color: var(--app-color-primary);
+  color: #fff;
+}
+
+html[data-app-theme="dark"] .log-filter-actions button:hover {
+  background-color: var(--app-color-primary-hover);
+}
+
+html[data-app-theme="dark"] #logsContent p,
+html[data-app-theme="dark"] .logs-stream-label {
+  color: var(--app-color-muted);
+}
+
+/* ---- User directory labels ---- */
+
+html[data-app-theme="dark"] .inventory-book-actions-heading p {
+  color: var(--app-color-muted);
+}
+
+html[data-app-theme="dark"] .users-summary-item strong {
+  color: var(--app-color-ink);
+}
+
+html[data-app-theme="dark"] .users-summary-item span,
+html[data-app-theme="dark"] .users-summary-item p,
+html[data-app-theme="dark"] .users-summary p,
+html[data-app-theme="dark"] .users-directory-heading p,
+html[data-app-theme="dark"] .users-username {
+  color: var(--app-color-muted);
+}
+
+/* ---- Status pills ---- */
+
+html[data-app-theme="dark"] .reference-status,
+html[data-app-theme="dark"] .course-status,
+html[data-app-theme="dark"] .course-readiness,
+html[data-app-theme="dark"] .users-status,
+html[data-app-theme="dark"] .academic-tree-status,
+html[data-app-theme="dark"] .reference-course-count {
+  border-color: var(--app-color-border);
+  background-color: var(--app-color-subtle);
+  color: var(--app-color-body);
+}
+
+html[data-app-theme="dark"] .reference-status.is-meets,
+html[data-app-theme="dark"] .course-status.is-meets,
+html[data-app-theme="dark"] .users-status.is-active,
+html[data-app-theme="dark"] .academic-tree-status.is-active {
+  border-color: #1b493b;
+  background-color: var(--app-color-success-soft);
+  color: var(--app-color-success);
+}
+
+html[data-app-theme="dark"] .reference-status.is-review,
+html[data-app-theme="dark"] .course-readiness {
+  border-color: var(--app-color-warning-line);
+  background-color: var(--app-color-warning-soft);
+  color: var(--app-color-warning-text);
+}
+
+html[data-app-theme="dark"] .reference-status.is-outside,
+html[data-app-theme="dark"] .users-status.is-inactive {
+  border-color: var(--app-color-primary-line);
+  background-color: var(--app-color-primary-soft);
+  color: var(--app-color-primary-text);
+}

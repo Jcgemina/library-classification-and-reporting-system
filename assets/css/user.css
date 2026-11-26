@@ -843,3 +843,13 @@
     flex: 1;
   }
 }
+
+.user-delete-dialog .backup-restore-warning {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: #881337;
+}
+
+.user-delete-dialog .backup-restore-warning [data-lucide] {
+  color: #be123c;
+}
