@@ -25,7 +25,7 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f5f4">
-  <title>AppSys Library - Login</title>
+  <title>LCARS - Login</title>
   <link rel="icon" href="assets/brand/digital/favicon.ico" sizes="48x48">
   <link rel="icon" type="image/svg+xml" href="assets/brand/digital/favicon.svg">
   <link rel="manifest" href="assets/brand/digital/site.webmanifest">
@@ -287,14 +287,14 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
 <body>
   <main class="login-layout">
     <div class="login-frame">
-      <section class="brand-panel" aria-label="AppSys Library information">
+      <section class="brand-panel" aria-label="LCARS - Library Classification and Reporting System">
         <div class="brand-lockup">
           <span class="brand-logo-wrap">
-            <img class="brand-logo" src="assets/images/library-system-logo.png?v=2" alt="AppSys Library logo">
+            <img class="brand-logo" src="assets/images/library-system-logo.png?v=2" alt="LCARS logo">
           </span>
           <div>
-            <div class="brand-name">AppSys Library</div>
-            <div class="brand-subtitle">University Library</div>
+            <div class="brand-name">LCARS</div>
+            <div class="brand-subtitle">Library Classification and Reporting System</div>
           </div>
         </div>
 
@@ -303,7 +303,7 @@ $hasLoginMessage = $isLocked || $errorMessage !== null;
           <p>Sign in to continue to the library operations portal.</p>
           <div class="portal-label">
             <i data-lucide="landmark" aria-hidden="true"></i>
-            <span>Librarian Management Portal</span>
+            <span>Library Operations Portal</span>
           </div>
         </div>
 

@@ -755,7 +755,7 @@
 
 .live-reference-page .reference-summary {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     border: 1px solid #dfe3e7;
     border-radius: 10px;
     background: #fff;
@@ -787,6 +787,10 @@
 
 .live-reference-page .reference-summary-item.is-meets .reference-summary-value {
     color: #087553;
+}
+
+.live-reference-page .reference-summary-item.is-warning .reference-summary-value {
+    color: #854d0e;
 }
 
 .live-reference-page .reference-summary-item.is-outside .reference-summary-value {
@@ -921,6 +925,11 @@
 .live-reference-page .reference-status.is-meets {
     background: #dcfce7;
     color: #166534;
+}
+
+.live-reference-page .reference-status.is-warning {
+    background: #fef3c7;
+    color: #854d0e;
 }
 
 .live-reference-page .reference-status.is-outside {
@@ -1338,10 +1347,6 @@
 
     .live-reference-page .reference-summary-item:nth-child(n + 3) {
         border-top: 1px solid #dfe3e7;
-    }
-
-    .live-reference-page .reference-summary-item:last-child {
-        grid-column: 1 / -1;
     }
 
     .live-reference-page .reference-filter-grid {

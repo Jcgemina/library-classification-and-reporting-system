@@ -24,10 +24,23 @@ function inventoryJsonResponse(array $payload, int $status = 200): never {
   exit;
 }
 
+function inventoryIsbnExists(PDO $pdo, ?string $isbn, int $exceptBookId = 0): bool {
+  if ($isbn === null) return false;
+
+  $normalizedIsbnSql = "UPPER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(isbn, '-', ''), ' ', ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), ''))";
+  $sql = "SELECT 1 FROM books WHERE isbn IS NOT NULL AND {$normalizedIsbnSql} = :isbn";
+  if ($exceptBookId > 0) $sql .= ' AND book_id <> :except_book_id';
+  $statement = $pdo->prepare($sql . ' LIMIT 1');
+  $parameters = [':isbn' => $isbn];
+  if ($exceptBookId > 0) $parameters[':except_book_id'] = $exceptBookId;
+  $statement->execute($parameters);
+  return $statement->fetchColumn() !== false;
+}
+
 function inventoryBookInput(array $input): array {
   $title = trim(requestString($input, 'title'));
   $author = trim(requestString($input, 'author'));
-  $isbn = trim(requestString($input, 'isbn'));
+  $isbnInput = trim(requestString($input, 'isbn'));
   $publisher = trim(requestString($input, 'publisher'));
   $description = trim(requestString($input, 'description'));
   $publicationYearInput = trim(requestString($input, 'publication_year'));
@@ -40,8 +53,12 @@ function inventoryBookInput(array $input): array {
   if ($title === '' || strlen($title) > 255 || $author === '' || strlen($author) > 180) {
     inventoryJsonResponse(['success' => false, 'message' => 'Enter a title and author within the allowed length.'], 422);
   }
-  if (strlen($isbn) > 20 || strlen($publisher) > 180) {
+  if (strlen($isbnInput) > 20 || strlen($publisher) > 180) {
     inventoryJsonResponse(['success' => false, 'message' => 'ISBN or publisher is longer than allowed.'], 422);
+  }
+  $isbn = normalizeIsbn($isbnInput);
+  if ($isbn !== '' && !isValidIsbn($isbn)) {
+    inventoryJsonResponse(['success' => false, 'message' => 'Enter a valid ISBN-10 or ISBN-13 with the correct check digit.'], 422);
   }
   if (($publicationYear !== null && ($publicationYear === false || $publicationYear < 1450 || $publicationYear > $currentYear))
     || ($copyrightYear !== null && ($copyrightYear === false || $copyrightYear < 1450 || $copyrightYear > $currentYear))) {
@@ -75,6 +92,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
   $bookInput = inventoryBookInput($_POST);
 
   try {
+    if (inventoryIsbnExists($pdo, $bookInput['isbn'])) {
+      inventoryJsonResponse(['success' => false, 'message' => 'A book with that ISBN already exists.'], 409);
+    }
     $pdo->beginTransaction();
     $bookStmt = $pdo->prepare('INSERT INTO books (isbn, title, author, publisher, publication_year, copyright_year, description) VALUES (:isbn, :title, :author, :publisher, :publication_year, :copyright_year, :description)');
     $bookStmt->execute([
@@ -174,6 +194,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($inventoryActio
     }
 
     $bookInput = inventoryBookInput($_POST);
+    if (inventoryIsbnExists($pdo, $bookInput['isbn'], $bookId)) {
+      inventoryJsonResponse(['success' => false, 'message' => 'A book with that ISBN already exists.'], 409);
+    }
 
     $pdo->beginTransaction();
     $bookStmt = $pdo->prepare('UPDATE books SET isbn = :isbn, title = :title, author = :author, publisher = :publisher, publication_year = :publication_year, copyright_year = :copyright_year, description = :description WHERE book_id = :book_id AND deleted_at IS NULL');
@@ -510,7 +533,12 @@ $copyrightMetricStyles = [
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label class="text-sm font-medium text-slate-700 sm:col-span-2">Title <span class="text-rose-700">*</span><input name="title" required maxlength="255" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></label>
         <label class="text-sm font-medium text-slate-700">Author <span class="text-rose-700">*</span><input name="author" required maxlength="180" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></label>
-        <label class="text-sm font-medium text-slate-700">ISBN<input name="isbn" maxlength="20" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></label>
+        <div class="text-sm font-medium text-slate-700">
+          <label for="inventoryIsbn">ISBN</label>
+          <input id="inventoryIsbn" name="isbn" maxlength="20" autocomplete="off" aria-describedby="inventoryIsbnHint inventoryIsbnError" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100">
+          <p id="inventoryIsbnHint" class="mt-1 text-xs font-normal text-slate-600">Enter ISBN-10 or ISBN-13. Spaces and hyphens are accepted.</p>
+          <p id="inventoryIsbnError" data-inventory-isbn-error hidden role="alert" class="mt-1 text-xs font-medium text-red-700"></p>
+        </div>
         <label class="text-sm font-medium text-slate-700">Publisher<input name="publisher" maxlength="180" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></label>
         <label class="text-sm font-medium text-slate-700">Publication Year<input name="publication_year" type="number" min="1450" max="<?php echo $currentYear; ?>" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></label>
         <label class="text-sm font-medium text-slate-700">Copyright Year<input name="copyright_year" type="number" min="1450" max="<?php echo $currentYear; ?>" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></label>

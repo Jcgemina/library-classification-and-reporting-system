@@ -365,7 +365,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
   >
     <i data-lucide="menu" class="h-5 w-5"></i>
   </button>
-  <span class="text-sm font-semibold text-slate-900">AppSys Library</span>
+  <span class="text-sm font-semibold text-slate-900">LCARS</span>
   <span class="w-9" aria-hidden="true"></span>
 </div>
 
@@ -376,7 +376,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
       <img src="assets/images/library-system-logo.png?v=2" alt="" class="h-full w-full object-contain">
     </div>
     <div class="min-w-0 leading-tight">
-      <h1 class="truncate text-base font-bold text-slate-900">AppSys Library</h1>
+      <h1 class="truncate text-base font-bold text-slate-900">LCARS</h1>
       <p class="truncate text-xs font-semibold uppercase tracking-[0.12em] text-slate-500"><?php echo $isAdmin ? 'Admin Portal' : 'Librarian Portal'; ?></p>
     </div>
   </div>
@@ -472,7 +472,7 @@ $profileInitials = strtoupper(substr($_SESSION['full_name'] ?? 'L', 0, 1));
       <i data-lucide="log-out" class="h-5 w-5"></i>
     </div>
     <div class="min-w-0">
-      <h2 id="logoutConfirmTitle" class="text-lg font-bold text-slate-900">Log out of AppSys Library?</h2>
+      <h2 id="logoutConfirmTitle" class="text-lg font-bold text-slate-900">Log out of LCARS?</h2>
       <p id="logoutConfirmMessage" class="mt-1 text-sm text-slate-600">You will need to sign in again to access the portal.</p>
     </div>
   </div>

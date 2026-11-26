@@ -28,6 +28,7 @@
     };
     const statusClasses = {
         meets_policy: 'is-meets',
+        approaching_policy_limit: 'is-warning',
         outside_policy: 'is-outside',
         needs_verification: 'is-review',
         missing_publication_data: 'is-missing'
@@ -150,7 +151,10 @@
         if (policy.direction) {
             const policySource = policy.source ? ` Source: ${policy.source}.` : ' Policy source is not recorded.';
             const effectiveDate = policy.effective_date ? ` Effective ${policy.effective_date}.` : ' Effective date is not recorded.';
-            policyNote.textContent = `Configured reference-age policy: ${policy.direction === 'within' ? 'published within' : 'at least'} ${policy.years} years.${policySource}${effectiveDate} Assessments use publication year and do not indicate copyright expiration.`;
+            const warningNote = policy.direction === 'within'
+                ? ' Titles within 1–2 years of the age limit are marked Approaching Policy Limit.'
+                : '';
+            policyNote.textContent = `Configured reference-age policy: ${policy.direction === 'within' ? 'published within' : 'at least'} ${policy.years} years.${policySource}${effectiveDate}${warningNote} Assessments use publication year and do not indicate copyright expiration.`;
         } else {
             policyNote.textContent = 'Reference-age policy is not configured. Books with a recorded publication year are marked Needs Verification until an administrator confirms the institutional rule in Library Settings.';
         }

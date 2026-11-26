@@ -460,7 +460,12 @@ if ($action !== '') {
 
     <div class="min-w-0 p-4 sm:p-6">
       <section id="hierarchyPanel" role="tabpanel" aria-labelledby="academicsStructureTab" tabindex="0" class="tab-panel" aria-label="Academic structure">
-        <div id="organizationTree" class="min-w-0"></div>
+        <div id="organizationTree" class="min-w-0" aria-busy="true">
+          <div class="flex min-h-48 items-center justify-center gap-3 text-xs text-slate-600" role="status">
+            <i data-lucide="loader-circle" class="h-4 w-4 animate-spin text-rose-700" aria-hidden="true"></i>
+            <span>Loading academic structure...</span>
+          </div>
+        </div>
       </section>
 
       <section id="secondaryViewPanel" role="tabpanel" aria-labelledby="academicsUnitsTab" tabindex="0" class="tab-panel hidden" aria-label="All academic units">
@@ -507,11 +512,57 @@ if ($action !== '') {
           </label>
           <span id="prospectusStatus" class="text-xs text-slate-600" aria-live="polite">Loading prospectuses...</span>
         </div>
-        <div id="prospectusRecordsBody" class="min-w-0"></div>
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="w-full min-w-[640px] border-collapse text-left">
+            <thead class="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+              <tr>
+                <th scope="col" class="px-3 py-2.5">Program</th>
+                <th scope="col" class="px-3 py-2.5">Major</th>
+                <th scope="col" class="px-3 py-2.5">Curriculum year</th>
+                <th scope="col" class="px-3 py-2.5">PDF</th>
+                <th scope="col" class="px-3 py-2.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="prospectusRecordsBody" class="divide-y divide-slate-100">
+              <tr><td colspan="5" class="px-3 py-8 text-center text-xs text-slate-600">Loading prospectuses...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   </section>
 </div>
 <div id="organizationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="organizationForm" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><h3 id="organizationModalTitle" class="text-xl font-bold">Add College</h3><button type="button" id="closeOrganizationModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" id="organizationAction" name="action"><input type="hidden" id="organizationId" name="id"><input type="hidden" id="organizationParent" name="parent_id"><input type="hidden" id="organizationMajor" name="major_id"><p id="organizationContextHint" class="mt-4 hidden rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700"></p><label id="parentSelectLabel" class="mt-5 hidden text-sm font-medium">Parent organization<select id="parentSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label id="majorSelectLabel" class="mt-3 hidden text-sm font-medium">Major<select id="majorSelect" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">No major</option></select></label><div id="courseFields" class="mt-5 hidden grid gap-4 sm:grid-cols-2"><label class="text-sm font-medium">Course code<input name="code" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label></div><label id="organizationCodeLabel" class="mt-5 block text-sm font-medium">Program / Subject code<input name="organization_code" id="organizationCode" maxlength="30" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><label id="organizationStatusLabel" class="mt-3 block text-sm font-medium">Status<select name="status" id="organizationRecordStatus" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="active">Active</option><option value="archived">Archived</option></select></label><label class="mt-3 block text-sm font-medium">Name<input id="organizationName" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"></label><button type="submit" class="academics-button academics-button-primary mt-5 w-full">Save</button></form></div>
-<div id="prospectusModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"><form id="prospectusRecordForm" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-wide text-rose-600">Prospectus upload</p><h3 id="prospectusModalTitle" class="text-xl font-bold text-slate-900">Upload Prospectus</h3></div><button type="button" id="closeProspectusModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button></div><input type="hidden" name="id" id="prospectusRecordId"><label class="mt-5 block text-sm font-medium">Program<select name="program_id" id="prospectusRecordProgram" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select></label><label class="mt-3 block text-sm font-medium">Major <span class="font-normal text-slate-400">(optional)</span><select name="major_id" id="prospectusRecordMajor" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All majors / general curriculum</option></select></label><div class="mt-3 grid gap-3 sm:grid-cols-2"><label class="text-sm font-medium">Prospectus title<input name="title" id="prospectusRecordTitle" required maxlength="255" placeholder="BS Information Technology" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label><label class="text-sm font-medium">Curriculum year<input name="curriculum_year" id="prospectusRecordYear" required maxlength="30" placeholder="2026-2027" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></label></div><label class="mt-3 block text-sm font-medium">PDF prospectus<input type="file" name="prospectus" id="prospectusRecordFile" accept="application/pdf,.pdf" class="mt-1 block w-full rounded-lg border-2 border-dashed border-rose-300 bg-rose-50 p-3 text-xs text-slate-700"></label><button type="submit" class="academics-button academics-button-primary mt-6 w-full">Upload Prospectus</button></form></div>
+<div id="prospectusModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+  <form id="prospectusRecordForm" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-wide text-rose-600">Prospectus upload</p>
+        <h3 id="prospectusModalTitle" class="text-xl font-bold text-slate-900">Upload Prospectus</h3>
+      </div>
+      <button type="button" id="closeProspectusModal" class="text-slate-400" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
+    <input type="hidden" name="id" id="prospectusRecordId">
+    <label class="mt-5 block text-sm font-medium">Program
+      <select name="program_id" id="prospectusRecordProgram" required class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"></select>
+    </label>
+    <label class="mt-3 block text-sm font-medium">Major <span class="font-normal text-slate-400">(optional)</span>
+      <select name="major_id" id="prospectusRecordMajor" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">All majors / general curriculum</option></select>
+    </label>
+    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+      <label class="text-sm font-medium">Prospectus title
+        <input name="title" id="prospectusRecordTitle" required maxlength="255" placeholder="BS Information Technology" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+      </label>
+      <label class="text-sm font-medium">Curriculum year
+        <input name="curriculum_year" id="prospectusRecordYear" required maxlength="30" placeholder="2026-2027" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+      </label>
+    </div>
+    <label class="mt-3 block text-sm font-medium">PDF prospectus
+      <input type="file" name="prospectus" id="prospectusRecordFile" accept="application/pdf,.pdf" aria-describedby="prospectusFileSizeHint prospectusFileError" class="mt-1 block w-full rounded-lg border-2 border-dashed border-rose-300 bg-rose-50 p-3 text-xs text-slate-700">
+    </label>
+    <p id="prospectusFileSizeHint" class="mt-1 text-xs text-slate-600">PDF only. Maximum file size: 10 MB.</p>
+    <p id="prospectusFileError" class="mt-1 hidden text-xs font-medium text-red-700" role="alert" aria-live="polite"></p>
+    <button type="submit" class="academics-button academics-button-primary mt-6 w-full">Upload Prospectus</button>
+  </form>
+</div>
 <script src="assets/js/organization.js?v=<?php echo (int) filemtime(__DIR__ . '/../assets/js/organization.js'); ?>"></script>

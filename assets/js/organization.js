@@ -4,6 +4,9 @@
     const form = document.getElementById('organizationForm');
     const prospectusRecordForm = document.getElementById('prospectusRecordForm');
     const prospectusRecordsBody = document.getElementById('prospectusRecordsBody');
+    const prospectusFileInput = document.getElementById('prospectusRecordFile');
+    const prospectusFileError = document.getElementById('prospectusFileError');
+    const maxProspectusFileSize = 10 * 1024 * 1024;
     const retiredTitleField = document.getElementById('prospectusRecordTitle');
     retiredTitleField?.closest('label')?.remove();
     if (!document.getElementById('prospectusRecordTitle')) {
@@ -123,10 +126,30 @@
       });
       return prospectusDataRequest;
   }
+  function renderProspectusLoadError(message) {
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 5;
+      cell.className = 'px-3 py-8 text-center text-xs text-red-700';
+      cell.setAttribute('role', 'alert');
+      cell.textContent = `Prospectuses could not be loaded. ${message}`;
+      row.append(cell);
+      prospectusRecordsBody.replaceChildren(row);
+  }
+  function validateProspectusFile(file) {
+      const tooLarge = Boolean(file && file.size > maxProspectusFileSize);
+      const message = 'The selected file exceeds the 10 MB limit. Choose a smaller PDF.';
+      prospectusFileInput.setCustomValidity(tooLarge ? message : '');
+      prospectusFileInput.toggleAttribute('aria-invalid', tooLarge);
+      prospectusFileError.classList.toggle('hidden', !tooLarge);
+      prospectusFileError.textContent = tooLarge ? message : '';
+      return !tooLarge;
+  }
   function refreshLoadedProspectusData() {
       if (!prospectusDataLoaded) return;
       loadProspectusData(true).catch(error => {
           document.getElementById('prospectusStatus').textContent = error.message;
+          renderProspectusLoadError(error.message);
           toast(`Prospectuses could not be loaded. ${error.message}`, true);
       });
   }
@@ -138,18 +161,18 @@
           const pdfStatus = item.pdf_file_path
               ? `<a href="${esc(item.pdf_file_path)}" target="_blank" rel="noopener" aria-label="View ${esc(displayName)} PDF" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:underline"><i data-lucide="file-check-2" class="h-3.5 w-3.5" aria-hidden="true"></i>PDF ready</a>`
               : '<span class="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700"><i data-lucide="file-warning" class="h-3.5 w-3.5" aria-hidden="true"></i>PDF missing</span>';
-          return `<article class="grid grid-cols-1 items-center gap-2 border-b border-slate-200 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1.4fr)_minmax(110px,.75fr)_minmax(86px,.55fr)_auto_auto] sm:gap-3">
-              <span class="text-xs font-semibold text-slate-900">${esc(item.program_name)}</span>
-              <span class="text-[11px] text-slate-600">${esc(item.major_name || 'General curriculum')}</span>
-              <span class="text-[11px] tabular-nums text-slate-700">${esc(item.curriculum_year)}</span>
-              ${pdfStatus}
-              <div class="flex items-center gap-1">
+          return `<tr class="transition-colors hover:bg-slate-50">
+              <td class="px-3 py-3 text-xs font-semibold text-slate-900">${esc(item.program_name)}</td>
+              <td class="px-3 py-3 text-[11px] text-slate-600">${esc(item.major_name || 'General curriculum')}</td>
+              <td class="whitespace-nowrap px-3 py-3 text-[11px] tabular-nums text-slate-700">${esc(item.curriculum_year)}</td>
+              <td class="whitespace-nowrap px-3 py-3">${pdfStatus}</td>
+              <td class="px-3 py-3"><div class="flex justify-end gap-1">
                 <button type="button" data-row-replace="${item.id}" aria-label="Replace ${esc(displayName)} PDF" title="Replace PDF" class="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="upload" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Replace</span></button>
                 <input type="file" accept="application/pdf,.pdf" data-row-file="${item.id}" class="hidden">
                 <button type="button" data-delete-prospectus-record="${item.id}" data-name="${esc(displayName)}" aria-label="Delete ${esc(displayName)}" title="Delete prospectus" class="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400"><i data-lucide="trash-2" class="h-3.5 w-3.5" aria-hidden="true"></i><span>Delete</span></button>
-              </div>
-            </article>`;
-      }).join('') : '<p class="py-8 text-center text-xs text-slate-600">No prospectuses match your search. Try another program or curriculum year.</p>';
+              </div></td>
+            </tr>`;
+      }).join('') : '<tr><td colspan="5" class="px-3 py-8 text-center text-xs text-slate-600">No prospectuses match your search. Try another program or curriculum year.</td></tr>';
       lucide.createIcons();
       document.getElementById('prospectusStatus').textContent = `${rows.length} prospectus${rows.length === 1 ? '' : 'es'}`;
   }
@@ -532,6 +555,7 @@
     }
 
     function renderSelectedCollege() {
+        tree.removeAttribute('aria-busy');
         const college = (organizationData.colleges || []).find(item => String(item.id) === String(selectedCollegeId));
         if (!college) {
             renderedTreeCollegeId = null;
@@ -622,6 +646,15 @@
         if (organizationDataLoaded && !forceReload) return Promise.resolve(organizationData);
         if (organizationDataRequest !== null) return organizationDataRequest;
 
+        if (!organizationDataLoaded) {
+            tree.setAttribute('aria-busy', 'true');
+            tree.innerHTML = `<div class="flex min-h-48 items-center justify-center gap-3 text-xs text-slate-600" role="status">
+              <i data-lucide="loader-circle" class="h-4 w-4 animate-spin text-rose-700" aria-hidden="true"></i>
+              <span>Loading academic structure...</span>
+            </div>`;
+            lucide.createIcons({ root: tree });
+        }
+
         const requestToken = ++organizationLoadToken;
         const request = fetch(
             'pages/organization.php?action=list',
@@ -639,6 +672,8 @@
             })
             .catch(error => {
                 if (requestToken !== organizationLoadToken) return;
+                tree.removeAttribute('aria-busy');
+                tree.innerHTML = '<div class="flex min-h-48 items-center justify-center text-center text-xs text-red-700" role="alert">Academic structure could not be loaded. Use “Retry loading academic units” to try again.</div>';
                 setOrganizationStatus(
                     'Organization could not be loaded',
                     true
@@ -846,10 +881,15 @@
     retryOrganizationBtn.onclick = () => load(true);
         document.getElementById('prospectusSearch').oninput = renderProspectusRecords;
         document.getElementById('prospectusRecordProgram').onchange = event => fillProspectusMajors(event.target.value);
-        document.getElementById('addProspectusBtn').onclick = () => { prospectusRecordForm.reset(); document.getElementById('prospectusRecordId').value = ''; document.getElementById('prospectusRecordFile').required = true; document.getElementById('prospectusRecordYear').value = prospectusData.defaultCurriculumYear; fillProspectusPrograms(); fillProspectusMajors(''); document.getElementById('prospectusModalTitle').textContent = 'Upload Prospectus'; openDialog(document.getElementById('prospectusModal')); };
+        prospectusFileInput.addEventListener('change', () => validateProspectusFile(prospectusFileInput.files[0] || null));
+        document.getElementById('addProspectusBtn').onclick = () => { prospectusRecordForm.reset(); validateProspectusFile(null); document.getElementById('prospectusRecordId').value = ''; prospectusFileInput.required = true; document.getElementById('prospectusRecordYear').value = prospectusData.defaultCurriculumYear; fillProspectusPrograms(); fillProspectusMajors(''); document.getElementById('prospectusModalTitle').textContent = 'Upload Prospectus'; openDialog(document.getElementById('prospectusModal')); };
         document.getElementById('closeProspectusModal').onclick = () => closeDialog(document.getElementById('prospectusModal'));
         const uploadProspectusFile = (prospectusId, file, button) => {
             if (!file) return;
+            if (file.size > maxProspectusFileSize) {
+                toast('The selected file exceeds the 10 MB limit. Choose a smaller PDF.', true);
+                return;
+            }
             const data = new FormData();
             data.append('action', 'upload_prospectus');
             data.append('prospectus_id', prospectusId);
@@ -899,10 +939,17 @@
         });
         prospectusRecordForm.onsubmit = event => {
             event.preventDefault();
+            const file = prospectusFileInput.files[0] || null;
+            if (!validateProspectusFile(file)) {
+                prospectusFileInput.focus();
+                return;
+            }
             if (!prospectusRecordForm.reportValidity()) return;
             const data = new FormData(prospectusRecordForm);
-            const file = document.getElementById('prospectusRecordFile').files[0];
             data.append('action', 'save_prospectus');
+            const submitButton = prospectusRecordForm.querySelector('button[type="submit"]');
+            setBusy(submitButton, true, 'Uploading...');
+            prospectusRecordForm.setAttribute('aria-busy', 'true');
             fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': window.appCsrfToken }, body: data })
                 .then(response => response.json())
                 .then(result => {
@@ -916,7 +963,11 @@
                     return fetch('pages/organization.php', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': window.appCsrfToken }, body: upload }).then(response => response.json()).then(uploadResult => { if (!uploadResult.success) throw new Error(uploadResult.message); return uploadResult; });
                 })
                 .then(result => { closeDialog(document.getElementById('prospectusModal')); toast(result.message); return loadProspectusData(true); })
-                .catch(error => toast(error.message, true));
+                .catch(error => toast(error.message, true))
+                .finally(() => {
+                    prospectusRecordForm.removeAttribute('aria-busy');
+                    setBusy(submitButton, false);
+                });
         };
 
     // Academics Tabbing UI logic
@@ -953,6 +1004,7 @@
             if (tabName === 'prospectus') {
                 loadProspectusData().catch(error => {
                     document.getElementById('prospectusStatus').textContent = error.message;
+                    renderProspectusLoadError(error.message);
                     toast(`Prospectuses could not be loaded. ${error.message}`, true);
                 });
             } else {
