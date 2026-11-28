@@ -58,7 +58,7 @@ function inventoryBookInput(array $input): array {
   }
   $isbn = normalizeIsbn($isbnInput);
   if ($isbn !== '' && !isValidIsbn($isbn)) {
-    inventoryJsonResponse(['success' => false, 'message' => 'Enter a valid ISBN-10 or ISBN-13 with the correct check digit.'], 422);
+    inventoryJsonResponse(['success' => false, 'message' => 'Enter a 10- or 13-digit ISBN. ISBN-10 may end in X.'], 422);
   }
   if (($publicationYear !== null && ($publicationYear === false || $publicationYear < 1450 || $publicationYear > $currentYear))
     || ($copyrightYear !== null && ($copyrightYear === false || $copyrightYear < 1450 || $copyrightYear > $currentYear))) {
@@ -240,6 +240,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && in_array($inventoryActio
 $totalBookTitles = 0;
 $totalBookCopies = 0;
 $copyrightYearMetrics = [];
+$copyrightCoverageMetrics = [];
 $activeBooks = [];
 $archivedBooks = [];
 $activeCourses = [];
@@ -300,6 +301,23 @@ if ($pdo instanceof PDO) {
     error_log('Inventory metrics unavailable: ' . $exception->getMessage());
   }
 }
+
+$copyrightCoverageMetrics = array_map(static function (array $metric) use ($activeBooks, $currentYear): array {
+  $threshold = (int)$metric['years_threshold'];
+  $titleCount = 0;
+
+  foreach ($activeBooks as $book) {
+    $copyrightYear = (int)($book['effective_copyright_year'] ?? 0);
+    if ($copyrightYear > 0 && $copyrightYear <= $currentYear && $copyrightYear >= $currentYear - $threshold) {
+      $titleCount++;
+    }
+  }
+
+  return [
+    'years_threshold' => $threshold,
+    'title_count' => $titleCount,
+  ];
+}, $copyrightYearMetrics);
 
 $renderCopyrightYearPills = static function (int $bookCopyrightYear) use ($copyrightYearMetrics, $currentYear): string {
   if (!$copyrightYearMetrics) {
@@ -362,6 +380,36 @@ $copyrightMetricStyles = [
         </button>
       </div>
     </header>
+
+    <section class="mt-6 border-y border-slate-300 py-5 sm:py-6" aria-labelledby="inventoryCoverageTitle">
+      <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-baseline">
+        <div>
+          <h3 id="inventoryCoverageTitle" class="text-base font-bold text-slate-900">Copyright-year coverage</h3>
+          <p class="mt-1 text-xs text-slate-600">Copyright year, or publication year when unavailable · ranges overlap</p>
+        </div>
+      </div>
+      <div class="mt-5 overflow-x-auto" role="region" aria-label="Inventory coverage counts" tabindex="0">
+        <div class="grid min-w-[1000px] grid-cols-5 divide-x divide-slate-200">
+          <div class="flex flex-col justify-center px-4 first:pl-0">
+            <span class="text-xs font-medium text-slate-600">Active book titles</span>
+            <strong class="mt-1 text-2xl font-bold leading-tight tabular-nums tracking-tight text-slate-900"><?php echo $inventorySchemaAvailable ? number_format($totalBookTitles) : '&mdash;'; ?></strong>
+            <span class="mt-1 text-xs text-slate-600">catalog records</span>
+          </div>
+          <div class="flex flex-col justify-center px-4">
+            <span class="text-xs font-medium text-slate-600">Total volumes</span>
+            <strong class="mt-1 text-2xl font-bold leading-tight tabular-nums tracking-tight text-slate-900"><?php echo $inventorySchemaAvailable ? number_format($totalBookCopies) : '&mdash;'; ?></strong>
+            <span class="mt-1 text-xs text-slate-600">physical copies in inventory</span>
+          </div>
+          <?php foreach ($copyrightCoverageMetrics as $metric): ?>
+            <div class="min-w-0 px-4">
+              <span class="text-xs font-medium text-slate-600">Within <?php echo $metric['years_threshold']; ?> years</span>
+              <strong class="mt-1 block text-xl font-bold leading-tight tabular-nums text-slate-900"><?php echo $inventorySchemaAvailable ? number_format($metric['title_count']) : '&mdash;'; ?></strong>
+              <span class="mt-1 block text-xs text-slate-600">unique book titles</span>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </section>
 
     <section class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white" aria-labelledby="inventoryBooksTitle">
       <div class="flex flex-col justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
@@ -536,7 +584,7 @@ $copyrightMetricStyles = [
         <div class="text-sm font-medium text-slate-700">
           <label for="inventoryIsbn">ISBN</label>
           <input id="inventoryIsbn" name="isbn" maxlength="20" autocomplete="off" aria-describedby="inventoryIsbnHint inventoryIsbnError" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100">
-          <p id="inventoryIsbnHint" class="mt-1 text-xs font-normal text-slate-600">Enter ISBN-10 or ISBN-13. Spaces and hyphens are accepted.</p>
+          <p id="inventoryIsbnHint" class="mt-1 text-xs font-normal text-slate-600">Enter 10 or 13 digits. Spaces and hyphens are accepted; ISBN-10 may end in X.</p>
           <p id="inventoryIsbnError" data-inventory-isbn-error hidden role="alert" class="mt-1 text-xs font-medium text-red-700"></p>
         </div>
         <label class="text-sm font-medium text-slate-700">Publisher<input name="publisher" maxlength="180" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"></label>

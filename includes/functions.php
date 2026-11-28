@@ -65,25 +65,7 @@ function normalizeIsbn(string $isbn): string {
 
 function isValidIsbn(string $isbn): bool {
     $isbn = normalizeIsbn($isbn);
-    if (preg_match('/\A[0-9]{9}[0-9X]\z/', $isbn) === 1) {
-        $checksum = 0;
-        for ($index = 0; $index < 10; $index++) {
-            $digit = $isbn[$index] === 'X' ? 10 : (int) $isbn[$index];
-            $checksum += $digit * (10 - $index);
-        }
-        return $checksum % 11 === 0;
-    }
-
-    if (preg_match('/\A(?:978|979)[0-9]{10}\z/', $isbn) !== 1) {
-        return false;
-    }
-
-    $checksum = 0;
-    for ($index = 0; $index < 13; $index++) {
-        $digit = (int) $isbn[$index];
-        $checksum += $digit * ($index % 2 === 0 ? 1 : 3);
-    }
-    return $checksum % 10 === 0;
+    return preg_match('/\A(?:[0-9]{10}|[0-9]{9}X|[0-9]{13})\z/', $isbn) === 1;
 }
 
 function prospectusStorageDirectory(): string {

@@ -12,7 +12,7 @@
   const formSubmitLabel = document.querySelector('[data-book-form-submit] span');
   const isbnInput = addBookForm.elements.isbn;
   const isbnError = addBookForm.querySelector('[data-inventory-isbn-error]');
-  const isbnValidationMessage = 'Enter a valid ISBN-10 or ISBN-13 with the correct check digit.';
+  const isbnValidationMessage = 'Enter a 10- or 13-digit ISBN. ISBN-10 may end in X.';
   const archiveOpenButton = document.querySelector('[data-inventory-archive-open]');
   const archiveCloseButton = document.querySelector('[data-inventory-archive-close]');
   const archiveModal = document.getElementById('inventoryArchiveModal');
@@ -89,21 +89,7 @@
 
   function isValidIsbnInput(value) {
     const isbn = normalizeIsbnInput(value);
-    if (/^[0-9]{9}[0-9X]$/.test(isbn)) {
-      let checksum = 0;
-      for (let index = 0; index < 10; index += 1) {
-        const digit = isbn[index] === 'X' ? 10 : Number(isbn[index]);
-        checksum += digit * (10 - index);
-      }
-      return checksum % 11 === 0;
-    }
-
-    if (!/^(978|979)[0-9]{10}$/.test(isbn)) return false;
-    let checksum = 0;
-    for (let index = 0; index < 13; index += 1) {
-      checksum += Number(isbn[index]) * (index % 2 === 0 ? 1 : 3);
-    }
-    return checksum % 10 === 0;
+    return /^(?:[0-9]{10}|[0-9]{9}X|[0-9]{13})$/.test(isbn);
   }
 
   function validateIsbn(showError) {

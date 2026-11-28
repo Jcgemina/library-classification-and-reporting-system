@@ -740,6 +740,12 @@
     }
 
     function handleOrganizationTreeClick(event) {
+        const menuTrigger = event.target.closest('[data-academic-menu-trigger]');
+        if (menuTrigger) {
+            toggleAcademicActionMenu(menuTrigger);
+            return;
+        }
+
         const treeToggle = event.target.closest('[data-tree-toggle]');
         if (treeToggle) {
             const programId = String(treeToggle.dataset.treeToggle);
@@ -773,11 +779,7 @@
         filterOrganizationTree();
     });
     document.addEventListener('click', event => {
-        const trigger = event.target.closest('[data-academic-menu-trigger]');
-        if (trigger) {
-            toggleAcademicActionMenu(trigger);
-            return;
-        }
+        if (event.target.closest('[data-academic-menu-trigger]')) return;
         document.querySelectorAll('[data-academic-action-menu]:not([hidden])').forEach(menu => {
             if (!menu.contains(event.target)) closeAcademicActionMenu(menu);
         });
